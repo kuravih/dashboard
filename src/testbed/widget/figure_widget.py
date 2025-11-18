@@ -18,9 +18,6 @@ import matplotlib.pyplot as plt
 import matplotlib.patches as patches
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 
-from ..device.camera import Camera
-from ..device.modulator import Modulator
-from ..device.mirror import Mirror
 from .resource import ICON_HOUSE, ICON_MOVE, ICON_MAGNIFY, ICON_DISK
 
 # from dash.function import constrained_sin_fit_fn, quadratic_fit_fn

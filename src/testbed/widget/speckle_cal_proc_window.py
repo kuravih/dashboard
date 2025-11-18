@@ -1,6 +1,6 @@
 import numpy as np
 from PySide6.QtGui import QIcon
-from PySide6.QtWidgets import QVBoxLayout, QWidget, QLabel, QSpinBox, QHBoxLayout, QCheckBox, QDoubleSpinBox, QGridLayout
+from PySide6.QtWidgets import QVBoxLayout, QWidget, QLabel, QGridLayout
 from PySide6.QtCore import Slot, Qt
 
 from pykato.log import setup_logger
