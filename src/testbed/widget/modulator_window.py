@@ -9,12 +9,12 @@ from pykato.plotfunction.preset import Histogram_Colorbar_Preset
 from ..widget import Window, OrientationWidget, CenterWidget, DoubleValueSetWidget
 from ..function import Flip, Rotation
 from ..device.modulator import Modulator, SinkSample
-from ..widget.command_preset_widget import EFCPresetWidget, ConstPresetWidget, TiltPresetWidget, CheckerPresetWidget, SinusoidPresetWidget, VortexPresetWidget, BoxPresetWidget, PolkaPresetWidget, RegisterPresetWidget, DOTFPresetWidget, TextPresetWidget
+from ..widget.command_preset_widget import EFCPresetWidget, ConstPresetWidget, GradientPresetWidget, CheckerPresetWidget, SinusoidPresetWidget, BoxPresetWidget, PolkaPresetWidget, RegisterPresetWidget, DOTFPresetWidget, TextPresetWidget
 from ..widget.figure_widget import FigureWidget, ModulatorFigureWidget
 
 logger = setup_logger("modulator_window", terminator="\n")
 
-PRESETS = ["Constant", "Tilt", "Checker", "Sinusoid", "Vortex", "Box", "Polka", "Register", "dOTF", "EFC", "Text"]
+PRESETS = ["Constant", "Gradient", "Checker", "Sinusoid", "Box", "Polka", "Register", "dOTF", "EFC", "Text"]
 
 
 # ==== PreviewWindow ==================================================================================================
@@ -398,20 +398,20 @@ class SettingsWindow(Window):
 
         @Slot()
         def save_command_callback():
-            cmd_file_path, _ = QFileDialog.getSaveFileName(self, "Save Command", ".", "FITS File (*.fits)", options=QFileDialog.Options() | QFileDialog.DontUseNativeDialog)
-            if cmd_file_path:
-                save_command(cmd_file_path, self.modulator.image.data)
-            self.status.emit("Command saved", 1000)
+            pass
+            # cmd_file_path, _ = QFileDialog.getSaveFileName(self, "Save Command", ".", "FITS File (*.fits)", options=QFileDialog.Options() | QFileDialog.DontUseNativeDialog)
+            # if cmd_file_path:
+            #     save_command(cmd_file_path, self.modulator.image.data)
+            # self.status.emit("Command saved", 1000)
 
         @Slot()
         def send_command_callback():
-            self.modulator.send_command_image(self.preset_widget.command)
+            self.modulator.push_command(self.preset_widget.command)
 
         @Slot()
         def add_command_callback():
-            command = self.preset_widget.command
-            current = self.modulator.image
-            self.modulator.send_command_image(np.clip(current + command - np.nanmean(command), 0, self.modulator.pxmax))
+            current = self.modulator.pull_sample()
+            self.modulator.push_command(np.clip(current.command + self.preset_widget.command - np.nanmean(self.preset_widget.command), 0, self.modulator.pxmax))
 
         preset_figure_widget = ModulatorFigureWidget(self.modulator.blank, self.modulator.pxmax, True, self)
 
@@ -442,9 +442,9 @@ class SettingsWindow(Window):
         const_preset_param_widget = ConstPresetWidget(self.modulator.shape, (0, self.modulator.pxmax), self)
         const_preset_param_widget.change.connect(update_preset_figure)
 
-        tilt_preset_param_widget = TiltPresetWidget(self.modulator.shape, (0, self.modulator.pxmax), self)
-        tilt_preset_param_widget.change.connect(update_preset_figure)
-        tilt_preset_param_widget.hide()
+        gradient_preset_param_widget = GradientPresetWidget(self.modulator.shape, (0, self.modulator.pxmax), self)
+        gradient_preset_param_widget.change.connect(update_preset_figure)
+        gradient_preset_param_widget.hide()
 
         checker_preset_param_widget = CheckerPresetWidget(self.modulator.shape, (0, self.modulator.pxmax), self)
         checker_preset_param_widget.change.connect(update_preset_figure)
@@ -453,10 +453,6 @@ class SettingsWindow(Window):
         sinusoid_preset_param_widget = SinusoidPresetWidget(self.modulator.shape, (0, self.modulator.pxmax), self)
         sinusoid_preset_param_widget.change.connect(update_preset_figure)
         sinusoid_preset_param_widget.hide()
-
-        vortex_preset_param_widget = VortexPresetWidget(self.modulator.shape, (0, self.modulator.pxmax), self)
-        vortex_preset_param_widget.change.connect(update_preset_figure)
-        vortex_preset_param_widget.hide()
 
         box_preset_param_widget = BoxPresetWidget(self.modulator.shape, (0, self.modulator.pxmax), self)
         box_preset_param_widget.change.connect(update_preset_figure)
@@ -500,10 +496,9 @@ class SettingsWindow(Window):
         layout.addWidget(preset_figure_widget)
         layout.addLayout(preset_layout)
         layout.addWidget(const_preset_param_widget)
-        layout.addWidget(tilt_preset_param_widget)
+        layout.addWidget(gradient_preset_param_widget)
         layout.addWidget(checker_preset_param_widget)
         layout.addWidget(sinusoid_preset_param_widget)
-        layout.addWidget(vortex_preset_param_widget)
         layout.addWidget(box_preset_param_widget)
         layout.addWidget(polka_preset_param_widget)
         layout.addWidget(register_preset_param_widget)
@@ -512,7 +507,7 @@ class SettingsWindow(Window):
         layout.addWidget(text_preset_param_widget)
         layout.addLayout(button_layout)
 
-        preset_widgets = (const_preset_param_widget, tilt_preset_param_widget, checker_preset_param_widget, sinusoid_preset_param_widget, vortex_preset_param_widget, box_preset_param_widget, polka_preset_param_widget, register_preset_param_widget, dotf_preset_param_widget, efc_preset_param_widget, text_preset_param_widget)
+        preset_widgets = (const_preset_param_widget, gradient_preset_param_widget, checker_preset_param_widget, sinusoid_preset_param_widget, box_preset_param_widget, polka_preset_param_widget, register_preset_param_widget, dotf_preset_param_widget, efc_preset_param_widget, text_preset_param_widget)
         self.preset_widget = preset_widgets[0]
 
         @Slot(int)

@@ -1,10 +1,9 @@
-from collections.abc import Iterator
 from PySide6.QtGui import QIcon
 from PySide6.QtWidgets import QVBoxLayout, QWidget, QLabel, QSpinBox, QHBoxLayout, QCheckBox, QDoubleSpinBox, QGridLayout
 from PySide6.QtCore import Slot, Qt
 
 from pykato.log import setup_logger
-from pykato.function import DOTFProbeDirection
+from pykato.function import timestamp_string
 
 import testbed
 from ..device.camera import Camera
@@ -14,57 +13,16 @@ from ..device.mirror import Mirror
 from .camera_window import PreviewWindow as CameraPreviewWindow
 from .modulator_window import PreviewWindow as ModulatorPreviewWindow
 from .mirror_window import PreviewWindow as MirrorPreviewWindow
-from ..worker.simple_proc_worker import SimpleProcWorker
+from ..worker.speckle_null_proc_worker import SpeckleNullProcWorker
+from ..worker.storage_worker import SinkStorageWorker, SourceStorageWorker
 
 from ..widget import DevicesSetupWidget, TaskControlsWidget
 from ..widget.resource import ICON_RUN, ICON_PAUSE
 
-logger = setup_logger("dotf_proc_window", terminator="\n")
+logger = setup_logger("speckle_null_proc_window", terminator="\n")
 
 
-class DOTFProbeDirectionWidget(QWidget):
-    """
-    Widget with four checkboxes for the four DOTF probes (03, 06, 09 & 12 o'clock).
-
-    Function:
-        value(): list[DOTFProbeDirection]
-            List of DOTFProbeDirection.
-    """
-
-    def __init__(self, parent=None):
-        super().__init__(parent)
-
-        layout = QHBoxLayout()
-        layout.setContentsMargins(0, 0, 0, 0)
-
-        self._checkboxes = []
-        for _direction in DOTFProbeDirection:  # pylint: disable=invalid-name
-            checkbox = QCheckBox(_direction.to_str(), self)
-            checkbox.toggled.connect(self._on_checkbox_toggled)
-            self._checkboxes.append(checkbox)
-            layout.addWidget(checkbox)
-
-        self.setLayout(layout)
-
-    def __getitem__(self, index) -> QCheckBox:
-        return self._checkboxes[index]
-
-    def __iter__(self) -> Iterator[QCheckBox]:
-        return iter(self._checkboxes)
-
-    def _on_checkbox_toggled(self):
-        if not any(checkbox.isChecked() for checkbox in self._checkboxes):
-            sender = self.sender()
-            if isinstance(sender, QCheckBox):
-                sender.blockSignals(True)
-                sender.setChecked(True)
-                sender.blockSignals(False)
-
-    def value(self) -> list[DOTFProbeDirection]:
-        return [direction for checkbox, direction in zip(self._checkboxes, DOTFProbeDirection) if checkbox.isChecked()]
-
-
-class DOTFProcSettingsWidget(QWidget):
+class SpeckleNullProcSettingsWidget(QWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
 
@@ -104,6 +62,19 @@ class DOTFProcSettingsWidget(QWidget):
         self._sleep_s_spinbox.setValue(0.1)
         self._sleep_s_spinbox.setSuffix(" s")
 
+        record_label = QLabel("Record", self)
+        record_label.setFixedWidth(100)
+
+        self._source_checkbox = QCheckBox("Source", self)
+        self._source_checkbox.setToolTip("Source data")
+
+        self._sink_checkbox = QCheckBox("Sink", self)
+        self._sink_checkbox.setToolTip("Sink data")
+
+        record_layout = QHBoxLayout()
+        record_layout.addWidget(self._source_checkbox)
+        record_layout.addWidget(self._sink_checkbox)
+
         widget_layout = QGridLayout()
 
         row = 0
@@ -118,6 +89,12 @@ class DOTFProcSettingsWidget(QWidget):
         col += 1
         widget_layout.addWidget(self._sleep_s_spinbox, row, col, 1, 3)
 
+        row += 1
+        col = 0
+        widget_layout.addWidget(record_label, row, col)
+        col += 1
+        widget_layout.addLayout(record_layout, row, col, 1, 3)
+
         self.setLayout(widget_layout)
 
     @property
@@ -129,15 +106,23 @@ class DOTFProcSettingsWidget(QWidget):
         return None if self.continuous else self._n_steps_spinbox.value()
 
     @property
+    def record_source(self) -> bool:
+        return self._source_checkbox.isChecked()
+
+    @property
+    def record_sink(self) -> bool:
+        return self._sink_checkbox.isChecked()
+
+    @property
     def sleep_s(self) -> float:
         return self._sleep_s_spinbox.value()
 
 
-class DOTFProcWindow(QWidget):
+class SpeckleNullProcWindow(QWidget):
     def __init__(self, parent=None):
         super().__init__(parent, Qt.Dialog)
         self.setWindowModality(Qt.WindowModality.WindowModal)
-        self.setWindowTitle("DOTF Process")
+        self.setWindowTitle("Simple Process")
         self._sink = None
         self._source = None
 
@@ -147,11 +132,11 @@ class DOTFProcWindow(QWidget):
         self.setLayout(layout)
 
     @property
-    def source(self) -> Camera:
+    def source(self) -> Camera | None:
         return self._source
 
     @property
-    def sink(self) -> Modulator | Mirror:
+    def sink(self) -> Modulator | Mirror | None:
         return self._sink
 
     def on_source_change(self, _device: Camera):
@@ -203,8 +188,25 @@ class DOTFProcWindow(QWidget):
             current_proc_worker.stop()
             self.controls_widget.play_pause_button.setIcon(QIcon(ICON_RUN))
 
+    @Slot()
+    def on_source_storage_finish(self):
+        source_storage_worker_id = "simple_proc_source_storage_worker"
+        if source_storage_worker_id in testbed.data.workers:
+            source_storage_worker = testbed.data.workers.pop(source_storage_worker_id)
+            source_storage_worker.stop()
+
+    @Slot()
+    def on_sink_storage_finish(self):
+        sink_storage_worker_id = "simple_proc_sink_storage_worker"
+        if sink_storage_worker_id in testbed.data.workers:
+            sink_storage_worker = testbed.data.workers.pop(sink_storage_worker_id)
+            sink_storage_worker.stop()
+
+    @Slot()
     def on_start_stop(self):
         proc_worker_id = "simple_proc_worker"
+        source_storage_worker_id = "simple_proc_source_storage_worker"
+        sink_storage_worker_id = "simple_proc_sink_storage_worker"
         source_preview_window_name = self.source.name + "_preview"
         sink_preview_window_name = self.sink.name + "_preview"
 
@@ -215,6 +217,12 @@ class DOTFProcWindow(QWidget):
             self.controls_widget.progressbar.setMaximum(100)
             self.controls_widget.progressbar.reset()
             self.controls_widget.progressbar.update()
+            if source_storage_worker_id in testbed.data.workers:
+                current_source_storage_worker = testbed.data.workers.pop(source_storage_worker_id)
+                current_source_storage_worker.stop()
+            if sink_storage_worker_id in testbed.data.workers:
+                current_sink_storage_worker = testbed.data.workers.pop(sink_storage_worker_id)
+                current_sink_storage_worker.stop()
             return
 
         if self.settings_widget.continuous:
@@ -222,11 +230,28 @@ class DOTFProcWindow(QWidget):
         else:
             self.controls_widget.progressbar.setMaximum(self.settings_widget.n_steps)
 
-        proc_worker = SimpleProcWorker(self.source, self.sink, self.settings_widget.n_steps)
+        proc_worker = SpeckleNullProcWorker(self.source, self.sink, self.settings_widget.n_steps)
         proc_worker.signals.progress.connect(self.on_progress)
         proc_worker.signals.finish.connect(self.on_finish)
 
+        timestamp = timestamp_string(frmt="%Y%m%d.%H%M%S", ms=None)
+
+        if self.settings_widget.record_source:
+            source_storage_worker = SourceStorageWorker(f"data/output/{timestamp}_source.raw", self.settings_widget.n_steps)
+            proc_worker.signals.new_source_sample.connect(source_storage_worker.on_sample)
+            testbed.data.threadpool.start(source_storage_worker)
+            testbed.data.workers[source_storage_worker_id] = source_storage_worker
+            source_storage_worker.signals.finish.connect(self.on_source_storage_finish)
+
+        if self.settings_widget.record_sink:
+            sink_storage_worker = SinkStorageWorker(f"data/output/{timestamp}_sink.raw", self.settings_widget.n_steps)
+            proc_worker.signals.new_sink_sample.connect(sink_storage_worker.on_sample)
+            testbed.data.threadpool.start(sink_storage_worker)
+            testbed.data.workers[sink_storage_worker_id] = sink_storage_worker
+            sink_storage_worker.signals.finish.connect(self.on_sink_storage_finish)
+
         testbed.data.threadpool.start(proc_worker)
+
         self.controls_widget.play_pause_button.setIcon(QIcon(ICON_PAUSE))
 
         if source_preview_window_name in testbed.data.windows:
@@ -245,7 +270,7 @@ class DOTFProcWindow(QWidget):
         self.devices_widget.source_change.connect(self.on_source_change)
         self.devices_widget.sink_change.connect(self.on_sink_change)
 
-        self.settings_widget = DOTFProcSettingsWidget(self)
+        self.settings_widget = SpeckleNullProcSettingsWidget(self)
         # self.settings_widget.hide()
 
         self.controls_widget = TaskControlsWidget(self)
@@ -260,15 +285,23 @@ class DOTFProcWindow(QWidget):
         return widget
 
     def closeEvent(self, event):
-        source_preview_window_name = self.source.name + "_preview"
-        sink_preview_window_name = self.sink.name + "_preview"
-        if (source_preview_window_name in testbed.data.windows) or (sink_preview_window_name in testbed.data.windows):
-            logger.info("Cannot close main window until preview windows are closed.")
-            event.ignore()
-        else:
-            while testbed.data.workers:
-                key, worker = testbed.data.workers.popitem()
-                worker.stop()
-                logger.info("stopping worker %s", key)
-            self.deleteLater()
-            event.accept()
+        if self.source is not None:
+            source_preview_window_name = self.source.name + "_preview"
+            if (source_preview_window_name in testbed.data.windows):
+                logger.info("Cannot close main window until preview windows are closed.")
+                event.ignore()
+                return
+
+        if self.sink is not None:
+            sink_preview_window_name = self.sink.name + "_preview"
+            if (sink_preview_window_name in testbed.data.windows):
+                logger.info("Cannot close main window until preview windows are closed.")
+                event.ignore()
+                return
+
+        while testbed.data.workers:
+            key, worker = testbed.data.workers.popitem()
+            worker.stop()
+            logger.info("stopping worker %s", key)
+        self.deleteLater()
+        event.accept()

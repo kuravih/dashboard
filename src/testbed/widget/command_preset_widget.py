@@ -33,9 +33,8 @@ class ConstPresetWidget(QWidget):
         const_label.setFixedWidth(100)
 
         const_spinbox = QDoubleSpinBox(self)
-        const_spinbox.setMinimum(0)
         const_spinbox.setSingleStep(0.01)
-        const_spinbox.setMaximum(1.0)
+        const_spinbox.setRange(0, 1.0)
         const_spinbox.valueChanged.connect(self.emit_param_change)
 
         layout = QGridLayout()
@@ -65,45 +64,43 @@ class ConstPresetWidget(QWidget):
         return self.widget_change(self.const_spinbox)
 
 
-class TiltPresetWidget(QWidget):
+class GradientPresetWidget(QWidget):
     """Gradient command preset widget
 
     Controls :
-        tilt: int
-            Tilt or slope of gradient.
+        grad: int
+            Gradient.
         angle : tuple[int, int]
             Angle of gradient.
     """
 
     change = Signal(np.ndarray)
 
-    def param_change(self, shape: tuple[int, int], tilt: int, angle: float) -> np.ndarray:
-        return self._range * tilt * (gradient(shape, angle) / 2 + 0.5)
+    def param_change(self, shape: tuple[int, int], grad: int, angle: float) -> np.ndarray:
+        return self._range * grad * (gradient(shape, angle) / 2 + 0.5)
 
-    def widget_change(self, tilt_spinbox, angle_spinbox) -> np.ndarray:
-        return self.param_change(self.shape, tilt_spinbox.value(), angle_spinbox.value())
+    def widget_change(self, grad_spinbox, angle_spinbox) -> np.ndarray:
+        return self.param_change(self.shape, grad_spinbox.value(), angle_spinbox.value())
 
     @Slot()
     def emit_param_change(self):
-        self.change.emit(self.widget_change(self.tilt_spinbox, self.angle_spinbox))
+        self.change.emit(self.widget_change(self.grad_spinbox, self.angle_spinbox))
 
     def setup_main_widget(self):
-        tilt_label = QLabel("Tilt", self)
-        tilt_label.setFixedWidth(100)
+        grad_label = QLabel("Gradient", self)
+        grad_label.setFixedWidth(100)
 
-        tilt_spinbox = QDoubleSpinBox(self)
-        tilt_spinbox.setMinimum(0)
-        tilt_spinbox.setSingleStep(0.01)
-        tilt_spinbox.setMaximum(1.0)
-        tilt_spinbox.valueChanged.connect(self.emit_param_change)
+        grad_spinbox = QDoubleSpinBox(self)
+        grad_spinbox.setSingleStep(0.01)
+        grad_spinbox.setRange(0, 1.0)
+        grad_spinbox.valueChanged.connect(self.emit_param_change)
         pv_label = QLabel("PV", self)
 
         angle_label = QLabel("Angle", self)
 
         angle_spinbox = QDoubleSpinBox(self)
         angle_spinbox.setFixedWidth(75)
-        angle_spinbox.setMinimum(0.0)
-        angle_spinbox.setMaximum(360.0)
+        angle_spinbox.setRange(0.0, 360.0)
         angle_spinbox.setSingleStep(1.0)
         angle_spinbox.setValue(0.0)
         angle_spinbox.valueChanged.connect(self.emit_param_change)
@@ -112,9 +109,9 @@ class TiltPresetWidget(QWidget):
 
         row = 0
         col = 0
-        layout.addWidget(tilt_label, row, col)
+        layout.addWidget(grad_label, row, col)
         col += 1
-        layout.addWidget(tilt_spinbox, row, col)
+        layout.addWidget(grad_spinbox, row, col)
         col += 1
         layout.addWidget(pv_label, row, col)
 
@@ -129,7 +126,7 @@ class TiltPresetWidget(QWidget):
 
         self.setLayout(layout)
 
-        self.tilt_spinbox = tilt_spinbox
+        self.grad_spinbox = grad_spinbox
         self.angle_spinbox = angle_spinbox
 
     def __init__(self, shape: tuple[int, int], vlim: tuple[float, float], parent=None):
@@ -141,7 +138,7 @@ class TiltPresetWidget(QWidget):
 
     @property
     def command(self) -> np.ndarray:
-        return self.widget_change(self.tilt_spinbox, self.angle_spinbox)
+        return self.widget_change(self.grad_spinbox, self.angle_spinbox)
 
 
 class CheckerPresetWidget(QWidget):
@@ -164,10 +161,8 @@ class CheckerPresetWidget(QWidget):
     def widget_change(self, amplitude_spinbox, size_spinboxes, offset_spinboxes) -> np.ndarray:
         size = size_spinboxes.value()
         offset_x_spinbox, offset_y_spinbox = offset_spinboxes
-        offset_x_spinbox.setMinimum(-self.shape[0] - size[0])
-        offset_x_spinbox.setMaximum(size[0])
-        offset_y_spinbox.setMinimum(-self.shape[1] - size[1])
-        offset_y_spinbox.setMaximum(size[1])
+        offset_x_spinbox.setRange(-self.shape[0] - size[0], size[0])
+        offset_y_spinbox.setRange(-self.shape[1] - size[1],size[1])
         return self.param_change(self.shape, amplitude_spinbox.value(), size, offset_spinboxes.value())
 
     @Slot()
@@ -180,8 +175,7 @@ class CheckerPresetWidget(QWidget):
 
         self.amplitude_spinbox = QDoubleSpinBox(self)
         self.amplitude_spinbox.setFixedWidth(75)
-        self.amplitude_spinbox.setMinimum(0.0)
-        self.amplitude_spinbox.setMaximum(1.0)
+        self.amplitude_spinbox.setRange(0.0, 1.0)
         self.amplitude_spinbox.setSingleStep(0.1)
         self.amplitude_spinbox.setValue(0.5)
         self.amplitude_spinbox.valueChanged.connect(self.emit_param_change)
@@ -192,14 +186,12 @@ class CheckerPresetWidget(QWidget):
         size_x_spinbox, size_y_spinbox = self.size_spinboxes
 
         size_x_spinbox.setFixedWidth(75)
-        size_x_spinbox.setMinimum(0)
-        size_x_spinbox.setMaximum(shape[0])
+        size_x_spinbox.setRange(0, shape[0])
         size_x_spinbox.setValue(shape[0] // 2)
         size_x_spinbox.valueChanged.connect(self.emit_param_change)
 
         size_y_spinbox.setFixedWidth(75)
-        size_y_spinbox.setMinimum(0)
-        size_y_spinbox.setMaximum(shape[1])
+        size_y_spinbox.setRange(0, shape[1])
         size_y_spinbox.setValue(shape[1] // 2)
         size_y_spinbox.valueChanged.connect(self.emit_param_change)
 
@@ -215,14 +207,12 @@ class CheckerPresetWidget(QWidget):
         offset_x_spinbox, offset_y_spinbox = self.offset_spinboxes
 
         offset_x_spinbox.setFixedWidth(75)
-        offset_x_spinbox.setMinimum(-size_x_spinbox.value() // 2)
-        offset_x_spinbox.setMaximum(size_x_spinbox.value() // 2)
+        offset_x_spinbox.setRange(-size_x_spinbox.value() // 2, size_x_spinbox.value() // 2)
         offset_x_spinbox.setValue(shape[0] // 4)
         offset_x_spinbox.valueChanged.connect(self.emit_param_change)
 
         offset_y_spinbox.setFixedWidth(75)
-        offset_y_spinbox.setMinimum(-size_y_spinbox.value() // 2)
-        offset_y_spinbox.setMaximum(size_y_spinbox.value() // 2)
+        offset_y_spinbox.setRange(-size_y_spinbox.value() // 2, size_y_spinbox.value() // 2)
         offset_y_spinbox.setValue(shape[1] // 4)
         offset_y_spinbox.valueChanged.connect(self.emit_param_change)
 
@@ -302,8 +292,7 @@ class SinusoidPresetWidget(QWidget):
 
         self.amplitude_spinbox = QDoubleSpinBox(self)
         self.amplitude_spinbox.setFixedWidth(75)
-        self.amplitude_spinbox.setMinimum(0.0)
-        self.amplitude_spinbox.setMaximum(1.0)
+        self.amplitude_spinbox.setRange(0.0, 1.0)
         self.amplitude_spinbox.setSingleStep(0.1)
         self.amplitude_spinbox.setValue(0.1)
         self.amplitude_spinbox.setToolTip("Amplitude of the sinusoid")
@@ -321,8 +310,7 @@ class SinusoidPresetWidget(QWidget):
 
         self.period_spinbox = QDoubleSpinBox(self)
         self.period_spinbox.setFixedWidth(75)
-        self.period_spinbox.setMinimum(0.0)
-        self.period_spinbox.setMaximum(shape[0])
+        self.period_spinbox.setRange(0.0, shape[0])
         self.period_spinbox.setSingleStep(1.0)
         self.period_spinbox.setValue(20)
         self.period_spinbox.setToolTip("Period of the sinusoid")
@@ -332,8 +320,7 @@ class SinusoidPresetWidget(QWidget):
 
         self.phase_spinbox = QDoubleSpinBox(self)
         self.phase_spinbox.setFixedWidth(75)
-        self.phase_spinbox.setMinimum(0.0)
-        self.phase_spinbox.setMaximum(360.0)
+        self.phase_spinbox.setRange(0.0, 360.0)
         self.phase_spinbox.setSingleStep(5.0)
         self.phase_spinbox.setValue(0.0)
         phase_label.setToolTip("Phase of the sinusoid")
@@ -343,8 +330,7 @@ class SinusoidPresetWidget(QWidget):
 
         self.angle_spinbox = QDoubleSpinBox(self)
         self.angle_spinbox.setFixedWidth(75)
-        self.angle_spinbox.setMinimum(0.0)
-        self.angle_spinbox.setMaximum(360.0)
+        self.angle_spinbox.setRange(0.0, 360.0)
         self.angle_spinbox.setSingleStep(1.0)
         self.angle_spinbox.setValue(45)
         self.angle_spinbox.setToolTip("Angle of the sinusoid")
@@ -352,8 +338,7 @@ class SinusoidPresetWidget(QWidget):
 
         @Slot(float)
         def amplitude_change(amplitude):
-            self.mean_spinbox.setMaximum(1.0 - amplitude / 2.0)
-            self.mean_spinbox.setMinimum(amplitude / 2.0)
+            self.mean_spinbox.setRange(amplitude / 2.0, 1.0 - amplitude / 2.0)
             return self.emit_param_change()
 
         self.amplitude_spinbox.valueChanged.connect(amplitude_change)
@@ -448,8 +433,7 @@ class VortexPresetWidget(QWidget):
 
         self.amplitude_spinbox = QDoubleSpinBox(self)
         self.amplitude_spinbox.setFixedWidth(75)
-        self.amplitude_spinbox.setMinimum(0.0)
-        self.amplitude_spinbox.setMaximum(1.0)
+        self.amplitude_spinbox.setRange(0.0, 1.0)
         self.amplitude_spinbox.setSingleStep(0.1)
         self.amplitude_spinbox.setValue(0.5)
         self.amplitude_spinbox.valueChanged.connect(self.emit_param_change)
@@ -514,10 +498,8 @@ class BoxPresetWidget(QWidget):
     def widget_change(self, amplitude_spinbox, size_spinboxes, center_spinboxes) -> np.ndarray:
         size = tuple(size_spinbox.value() for size_spinbox in size_spinboxes)
         center_x_spinbox, center_y_spinbox = center_spinboxes
-        center_x_spinbox.setMinimum(-self.shape[0] - size[0])
-        center_x_spinbox.setMaximum(size[0])
-        center_y_spinbox.setMinimum(-self.shape[1] - size[1])
-        center_y_spinbox.setMaximum(size[1])
+        center_x_spinbox.setRange(-self.shape[0] - size[0], size[0])
+        center_y_spinbox.setRange(-self.shape[1] - size[1], size[1])
         return self.param_change(self.shape, amplitude_spinbox.value(), size, (center_x_spinbox.value(), center_y_spinbox.value()))
 
     @Slot()
@@ -530,8 +512,7 @@ class BoxPresetWidget(QWidget):
 
         self.amplitude_spinbox = QDoubleSpinBox(self)
         self.amplitude_spinbox.setFixedWidth(75)
-        self.amplitude_spinbox.setMinimum(0.0)
-        self.amplitude_spinbox.setMaximum(1.0)
+        self.amplitude_spinbox.setRange(0.0, 1.0)
         self.amplitude_spinbox.setSingleStep(0.001)
         self.amplitude_spinbox.setValue(0.5)
         self.amplitude_spinbox.setDecimals(3)
@@ -543,14 +524,12 @@ class BoxPresetWidget(QWidget):
         size_x_spinbox, size_y_spinbox = self.size_spinboxes
 
         size_x_spinbox.setFixedWidth(75)
-        size_x_spinbox.setMinimum(0)
-        size_x_spinbox.setMaximum(shape[0])
+        size_x_spinbox.setRange(0, shape[0])
         size_x_spinbox.setValue(shape[0] // 4)
         size_x_spinbox.valueChanged.connect(self.emit_param_change)
 
         size_y_spinbox.setFixedWidth(75)
-        size_y_spinbox.setMinimum(0)
-        size_y_spinbox.setMaximum(shape[1])
+        size_y_spinbox.setRange(0, shape[1])
         size_y_spinbox.setValue(shape[1] // 4)
         size_y_spinbox.valueChanged.connect(self.emit_param_change)
 
@@ -566,14 +545,12 @@ class BoxPresetWidget(QWidget):
         center_x_spinbox, center_y_spinbox = self.center_spinboxes
 
         center_x_spinbox.setFixedWidth(75)
-        center_x_spinbox.setMinimum(-shape[0] // 2 - size_x_spinbox.value())
-        center_x_spinbox.setMaximum(shape[0] // 2 + size_x_spinbox.value())
+        center_x_spinbox.setRange(-shape[0] // 2 - size_x_spinbox.value(), shape[0] // 2 + size_x_spinbox.value())
         center_x_spinbox.setValue(-shape[0] // 2)
         center_x_spinbox.valueChanged.connect(self.emit_param_change)
 
         center_y_spinbox.setFixedWidth(75)
-        center_y_spinbox.setMinimum(-shape[1] // 2 - size_y_spinbox.value())
-        center_y_spinbox.setMaximum(shape[1] // 2 + size_y_spinbox.value())
+        center_y_spinbox.setRange(-shape[1] // 2 - size_y_spinbox.value(), shape[1] // 2 + size_y_spinbox.value())
         center_y_spinbox.setValue(-shape[1] // 2)
         center_y_spinbox.valueChanged.connect(self.emit_param_change)
 
@@ -641,10 +618,8 @@ class PolkaPresetWidget(QWidget):
     def widget_change(self, amplitude_spinbox, radius_spinbox, spacing_spinboxes, offset_spinboxes) -> np.ndarray:
         spacing = tuple(spacing_spinbox.value() for spacing_spinbox in spacing_spinboxes)
         offset_x_spinbox, offset_y_spinbox = offset_spinboxes
-        offset_x_spinbox.setMinimum(-self.shape[0] - spacing[0])
-        offset_x_spinbox.setMaximum(spacing[0])
-        offset_y_spinbox.setMinimum(-self.shape[1] - spacing[1])
-        offset_y_spinbox.setMaximum(spacing[1])
+        offset_x_spinbox.setRange(-self.shape[0] - spacing[0], spacing[0])
+        offset_y_spinbox.setRange(-self.shape[1] - spacing[1], spacing[1])
         return self.param_change(self.shape, amplitude_spinbox.value(), radius_spinbox.value(), spacing, (offset_x_spinbox.value(), offset_y_spinbox.value()))
 
     @Slot()
@@ -657,8 +632,7 @@ class PolkaPresetWidget(QWidget):
 
         self.amplitude_spinbox = QDoubleSpinBox(self)
         self.amplitude_spinbox.setFixedWidth(75)
-        self.amplitude_spinbox.setMinimum(0.0)
-        self.amplitude_spinbox.setMaximum(1.0)
+        self.amplitude_spinbox.setRange(0.0, 1.0)
         self.amplitude_spinbox.setSingleStep(0.1)
         self.amplitude_spinbox.setValue(0.5)
         self.amplitude_spinbox.valueChanged.connect(self.emit_param_change)
@@ -676,14 +650,12 @@ class PolkaPresetWidget(QWidget):
         spacing_x_spinbox, spacing_y_spinbox = self.spacing_spinboxes
 
         spacing_x_spinbox.setFixedWidth(75)
-        spacing_x_spinbox.setMinimum(0)
-        spacing_x_spinbox.setMaximum(shape[0])
+        spacing_x_spinbox.setRange(0, shape[0])
         spacing_x_spinbox.setValue(shape[0] / 8)
         spacing_x_spinbox.valueChanged.connect(self.emit_param_change)
 
         spacing_y_spinbox.setFixedWidth(75)
-        spacing_y_spinbox.setMinimum(0)
-        spacing_y_spinbox.setMaximum(shape[1])
+        spacing_y_spinbox.setRange(0, shape[1])
         spacing_y_spinbox.setValue(shape[1] / 8)
         spacing_y_spinbox.valueChanged.connect(self.emit_param_change)
 
@@ -699,14 +671,12 @@ class PolkaPresetWidget(QWidget):
         offset_x_spinbox, offset_y_spinbox = self.offset_spinboxes
 
         offset_x_spinbox.setFixedWidth(75)
-        offset_x_spinbox.setMinimum(-spacing_x_spinbox.value() / 2)
-        offset_x_spinbox.setMaximum(spacing_x_spinbox.value() / 2)
+        offset_x_spinbox.setRange(-spacing_x_spinbox.value() / 2, spacing_x_spinbox.value() / 2)
         offset_x_spinbox.setValue(-shape[0] / 16)
         offset_x_spinbox.valueChanged.connect(self.emit_param_change)
 
         offset_y_spinbox.setFixedWidth(75)
-        offset_y_spinbox.setMinimum(-spacing_y_spinbox.value() / 2)
-        offset_y_spinbox.setMaximum(spacing_y_spinbox.value() / 2)
+        offset_y_spinbox.setRange(-spacing_y_spinbox.value() / 2, spacing_y_spinbox.value() / 2)
         offset_y_spinbox.setValue(-shape[1] / 16)
         offset_y_spinbox.valueChanged.connect(self.emit_param_change)
 
@@ -795,8 +765,7 @@ class RegisterPresetWidget(QWidget):
 
         self.amplitude_spinbox = QDoubleSpinBox(self)
         self.amplitude_spinbox.setFixedWidth(75)
-        self.amplitude_spinbox.setMinimum(0.0)
-        self.amplitude_spinbox.setMaximum(1.0)
+        self.amplitude_spinbox.setRange(0.0, 1.0)
         self.amplitude_spinbox.setSingleStep(0.1)
         self.amplitude_spinbox.setValue(0.5)
         self.amplitude_spinbox.valueChanged.connect(self.emit_param_change)
@@ -807,14 +776,12 @@ class RegisterPresetWidget(QWidget):
         count_x_spinbox, count_y_spinbox = self.count_spinboxes
 
         count_x_spinbox.setFixedWidth(75)
-        count_x_spinbox.setMinimum(1)
-        count_x_spinbox.setMaximum(20)
+        count_x_spinbox.setRange(1, 20)
         count_x_spinbox.setValue(6)
         count_x_spinbox.valueChanged.connect(self.emit_param_change)
 
         count_y_spinbox.setFixedWidth(75)
-        count_y_spinbox.setMinimum(1)
-        count_y_spinbox.setMaximum(20)
+        count_y_spinbox.setRange(1, 20)
         count_y_spinbox.setValue(6)
         count_y_spinbox.valueChanged.connect(self.emit_param_change)
 
@@ -837,14 +804,12 @@ class RegisterPresetWidget(QWidget):
         spacing_x_spinbox, spacing_y_spinbox = self.spacing_spinboxes
 
         spacing_x_spinbox.setFixedWidth(75)
-        spacing_x_spinbox.setMinimum(0)
-        spacing_x_spinbox.setMaximum(shape[0])
+        spacing_x_spinbox.setRange(0, shape[0])
         spacing_x_spinbox.setValue(shape[0] / 8)
         spacing_x_spinbox.valueChanged.connect(self.emit_param_change)
 
         spacing_y_spinbox.setFixedWidth(75)
-        spacing_y_spinbox.setMinimum(0)
-        spacing_y_spinbox.setMaximum(shape[1])
+        spacing_y_spinbox.setRange(0, shape[1])
         spacing_y_spinbox.setValue(shape[1] / 8)
         spacing_y_spinbox.valueChanged.connect(self.emit_param_change)
 
@@ -860,14 +825,12 @@ class RegisterPresetWidget(QWidget):
         center_x_spinbox, center_y_spinbox = self.center_spinboxes
 
         center_x_spinbox.setFixedWidth(75)
-        center_x_spinbox.setMinimum(0)
-        center_x_spinbox.setMaximum(shape[0])
+        center_x_spinbox.setRange(0, shape[0])
         center_x_spinbox.setValue(shape[0] // 2)
         center_x_spinbox.valueChanged.connect(self.emit_param_change)
 
         center_y_spinbox.setFixedWidth(75)
-        center_y_spinbox.setMinimum(0)
-        center_y_spinbox.setMaximum(shape[1])
+        center_y_spinbox.setRange(0, shape[1])
         center_y_spinbox.setValue(shape[1] // 2)
         center_y_spinbox.valueChanged.connect(self.emit_param_change)
 
@@ -959,8 +922,7 @@ class DOTFPresetWidget(QWidget):
 
         self.amplitude_spinbox = QDoubleSpinBox(self)
         self.amplitude_spinbox.setFixedWidth(75)
-        self.amplitude_spinbox.setMinimum(0.0)
-        self.amplitude_spinbox.setMaximum(1.0)
+        self.amplitude_spinbox.setRange(0.0, 1.0)
         self.amplitude_spinbox.setSingleStep(0.1)
         self.amplitude_spinbox.setValue(0.5)
         self.amplitude_spinbox.valueChanged.connect(self.emit_param_change)
@@ -971,14 +933,12 @@ class DOTFPresetWidget(QWidget):
         size_l_spinbox, size_w_spinbox = self.size_spinboxes
 
         size_l_spinbox.setFixedWidth(75)
-        size_l_spinbox.setMinimum(0)
-        size_l_spinbox.setMaximum(shape[0])
+        size_l_spinbox.setRange(0, shape[0])
         size_l_spinbox.setValue(11)
         size_l_spinbox.valueChanged.connect(self.emit_param_change)
 
         size_w_spinbox.setFixedWidth(75)
-        size_w_spinbox.setMinimum(0)
-        size_w_spinbox.setMaximum(shape[1])
+        size_w_spinbox.setRange(0, shape[1])
         size_w_spinbox.setValue(4)
         size_w_spinbox.valueChanged.connect(self.emit_param_change)
 
@@ -1093,8 +1053,7 @@ class FilePresetWidget(QWidget):  # TODO: fix this, closing the stream window ca
         wavelength_label = QLabel("Wavelength", self)
 
         wavelength_spinbox = QDoubleSpinBox(self)
-        wavelength_spinbox.setMinimum(0.0)
-        wavelength_spinbox.setMaximum(1000.0)
+        wavelength_spinbox.setRange(0.0, 1000.0)
         wavelength_spinbox.setValue(633.0)
         wavelength_spinbox.setFixedWidth(75)
 
@@ -1264,8 +1223,7 @@ class EFCPresetWidget(QWidget):
 
         self.amplitude_spinbox = QDoubleSpinBox(self)
         self.amplitude_spinbox.setFixedWidth(75)
-        self.amplitude_spinbox.setMinimum(0.0)
-        self.amplitude_spinbox.setMaximum(1.0)
+        self.amplitude_spinbox.setRange(0.0, 1.0)
         self.amplitude_spinbox.setSingleStep(0.1)
         self.amplitude_spinbox.setValue(0.5)
         self.amplitude_spinbox.setToolTip("Probe box amplitude")
@@ -1297,8 +1255,7 @@ class EFCPresetWidget(QWidget):
 
         self.ξc_spinbox = QDoubleSpinBox(self)  # pylint: disable=invalid-name,non-ascii-name
         self.ξc_spinbox.setFixedWidth(75)
-        self.ξc_spinbox.setMinimum(1.0)
-        self.ξc_spinbox.setMaximum(shape[0])
+        self.ξc_spinbox.setRange(1.0, shape[0])
         self.ξc_spinbox.setSingleStep(1.0)
         self.ξc_spinbox.setValue(29.0)
         self.ξc_spinbox.setToolTip("Probe box separation\n(higher the value closer to the center)")
@@ -1308,8 +1265,7 @@ class EFCPresetWidget(QWidget):
 
         self.θ_spinbox = QDoubleSpinBox(self)  # pylint: disable=invalid-name,non-ascii-name
         self.θ_spinbox.setFixedWidth(75)
-        self.θ_spinbox.setMinimum(0.0)
-        self.θ_spinbox.setMaximum(360.0)
+        self.θ_spinbox.setRange(0.0, 360.0)
         self.θ_spinbox.setSingleStep(5.0)
         self.θ_spinbox.setDecimals(1)
         self.θ_spinbox.setValue(0.0)
@@ -1412,10 +1368,8 @@ class TextPresetWidget(QWidget):
     def widget_change(self, amplitude_spinbox, string_textbox, position_spinboxes, size_spinbox) -> np.ndarray:
         size = size_spinbox.value()
         offset_x_spinbox, offset_y_spinbox = position_spinboxes
-        offset_x_spinbox.setMinimum(-self.shape[0] - size)
-        offset_x_spinbox.setMaximum(size)
-        offset_y_spinbox.setMinimum(-self.shape[1] - size)
-        offset_y_spinbox.setMaximum(size)
+        offset_x_spinbox.setRange(-self.shape[0] - size, size)
+        offset_y_spinbox.setRange(-self.shape[1] - size, size)
         return self.param_change(self.shape, amplitude_spinbox.value(), string_textbox.text(), position_spinboxes.value(), size)
 
     @Slot()
@@ -1428,8 +1382,7 @@ class TextPresetWidget(QWidget):
 
         self.amplitude_spinbox = QDoubleSpinBox(self)
         self.amplitude_spinbox.setFixedWidth(75)
-        self.amplitude_spinbox.setMinimum(0.0)
-        self.amplitude_spinbox.setMaximum(1.0)
+        self.amplitude_spinbox.setRange(0.0, 1.0)
         self.amplitude_spinbox.setSingleStep(0.1)
         self.amplitude_spinbox.setValue(0.5)
         self.amplitude_spinbox.valueChanged.connect(self.emit_param_change)
@@ -1438,8 +1391,7 @@ class TextPresetWidget(QWidget):
 
         self.size_spinbox = QSpinBox(self)
         self.size_spinbox.setFixedWidth(75)
-        self.size_spinbox.setMinimum(0)
-        self.size_spinbox.setMaximum(shape[0])
+        self.size_spinbox.setRange(0, shape[0])
         self.size_spinbox.setValue(shape[0])
         self.size_spinbox.valueChanged.connect(self.emit_param_change)
 
@@ -1455,14 +1407,12 @@ class TextPresetWidget(QWidget):
         position_x_spinbox, position_y_spinbox = self.position_spinboxes
 
         position_x_spinbox.setFixedWidth(75)
-        position_x_spinbox.setMinimum(-self.size_spinbox.value() // 2)
-        position_x_spinbox.setMaximum(self.size_spinbox.value() // 2)
+        position_x_spinbox.setRange(-self.size_spinbox.value() // 2, self.size_spinbox.value() // 2)
         position_x_spinbox.setValue(shape[0] // 2)
         position_x_spinbox.valueChanged.connect(self.emit_param_change)
 
         position_y_spinbox.setFixedWidth(75)
-        position_y_spinbox.setMinimum(-self.size_spinbox.value() // 2)
-        position_y_spinbox.setMaximum(self.size_spinbox.value() // 2)
+        position_y_spinbox.setRange(-self.size_spinbox.value() // 2, self.size_spinbox.value() // 2)
         position_y_spinbox.setValue(shape[1] // 2)
         position_y_spinbox.valueChanged.connect(self.emit_param_change)
 

@@ -30,10 +30,9 @@ class SimpleProcSettingsWidget(QWidget):
         n_steps_label.setFixedWidth(100)
 
         self._n_steps_spinbox = QSpinBox(self)
-        self._n_steps_spinbox.setMinimum(0)
+        self._n_steps_spinbox.setRange(0, 9999)
         self._n_steps_spinbox.setSingleStep(1)
         self._n_steps_spinbox.setValue(9)
-        self._n_steps_spinbox.setMaximum(9999)
         self._n_steps_spinbox.setToolTip("Number of steps")
 
         self._continuous_checkbox = QCheckBox("continuous", self)
@@ -238,14 +237,14 @@ class SimpleProcWindow(QWidget):
         timestamp = timestamp_string(frmt="%Y%m%d.%H%M%S", ms=None)
 
         if self.settings_widget.record_source:
-            source_storage_worker = SourceStorageWorker(f"data/output/{timestamp}_source.raw", self.settings_widget.n_steps)
+            source_storage_worker = SourceStorageWorker(f"data/output/{timestamp}_simple_proc_source.raw", self.settings_widget.n_steps)
             proc_worker.signals.new_source_sample.connect(source_storage_worker.on_sample)
             testbed.data.threadpool.start(source_storage_worker)
             testbed.data.workers[source_storage_worker_id] = source_storage_worker
             source_storage_worker.signals.finish.connect(self.on_source_storage_finish)
 
         if self.settings_widget.record_sink:
-            sink_storage_worker = SinkStorageWorker(f"data/output/{timestamp}_sink.raw", self.settings_widget.n_steps)
+            sink_storage_worker = SinkStorageWorker(f"data/output/{timestamp}_simple_proc_sink.raw", self.settings_widget.n_steps)
             proc_worker.signals.new_sink_sample.connect(sink_storage_worker.on_sample)
             testbed.data.threadpool.start(sink_storage_worker)
             testbed.data.workers[sink_storage_worker_id] = sink_storage_worker

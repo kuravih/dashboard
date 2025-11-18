@@ -19,6 +19,8 @@ from testbed.widget.mirror_window import PreviewWindow as MirrorPreviewWindow, I
 from testbed.worker.mirror_worker import UpdateWorker as MirrorUpdateWorker
 
 from testbed.widget.simple_proc_window import SimpleProcWindow
+from testbed.widget.speckle_cal_proc_window import SpeckleCalProcWindow
+from testbed.widget.speckle_null_proc_window import SpeckleNullProcWindow
 from testbed.widget.dotf_proc_window import DOTFProcWindow
 
 from testbed.widget.dialog import MessageDialog
@@ -53,6 +55,12 @@ class MainWindow(QMainWindow):
         simple_proc_button = QPushButton("Simple Process")
         simple_proc_button.clicked.connect(self.open_simple_proc_window)
 
+        speckle_cal_proc_button = QPushButton("Speckle Calibration Process")
+        speckle_cal_proc_button.clicked.connect(self.open_speckle_cal_proc_window)
+
+        speckle_null_proc_button = QPushButton("Speckle Nulling Process")
+        speckle_null_proc_button.clicked.connect(self.open_speckle_null_proc_window)
+
         dotf_proc_button = QPushButton("DOTF Process")
         dotf_proc_button.clicked.connect(self.open_dotf_proc_window)
 
@@ -66,6 +74,8 @@ class MainWindow(QMainWindow):
         layout.addWidget(self.table)
         layout.addLayout(device_button_layout)
         layout.addWidget(simple_proc_button)
+        layout.addWidget(speckle_cal_proc_button)
+        layout.addWidget(speckle_null_proc_button)
         layout.addWidget(dotf_proc_button)
         self.setCentralWidget(container)
 
@@ -294,6 +304,40 @@ class MainWindow(QMainWindow):
 
         if window_name not in testbed.data.windows:
             window = SimpleProcWindow(self)
+            window.destroyed.connect(close_window)
+            window.show()
+            window.raise_()
+            window.activateWindow()
+            testbed.data.windows[window_name] = window
+
+    @Slot()
+    def open_speckle_cal_proc_window(self):
+
+        window_name = "speckle_cal_proc_window"
+
+        @Slot()
+        def close_window():
+            testbed.data.windows.pop(window_name, None)
+
+        if window_name not in testbed.data.windows:
+            window = SpeckleCalProcWindow(self)
+            window.destroyed.connect(close_window)
+            window.show()
+            window.raise_()
+            window.activateWindow()
+            testbed.data.windows[window_name] = window
+
+    @Slot()
+    def open_speckle_null_proc_window(self):
+
+        window_name = "speckle_null_proc_window"
+
+        @Slot()
+        def close_window():
+            testbed.data.windows.pop(window_name, None)
+
+        if window_name not in testbed.data.windows:
+            window = SpeckleNullProcWindow(self)
             window.destroyed.connect(close_window)
             window.show()
             window.raise_()

@@ -27,8 +27,4 @@ class UpdateWorker(Worker):
         super().run()
         while self._running:
             time.sleep(0.1)
-            # logger.info("%s UpdateWorker.run", self._modulator.name)
-            count = time.time() % 60.0
-            command = (2**16 - 1) * preroll(self._modulator.shape, int(count), count / 60.0, 100)
-            self._modulator.push_command(command.astype(np.uint16))
             self.signals.new_sample.emit(self._modulator.pull_sample())

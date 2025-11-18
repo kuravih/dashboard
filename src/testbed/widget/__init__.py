@@ -189,63 +189,63 @@ class ProgressBar(QWidget):
             self.label.setText("")
 
 
-# class LinspaceWidget(QWidget):
-#     """
-#     Widget with a start, stop double spinboxes and a count spinbox.
+class LinspaceWidget(QWidget):
+    """
+    Widget with a start, stop double spinboxes and a count spinbox.
 
-#     Function:
-#         value(): np.ndarray
-#             Array of np.linspace values.
-#     """
+    Function:
+        value(): np.ndarray
+            Array of np.linspace values.
+    """
 
-#     valueChanged = Signal(np.ndarray)
+    valueChanged = Signal(np.ndarray)
 
-#     def __init__(self, start: float = 0, stop: float = 100, steps: int = 2, parent=None):
-#         super().__init__(parent)
+    def __init__(self, start: float = 0, stop: float = 100, steps: int = 2, parent=None):
+        super().__init__(parent)
 
-#         self._start_spinbox = QDoubleSpinBox(self)
-#         self._start_spinbox.setMinimum(-999)
-#         self._start_spinbox.setMaximum(999)
-#         self._start_spinbox.setDecimals(2)
-#         self._start_spinbox.setToolTip("Start")
-#         self._start_spinbox.setValue(start)
-#         self._start_spinbox.valueChanged.connect(self._on_value_changed)
+        self._start_spinbox = QDoubleSpinBox(self)
+        self._start_spinbox.setMinimum(-999)
+        self._start_spinbox.setMaximum(999)
+        self._start_spinbox.setDecimals(2)
+        self._start_spinbox.setToolTip("Start")
+        self._start_spinbox.setValue(start)
+        self._start_spinbox.valueChanged.connect(self._on_value_changed)
 
-#         self._stop_spinbox = QDoubleSpinBox(self)
-#         self._stop_spinbox.setMinimum(-999)
-#         self._stop_spinbox.setMaximum(999)
-#         self._stop_spinbox.setDecimals(2)
-#         self._stop_spinbox.setToolTip("Stop")
-#         self._stop_spinbox.setValue(stop)
-#         self._stop_spinbox.valueChanged.connect(self._on_value_changed)
+        self._stop_spinbox = QDoubleSpinBox(self)
+        self._stop_spinbox.setMinimum(-999)
+        self._stop_spinbox.setMaximum(999)
+        self._stop_spinbox.setDecimals(2)
+        self._stop_spinbox.setToolTip("Stop")
+        self._stop_spinbox.setValue(stop)
+        self._stop_spinbox.valueChanged.connect(self._on_value_changed)
 
-#         self._num_spinbox = QSpinBox(self)
-#         self._num_spinbox.setMinimum(1)
-#         self._num_spinbox.setToolTip("Number of steps")
-#         self._num_spinbox.setValue(steps)
-#         self._num_spinbox.valueChanged.connect(self._on_value_changed)
+        self._num_spinbox = QSpinBox(self)
+        self._num_spinbox.setMinimum(1)
+        self._num_spinbox.setToolTip("Number of steps")
+        self._num_spinbox.setValue(steps)
+        self._num_spinbox.valueChanged.connect(self._on_value_changed)
 
-#         self._help_button = QPushButton("?", self)
-#         self._help_button.setFixedWidth(self._help_button.sizeHint().height())
-#         self._help_button.clicked.connect(lambda: QToolTip.showText(QCursor.pos(), f"{np.array2string(self.value(), precision=4, separator=', ')}"))
+        self._help_button = QPushButton("?", self)
+        self._help_button.setFixedWidth(self._help_button.sizeHint().height())
+        self._help_button.clicked.connect(lambda: QToolTip.showText(QCursor.pos(), f"{np.array2string(self.value(), precision=4, separator=', ')}"))
 
-#         layout = QHBoxLayout()
-#         layout.addWidget(self._start_spinbox)
-#         layout.addWidget(self._stop_spinbox)
-#         layout.addWidget(self._num_spinbox)
-#         layout.addWidget(self._help_button, alignment=Qt.AlignmentFlag.AlignLeft)
+        layout = QHBoxLayout()
+        layout.addWidget(self._start_spinbox)
+        layout.addWidget(self._stop_spinbox)
+        layout.addWidget(self._num_spinbox)
+        layout.addWidget(self._help_button, alignment=Qt.AlignmentFlag.AlignLeft)
 
-#         layout.setContentsMargins(0, 0, 0, 0)
+        layout.setContentsMargins(0, 0, 0, 0)
 
-#         self.setLayout(layout)
+        self.setLayout(layout)
 
-#     def value(self) -> np.ndarray:
-#         return np.linspace(self._start_spinbox.value(), self._stop_spinbox.value(), self._num_spinbox.value())
+    def value(self) -> np.ndarray:
+        return np.linspace(self._start_spinbox.value(), self._stop_spinbox.value(), self._num_spinbox.value())
 
-#     @Slot()
-#     def _on_value_changed(self):
-#         """Slot that emits the current linspace array when any spinbox changes."""
-#         self.valueChanged.emit(self.value())
+    @Slot()
+    def _on_value_changed(self):
+        """Slot that emits the current linspace array when any spinbox changes."""
+        self.valueChanged.emit(self.value())
 
 
 class NDoubleSpinBoxesWidget(QWidget):

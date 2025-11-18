@@ -14,18 +14,20 @@ from ..worker import Worker, WorkerSignals
 logger = setup_logger("simple_proc_worker", terminator="\n")
 
 
-class SimpleProcWorkerSignals(WorkerSignals):
+class SpeckleNullProcWorkerSignals(WorkerSignals):
     new_source_sample = Signal(SourceSample)
     new_sink_sample = Signal(SinkSample)
 
 
-class SimpleProcWorker(Worker):
-    def __init__(self, _source: Camera, _sink: Modulator | Mirror, n_steps: int | None = None):
+class SpeckleNullProcWorker(Worker):
+    def __init__(self, _source: Camera, _sink: Modulator | Mirror, n_steps: int | None = None, record_sink: bool = False, record_source: bool = False):
         super().__init__()
-        self.signals = SimpleProcWorkerSignals()
+        self.signals = SpeckleNullProcWorkerSignals()
         self._source = _source
         self._sink = _sink
         self._n_steps = n_steps
+        self._record_sink = record_sink
+        self._record_source = record_source
 
     @Slot()
     def run(self):
@@ -35,8 +37,8 @@ class SimpleProcWorker(Worker):
         while ((self._n_steps is None) or (self._n_steps > i_step)) and self._running:
             time.sleep(0.1)
             count = time.time() % 60.0
-            command = self._sink.pxmax * preroll(self._sink.shape, int(count), count / 60.0, 100)
-            logger.info("%s and %s SimpleProcWorker.run : step %s of %s", self._source.name, self._sink.name, i_step, self._n_steps)
+            command = (2**16 - 1) * preroll(self._sink.shape, int(count), count / 60.0, 100)
+            logger.info("%s and %s SpeckleNullProcWorker.run", self._source.name, self._sink.name)
             self._sink.push_command(command.astype(np.uint16))
             self.signals.new_source_sample.emit(self._source.pull_sample())
             self.signals.new_sink_sample.emit(self._sink.pull_sample())
