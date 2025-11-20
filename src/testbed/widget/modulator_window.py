@@ -141,7 +141,7 @@ class InfoWindow(Window):
         kind_dm_radiobutton.setChecked(False)
 
         frame_rate_label = QLabel("Frame rate (fps)", self)
-        self.info_frame_rate_value_label = QLabel(f"{self.modulator.frame_rate_fps}", self)
+        self.info_frame_rate_value_label = QLabel(f"{self.modulator.frame_rate_fps:.2f}", self)
         self.info_frame_rate_value_label.setToolTip("Frame rate (fps)")
 
         kind_spacer = QSpacerItem(10, 10, QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Maximum)
@@ -170,11 +170,11 @@ class InfoWindow(Window):
         shape_value_label.setToolTip("Stream size")
 
         creation_time_label = QLabel("Creation time", self)
-        self.info_creation_time_value_label = QLabel(f"{self.modulator.creation_time}", self)
-        self.info_creation_time_value_label.setToolTip("Creation time")
+        creation_time_value_label = QLabel(f"{self.modulator.creation_time:%Y-%m-%d %H:%M:%S}.{self.modulator.creation_time:%f}"[: -2], self)
+        creation_time_value_label.setToolTip("Creation time")
 
         last_access_time_label = QLabel("Last access time", self)
-        self.info_last_access_time_value_label = QLabel(f"{self.modulator.last_access_time}", self)
+        self.info_last_access_time_value_label = QLabel(f"{self.modulator.last_access_time:%Y-%m-%d %H:%M:%S}.{self.modulator.last_access_time:%f}"[: -2], self)
         self.info_last_access_time_value_label.setToolTip("Last access time")
 
         center_label = QLabel("Center", self)
@@ -242,7 +242,7 @@ class InfoWindow(Window):
         col = 0
         layout.addWidget(creation_time_label, row, col)
         col += 1
-        layout.addWidget(self.info_creation_time_value_label, row, col)
+        layout.addWidget(creation_time_value_label, row, col)
 
         row += 1
         col = 0
@@ -273,10 +273,10 @@ class InfoWindow(Window):
     @Slot()
     def on_update_window(self):
         # logger.info("InfoWindow.on_update_window")
-        self.info_last_access_time_value_label.setText(f"{self.sample.last_access_time}")
+        self.info_last_access_time_value_label.setText(f"{self.sample.last_access_time:%Y-%m-%d %H:%M:%S}.{self.sample.last_access_time:%f}"[: -2])
         self.info_center_value_label.setText(f"({self.sample.center[0]}, {self.sample.center[1]})")
         self.info_radius_value_label.setText(f"{self.sample.radius}")
-        self.info_frame_rate_value_label.setText(f"{self.sample.frame_rate_fps}")
+        self.info_frame_rate_value_label.setText(f"{self.sample.frame_rate_fps:.2f}")
         self.info_hist_figure_widget.figure.set_data(self.sample.command)
         self.info_hist_figure_widget.figure.canvas.draw()
 

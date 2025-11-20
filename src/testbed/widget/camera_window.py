@@ -143,7 +143,7 @@ class InfoWindow(QWidget):
         self.info_exposure_time_value_label.setToolTip("Exposure time (us)")
 
         frame_rate_label = QLabel("Frame rate (fps)", self)
-        self.info_frame_rate_value_label = QLabel(f"{self.camera.frame_rate_fps}", self)
+        self.info_frame_rate_value_label = QLabel(f"{self.camera.frame_rate_fps:.2f}", self)
         self.info_frame_rate_value_label.setToolTip("Frame rate (fps)")
 
         gain_label = QLabel("Gain", self)
@@ -180,11 +180,11 @@ class InfoWindow(QWidget):
         shape_value_label.setToolTip("Stream size")
 
         creation_time_label = QLabel("Creation time", self)
-        creation_time_value_label = QLabel(f"{self.camera.creation_time}", self)
+        creation_time_value_label = QLabel(f"{self.camera.creation_time:%Y-%m-%d %H:%M:%S}.{self.camera.creation_time:%f}"[: -2], self)
         creation_time_value_label.setToolTip("Creation time")
 
         last_access_time_label = QLabel("Last access time", self)
-        self.info_last_access_time_value_label = QLabel(f"{self.camera.last_access_time}", self)
+        self.info_last_access_time_value_label = QLabel(f"{self.camera.last_access_time:%Y-%m-%d %H:%M:%S}.{self.camera.last_access_time:%f}"[: -2], self)
         self.info_last_access_time_value_label.setToolTip("Last access time")
 
         roi_label = QLabel("ROI", self)
@@ -292,10 +292,10 @@ class InfoWindow(QWidget):
     @Slot()
     def on_update_window(self):
         # logger.info("InfoWindow.on_update_window")
-        self.info_last_access_time_value_label.setText(f"{self.sample.last_access_time}")
+        self.info_last_access_time_value_label.setText(f"{self.sample.last_access_time:%Y-%m-%d %H:%M:%S}.{self.sample.last_access_time:%f}"[: -2])
         self.info_exposure_time_value_label.setText(f"{self.sample.exposure_time_us}")
         self.info_gain_value_label.setText(f"{self.sample.gain}")
-        self.info_frame_rate_value_label.setText(f"{self.sample.frame_rate_fps}")
+        self.info_frame_rate_value_label.setText(f"{self.sample.frame_rate_fps:.2f}")
         self.info_temperature_value_label.setText(f"{self.sample.temperature_c}")
         self.info_roi_value_label.setText(f"[({self.sample.roi['br'][0]}, {self.sample.roi['br'][1]})," f"({self.sample.roi['tl'][0]}, {self.sample.roi['tl'][1]})]")  # pylint: disable=W1405:inconsistent-quotes
         self.info_hist_figure_widget.figure.set_data(self.sample.capture)

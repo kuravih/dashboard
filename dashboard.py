@@ -178,6 +178,7 @@ class MainWindow(QMainWindow):
             current_update_worker = testbed.data.workers.pop(update_worker_id)
             current_update_worker.stop()
             _button.setIcon(QIcon(ICON_PLAY))
+            _button.setToolTip("Stop")
             return
 
         if isinstance(_device, Camera):
@@ -191,6 +192,7 @@ class MainWindow(QMainWindow):
 
         testbed.data.threadpool.start(update_worker)
         _button.setIcon(QIcon(ICON_PAUSE))
+        _button.setToolTip("Start")
 
         if preview_window_name in testbed.data.windows:
             update_worker.signals.new_sample.connect(testbed.data.windows[preview_window_name].on_new_sample)
@@ -235,7 +237,7 @@ class MainWindow(QMainWindow):
 
                 play_pause_button = QPushButton(QIcon(ICON_PLAY), "", flat=True)
                 play_pause_button.setFixedWidth(play_pause_button.sizeHint().height())
-                play_pause_button.setToolTip("Play")
+                play_pause_button.setToolTip("Start")
                 button_layout.addWidget(play_pause_button)
 
                 if stream.kind == Stream.Kind.CAMERA:
