@@ -1,9 +1,13 @@
 from enum import Enum, auto
 import struct
 import numpy as np
-from astropy.io import fits
 from datetime import datetime
-import numpy as np
+from .device import SinkSample, SinkSampleStore, SourceSample, SourceSampleStore
+from io import FileIO
+
+from skimage.feature import peak_local_max
+from skimage.morphology import disk, binary_dilation
+from skimage.measure import label, regionprops
 
 
 DTYPE_MAP = {
@@ -41,14 +45,31 @@ def flip_rotate(_frame: np.ndarray, _flip: Flip, _rotation: Rotation):
         return frame
 
 
-def save_command(filename: str, command: np.ndarray):
-    primary_hdu = fits.PrimaryHDU(command)
-    primary_hdu.header["UNIT"] = "Voltage"
-    hdu_list = fits.HDUList([primary_hdu])
-    hdu_list.writeto(filename, overwrite=True)
+def write_source_sample(_file: FileIO, _sample: SourceSample):
+    h, w = _sample.capture.shape[:2]
+    tl = _sample.roi.get("tl", (0, 0))
+    br = _sample.roi.get("br", (w, h))
+    dtype_code = DTYPE_MAP[_sample.capture.dtype.type]
+    header = struct.pack(
+        "<7s" + "HH" + "I" + "fff" + "HHHH" + "B",
+        b"SRCSMPL",
+        h,  # unsigned short - H
+        w,  # unsigned short - H
+        _sample.exposure_time_us,  # unsigned int - I
+        _sample.gain,  # float - f
+        _sample.frame_rate_fps,  # float - f
+        _sample.temperature_c,  # float - f
+        tl[0],  # unsigned short - H
+        tl[1],  # unsigned short - H
+        br[0],  # unsigned short - H
+        br[1],  # unsigned short - H
+        dtype_code,  # unsigned byte - B
+    )
+    _file.write(header)
+    _file.write(struct.pack("<d", _sample.last_access_time.timestamp()) + _sample.capture.tobytes())
 
 
-def read_source_samples(filename: str) -> tuple[dict[str, int | float | str | dict[str, tuple[int, int]]], list[dict[str, datetime | np.ndarray]]]:
+def read_source_samples(filename: str) -> SourceSampleStore:
 
     header_fmt = "<7s" + "HH" + "I" + "fff" + "HHHH" + "B"
     header_size = struct.calcsize(header_fmt)
@@ -57,6 +78,7 @@ def read_source_samples(filename: str) -> tuple[dict[str, int | float | str | di
         # --- read header ---
         header_bytes = f.read(header_size)
         magic, h, w, exposure_us, gain, fps, temp_c, tlx, tly, brx, bry, dtype_code = struct.unpack(header_fmt, header_bytes)
+        roi = {"tl": (tlx, tly), "br": (brx, bry)}
 
         if magic != b"SRCSMPL":
             raise ValueError("Invalid file header (magic mismatch)")
@@ -65,7 +87,8 @@ def read_source_samples(filename: str) -> tuple[dict[str, int | float | str | di
         capture_size = h * w * np.dtype(dtype).itemsize
 
         # --- read capture records ---
-        samples = []
+        captures = []
+        timestamps = []
         while True:
             ts_bytes = f.read(8)
             if len(ts_bytes) < 8:
@@ -77,29 +100,33 @@ def read_source_samples(filename: str) -> tuple[dict[str, int | float | str | di
                 break  # incomplete capture
 
             capture = np.frombuffer(capture_bytes, dtype=dtype).reshape((h, w))
-            samples.append(
-                {
-                    "timestamp": datetime.fromtimestamp(timestamp),
-                    "capture": capture,
-                }
-            )
+            timestamp = datetime.fromtimestamp(timestamp)
+            captures.append(capture)
+            timestamps.append(timestamp)
 
-    header_info = {
-        "magic": magic.decode(),
-        "height": h,
-        "width": w,
-        "exposure_time_us": exposure_us,
-        "gain": gain,
-        "frame_rate_fps": fps,
-        "temperature_c": temp_c,
-        "roi": {"tl": (tlx, tly), "br": (brx, bry)},
-        "dtype": dtype,
-    }
-
-    return header_info, samples
+    return SourceSampleStore(exposure_us, gain, fps, temp_c, roi, np.array(captures), np.array(timestamps))
 
 
-def read_sink_samples(filename: str) -> tuple[dict[str, int | float | str | dict[str, tuple[int, int]]], list[dict[str, datetime | np.ndarray]]]:
+def write_sink_sample(_file: FileIO, _sample: SinkSample):
+    h, w = _sample.command.shape[:2]
+    center = _sample.center
+    dtype_code = DTYPE_MAP[_sample.command.dtype.type]
+    header = struct.pack(
+        "<7s" + "HH" + "f" + "fff" + "B",
+        b"SNKSMPL",
+        h,  # unsigned short - H
+        w,  # unsigned short - H
+        _sample.frame_rate_fps,  # float - f
+        center[0],  # unsigned short - H
+        center[1],  # unsigned short - H
+        _sample.radius,  # unsigned short - H
+        dtype_code,  # unsigned byte - B
+    )
+    _file.write(header)
+    _file.write(struct.pack("<d", _sample.last_access_time.timestamp()) + _sample.command.tobytes())
+
+
+def read_sink_samples(filename: str) -> SinkSampleStore:
 
     header_fmt = "<7s" + "HH" + "f" + "fff" + "B"
     header_size = struct.calcsize(header_fmt)
@@ -108,6 +135,7 @@ def read_sink_samples(filename: str) -> tuple[dict[str, int | float | str | dict
         # --- read header ---
         header_bytes = f.read(header_size)
         magic, h, w, fps, centerx, centery, radius, dtype_code = struct.unpack(header_fmt, header_bytes)
+        center = (centerx, centery)
 
         if magic != b"SNKSMPL":
             raise ValueError("Invalid file header (magic mismatch)")
@@ -116,7 +144,8 @@ def read_sink_samples(filename: str) -> tuple[dict[str, int | float | str | dict
         command_size = h * w * np.dtype(dtype).itemsize
 
         # --- read command records ---
-        samples = []
+        commands = []
+        timestamps = []
         while True:
             ts_bytes = f.read(8)
             if len(ts_bytes) < 8:
@@ -128,21 +157,19 @@ def read_sink_samples(filename: str) -> tuple[dict[str, int | float | str | dict
                 break  # incomplete command
 
             command = np.frombuffer(command_bytes, dtype=dtype).reshape((h, w))
-            samples.append(
-                {
-                    "timestamp": datetime.fromtimestamp(timestamp),
-                    "command": command,
-                }
-            )
+            timestamp = datetime.fromtimestamp(timestamp)
+            commands.append(command)
+            timestamps.append(timestamp)
 
-    header_info = {
-        "magic": magic.decode(),
-        "height": h,
-        "width": w,
-        "frame_rate_fps": fps,
-        "center": (centerx, centery),
-        "radius": radius,
-        "dtype": dtype,
-    }
+    return SinkSampleStore(fps, center, radius, np.array(commands), np.array(timestamps))
 
-    return header_info, samples
+
+def find_speckles(speckle_image: np.ndarray, num_peaks: int = 1, footprint_size: int = 10, min_distance: int = 1):
+    rot_speckle_image = np.rot90(speckle_image)
+    peak_idx = peak_local_max(rot_speckle_image, num_peaks=num_peaks, min_distance=min_distance, threshold_abs=None)
+    peak_mask = np.zeros_like(rot_speckle_image, dtype=bool)
+    peak_mask[tuple(peak_idx.T)] = True
+    disk_mask = disk(footprint_size)
+    peak_mask = binary_dilation(peak_mask, disk_mask)
+    label_image = label(peak_mask)
+    return regionprops(label_image, rot_speckle_image), peak_mask

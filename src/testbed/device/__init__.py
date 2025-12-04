@@ -198,6 +198,19 @@ class SourceSample:
         self.capture = _capture
 
 
+class SourceSampleStore:
+    __slots__ = ("exposure_time_us", "gain", "frame_rate_fps", "temperature_c", "roi", "captures", "timestamps")
+
+    def __init__(self, _exposure_time_us: int, _gain: float, _frame_rate_fps: float, _temperature_c: float, _roi: dict[str, tuple[int, int]], _captures: list[np.ndarray], _timestamps: list[datetime]):
+        self.exposure_time_us = _exposure_time_us
+        self.gain = _gain
+        self.frame_rate_fps = _frame_rate_fps
+        self.temperature_c = _temperature_c
+        self.roi = _roi
+        self.captures = _captures
+        self.timestamps = _timestamps
+
+
 class SinkSample:
     __slots__ = ("last_access_time", "frame_rate_fps", "center", "radius", "command")
 
@@ -207,3 +220,14 @@ class SinkSample:
         self.center = _center
         self.radius = _radius
         self.command = _command
+
+
+class SinkSampleStore:
+    __slots__ = ("frame_rate_fps", "center", "radius", "commands", "timestamps")
+
+    def __init__(self, _frame_rate_fps: float, _center: tuple[float, float], _radius: float, _commands: list[np.ndarray], _timestamps: list[datetime]):
+        self.frame_rate_fps = _frame_rate_fps
+        self.center = _center
+        self.radius = _radius
+        self.commands = _commands
+        self.timestamps = _timestamps

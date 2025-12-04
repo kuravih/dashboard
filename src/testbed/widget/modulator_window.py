@@ -1,13 +1,14 @@
 import numpy as np
 
-from PySide6.QtWidgets import QWidget, QVBoxLayout, QLabel, QRadioButton, QSpacerItem, QButtonGroup, QSizePolicy, QGridLayout, QHBoxLayout, QPushButton, QFileDialog, QComboBox
+from PySide6.QtWidgets import QWidget, QVBoxLayout, QLabel, QRadioButton, QSpacerItem, QButtonGroup, QSizePolicy, QGridLayout, QHBoxLayout, QPushButton, QComboBox
 from PySide6.QtCore import QTimer, Slot
 
 from pykato.log import setup_logger
 from pykato.plotfunction.preset import Histogram_Colorbar_Preset
+from pykato.function import timestamp_string
 
 from ..widget import Window, OrientationWidget, CenterWidget, DoubleValueSetWidget
-from ..function import Flip, Rotation
+from ..function import Flip, Rotation, write_sink_sample
 from ..device.modulator import Modulator, SinkSample
 from ..widget.command_preset_widget import EFCPresetWidget, ConstPresetWidget, GradientPresetWidget, CheckerPresetWidget, SinusoidPresetWidget, BoxPresetWidget, PolkaPresetWidget, RegisterPresetWidget, DOTFPresetWidget, TextPresetWidget
 from ..widget.figure_widget import FigureWidget, ModulatorFigureWidget
@@ -170,11 +171,11 @@ class InfoWindow(Window):
         shape_value_label.setToolTip("Stream size")
 
         creation_time_label = QLabel("Creation time", self)
-        creation_time_value_label = QLabel(f"{self.modulator.creation_time:%Y-%m-%d %H:%M:%S}.{self.modulator.creation_time:%f}"[: -2], self)
+        creation_time_value_label = QLabel(f"{self.modulator.creation_time:%Y-%m-%d %H:%M:%S}.{self.modulator.creation_time:%f}"[:-2], self)
         creation_time_value_label.setToolTip("Creation time")
 
         last_access_time_label = QLabel("Last access time", self)
-        self.info_last_access_time_value_label = QLabel(f"{self.modulator.last_access_time:%Y-%m-%d %H:%M:%S}.{self.modulator.last_access_time:%f}"[: -2], self)
+        self.info_last_access_time_value_label = QLabel(f"{self.modulator.last_access_time:%Y-%m-%d %H:%M:%S}.{self.modulator.last_access_time:%f}"[:-2], self)
         self.info_last_access_time_value_label.setToolTip("Last access time")
 
         center_label = QLabel("Center", self)
@@ -273,7 +274,7 @@ class InfoWindow(Window):
     @Slot()
     def on_update_window(self):
         # logger.info("InfoWindow.on_update_window")
-        self.info_last_access_time_value_label.setText(f"{self.sample.last_access_time:%Y-%m-%d %H:%M:%S}.{self.sample.last_access_time:%f}"[: -2])
+        self.info_last_access_time_value_label.setText(f"{self.sample.last_access_time:%Y-%m-%d %H:%M:%S}.{self.sample.last_access_time:%f}"[:-2])
         self.info_center_value_label.setText(f"({self.sample.center[0]}, {self.sample.center[1]})")
         self.info_radius_value_label.setText(f"{self.sample.radius}")
         self.info_frame_rate_value_label.setText(f"{self.sample.frame_rate_fps:.2f}")
@@ -398,11 +399,10 @@ class SettingsWindow(Window):
 
         @Slot()
         def save_command_callback():
-            pass
-            # cmd_file_path, _ = QFileDialog.getSaveFileName(self, "Save Command", ".", "FITS File (*.fits)", options=QFileDialog.Options() | QFileDialog.DontUseNativeDialog)
-            # if cmd_file_path:
-            #     save_command(cmd_file_path, self.modulator.image.data)
-            # self.status.emit("Command saved", 1000)
+            timestamp = timestamp_string(frmt="%Y%m%d.%H%M%S", ms=None)
+            filename = f"data/output/{timestamp}_command_sink.raw"
+            with open(filename, "wb", buffering=0) as _file:
+                write_sink_sample(_file, self.sample)
 
         @Slot()
         def send_command_callback():

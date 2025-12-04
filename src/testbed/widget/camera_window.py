@@ -1,15 +1,15 @@
-from astropy.io import fits
-from PySide6.QtWidgets import QWidget, QVBoxLayout, QLabel, QRadioButton, QSpacerItem, QButtonGroup, QSizePolicy, QGridLayout, QHBoxLayout, QPushButton, QFileDialog
-from PySide6.QtCore import Slot, QFileInfo, QTimer
+from PySide6.QtWidgets import QWidget, QVBoxLayout, QLabel, QRadioButton, QSpacerItem, QButtonGroup, QSizePolicy, QGridLayout, QHBoxLayout, QPushButton
+from PySide6.QtCore import Slot, QTimer
 from PySide6.QtGui import QIcon
 
 from pykato.log import setup_logger
 from pykato.plotfunction.preset import Histogram_Colorbar_Preset
+from pykato.function import timestamp_string
 
 from ..device.camera import Camera, SourceSample
-from ..function import Flip, Rotation
+from ..function import Flip, Rotation, write_source_sample
 from ..widget import Window, OrientationWidget, ROIWidget, DoubleValueSetWidget, ValueSetWidget
-from ..widget.resource import ICON_CAMERA, ICON_DISK
+from ..widget.resource import ICON_CAMERA
 from ..widget.figure_widget import FigureWidget, SourceFigureWidget
 
 logger = setup_logger("camera_window", terminator="\n")
@@ -180,11 +180,11 @@ class InfoWindow(QWidget):
         shape_value_label.setToolTip("Stream size")
 
         creation_time_label = QLabel("Creation time", self)
-        creation_time_value_label = QLabel(f"{self.camera.creation_time:%Y-%m-%d %H:%M:%S}.{self.camera.creation_time:%f}"[: -2], self)
+        creation_time_value_label = QLabel(f"{self.camera.creation_time:%Y-%m-%d %H:%M:%S}.{self.camera.creation_time:%f}"[:-2], self)
         creation_time_value_label.setToolTip("Creation time")
 
         last_access_time_label = QLabel("Last access time", self)
-        self.info_last_access_time_value_label = QLabel(f"{self.camera.last_access_time:%Y-%m-%d %H:%M:%S}.{self.camera.last_access_time:%f}"[: -2], self)
+        self.info_last_access_time_value_label = QLabel(f"{self.camera.last_access_time:%Y-%m-%d %H:%M:%S}.{self.camera.last_access_time:%f}"[:-2], self)
         self.info_last_access_time_value_label.setToolTip("Last access time")
 
         roi_label = QLabel("ROI", self)
@@ -292,7 +292,7 @@ class InfoWindow(QWidget):
     @Slot()
     def on_update_window(self):
         # logger.info("InfoWindow.on_update_window")
-        self.info_last_access_time_value_label.setText(f"{self.sample.last_access_time:%Y-%m-%d %H:%M:%S}.{self.sample.last_access_time:%f}"[: -2])
+        self.info_last_access_time_value_label.setText(f"{self.sample.last_access_time:%Y-%m-%d %H:%M:%S}.{self.sample.last_access_time:%f}"[:-2])
         self.info_exposure_time_value_label.setText(f"{self.sample.exposure_time_us}")
         self.info_gain_value_label.setText(f"{self.sample.gain}")
         self.info_frame_rate_value_label.setText(f"{self.sample.frame_rate_fps:.2f}")
@@ -428,52 +428,12 @@ class SettingsWindow(QWidget):
 
         @Slot()
         def capture_callback():
-            self.camera.acquire_image(self.camera.stream.increment_cnt1())
-            self.status.emit("Capture", 1000)
+            timestamp = timestamp_string(frmt="%Y%m%d.%H%M%S", ms=None)
+            filename = f"data/output/{timestamp}_capture_source.raw"
+            with open(filename, "wb", buffering=0) as _file:
+                write_source_sample(_file, self.sample)
 
         capture_pushbutton.clicked.connect(capture_callback)
-
-        save_pushbutton = QPushButton("", self)
-        save_pushbutton.setFixedWidth(save_pushbutton.sizeHint().height())
-        save_pushbutton.setIcon(QIcon(ICON_DISK))
-        save_pushbutton.setToolTip("Save")
-
-        @Slot()
-        def capture_save_callback():
-            capture_dialog_filename, _ = QFileDialog.getSaveFileName(self, "Save Capture", ".", "FITS File (*.fits)", options=QFileDialog.Options() | QFileDialog.DontUseNativeDialog)
-            if capture_dialog_filename:
-
-                file_info = QFileInfo(capture_dialog_filename)
-                fits_filename = f"{file_info.absolutePath()}/{file_info.baseName()}.fits"
-
-                capture_phdu = fits.PrimaryHDU(self.capture_frame)
-                capture_phdu.header["KIND"] = (self.camera.stream.kind.to_str(), "Device kind")
-                capture_phdu.header["SN"] = (self.camera.stream.sn, "Serial number")
-                capture_phdu.header["FULL.W"] = (self.camera.full_shape[0], "Detector width")
-                capture_phdu.header["FULL.H"] = (self.camera.full_shape[1], "Detector height")
-                capture_phdu.header["ROI.TL.X"] = (self.camera.roi["tl"][0], "Region of interest top left x")
-                capture_phdu.header["ROI.TL.Y"] = (self.camera.roi["tl"][1], "Region of interest top left y")
-                capture_phdu.header["ROI.BR.X"] = (self.camera.roi["br"][0], "Region of interest bottom right x")
-                capture_phdu.header["ROI.BR.Y"] = (self.camera.roi["br"][1], "Region of interest bottom right y")
-                capture_phdu.header["PXMAX"] = (self.camera.pxmax, "Pixel max")
-                capture_phdu.header["EXPTIME"] = (self.camera.exposure_time_us, "Exposure time (us)")
-                capture_phdu.header["TEMP"] = (self.camera.temperature_c, "Temperature (C)")
-                capture_phdu.header["GAIN"] = (self.camera.gain, "Gain (units)")
-
-                fits_hdu_list = fits.HDUList([capture_phdu])
-                fits_hdu_list.writeto(fits_filename, overwrite=True)
-                logger.info("Capture data saved : %s", fits_filename)
-
-            self.status.emit("Capture saved", 1000)
-
-        save_pushbutton.clicked.connect(capture_save_callback)
-
-        capture_spacer = QSpacerItem(10, 10, QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Maximum)
-
-        capture_layout = QHBoxLayout()
-        capture_layout.addWidget(capture_pushbutton)
-        capture_layout.addWidget(save_pushbutton)
-        capture_layout.addItem(capture_spacer)
         # ---- capture ------------------------------------------------------------------------------------------------
 
         row = 0
@@ -510,7 +470,7 @@ class SettingsWindow(QWidget):
         col = 0
         layout.addWidget(capture_label, row, col)
         col += 1
-        layout.addLayout(capture_layout, row, col)
+        layout.addWidget(capture_pushbutton, row, col)
 
         row += 1
         layout.setRowStretch(row, 1)

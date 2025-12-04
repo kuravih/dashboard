@@ -11,7 +11,7 @@ from ..device.camera import Camera
 from ..device.modulator import Modulator
 from ..device.mirror import Mirror
 from ..widget.figure_widget import FigureWidget, SourceFigureWidget, WavefrontFigureWidget, MirrorFigureWidget, ModulatorFigureWidget, PhaseModulationFigureWidget, AmpModulationFigureWidget, SpeckleNullFigureWidget
-from ..widget.resource import ICON_RUN, ICON_STEP_FORWARD, ICON_PAUSE, ICON_UNPAUSE, ICON_DISK, ICON_STOP, ICON_PRINT, ICON_EYE, ICON_UP_ARROW, ICON_DOWN_ARROW, ICON_LEFT_ARROW, ICON_RIGHT_ARROW
+from ..widget.resource import ICON_RUN, ICON_STEP_FORWARD, ICON_PAUSE, ICON_UNPAUSE, ICON_DISK, ICON_STOP, ICON_PRINT, ICON_EYE, ICON_UP_ARROW, ICON_DOWN_ARROW, ICON_LEFT_ARROW, ICON_RIGHT_ARROW, ICON_INFO, ICON_GEAR
 from ..function import Rotation, Flip
 
 
@@ -100,16 +100,17 @@ class DevicesSetupWidget(QWidget):
 
         sink_device_combobox.currentTextChanged.connect(on_sink_device_select)
 
+        self.sink_info_button = QPushButton(QIcon(ICON_INFO), "")
+        self.sink_info_button.setFixedWidth(self.sink_info_button.sizeHint().height())
+        self.sink_info_button.setToolTip("Information")
+
+        self.sink_settings_button = QPushButton(QIcon(ICON_GEAR), "")
+        self.sink_settings_button.setFixedWidth(self.sink_settings_button.sizeHint().height())
+        self.sink_settings_button.setToolTip("Settings")
+
         self.sink_preview_button = QPushButton(QIcon(ICON_EYE), "")
         self.sink_preview_button.setFixedWidth(self.sink_preview_button.sizeHint().height())
         self.sink_preview_button.setToolTip("Sink Preview")
-
-        # source_device_settings_button = QPushButton("")
-        # source_device_settings_button.setFixedWidth(source_device_settings_button.sizeHint().height())
-        # source_device_settings_button.setIcon(QIcon(ICON_GEAR))
-        # source_device_settings_button.setToolTip("Capture Stream Settings")
-        # source_device_settings_button.setEnabled(False)
-        # source_device_settings_button.hide()
 
         source_device_label = QLabel("Source")
         source_device_label.setFixedWidth(100)
@@ -124,6 +125,14 @@ class DevicesSetupWidget(QWidget):
             self.source_change.emit(self._devices[key])
 
         source_device_combobox.currentTextChanged.connect(on_source_device_select)
+
+        self.source_info_button = QPushButton(QIcon(ICON_INFO), "")
+        self.source_info_button.setFixedWidth(self.source_info_button.sizeHint().height())
+        self.source_info_button.setToolTip("Information")
+
+        self.source_settings_button = QPushButton(QIcon(ICON_GEAR), "")
+        self.source_settings_button.setFixedWidth(self.source_settings_button.sizeHint().height())
+        self.source_settings_button.setToolTip("Settings")
 
         self.source_preview_button = QPushButton(QIcon(ICON_EYE), "")
         self.source_preview_button.setFixedWidth(self.source_preview_button.sizeHint().height())
@@ -204,16 +213,14 @@ class LinspaceWidget(QWidget):
         super().__init__(parent)
 
         self._start_spinbox = QDoubleSpinBox(self)
-        self._start_spinbox.setMinimum(-999)
-        self._start_spinbox.setMaximum(999)
+        self._start_spinbox.setRange(-999, 999)
         self._start_spinbox.setDecimals(2)
         self._start_spinbox.setToolTip("Start")
         self._start_spinbox.setValue(start)
         self._start_spinbox.valueChanged.connect(self._on_value_changed)
 
         self._stop_spinbox = QDoubleSpinBox(self)
-        self._stop_spinbox.setMinimum(-999)
-        self._stop_spinbox.setMaximum(999)
+        self._stop_spinbox.setRange(-999, 999)
         self._stop_spinbox.setDecimals(2)
         self._stop_spinbox.setToolTip("Stop")
         self._stop_spinbox.setValue(stop)

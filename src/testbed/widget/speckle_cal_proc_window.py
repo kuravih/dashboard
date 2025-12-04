@@ -1,6 +1,7 @@
 import numpy as np
+import pickle
 from PySide6.QtGui import QIcon
-from PySide6.QtWidgets import QVBoxLayout, QWidget, QLabel, QGridLayout
+from PySide6.QtWidgets import QVBoxLayout, QWidget, QLabel, QGridLayout, QDoubleSpinBox
 from PySide6.QtCore import Slot, Qt
 
 from pykato.log import setup_logger
@@ -16,10 +17,10 @@ from .modulator_window import PreviewWindow as ModulatorPreviewWindow
 from .mirror_window import PreviewWindow as MirrorPreviewWindow
 from ..worker.speckle_cal_proc_worker import SpeckleCalProcWorker
 from ..worker.storage_worker import SinkStorageWorker, SourceStorageWorker
-from ..widget import LinspaceWidget
 
 from ..widget import DevicesSetupWidget, TaskControlsWidget
 from ..widget.resource import ICON_RUN, ICON_PAUSE
+from ..widget import LinspaceWidget
 
 logger = setup_logger("speckle_cal_proc_window", terminator="\n")
 
@@ -28,8 +29,16 @@ class SpeckleCalProcSettingsWidget(QWidget):
     """
     Speckle Calibration Window
     """
+
     def __init__(self, parent=None):
         super().__init__(parent)
+
+        ampl_label = QLabel("Amplitude", self)
+        ampl_label.setFixedWidth(100)
+
+        self._ampl_spinbox = QDoubleSpinBox(self)
+        self._ampl_spinbox.setRange(0, 0.5)
+        self._ampl_spinbox.setValue(0.25)
 
         angle_label = QLabel("Angle Steps", self)
         angle_label.setFixedWidth(100)
@@ -39,7 +48,7 @@ class SpeckleCalProcSettingsWidget(QWidget):
         freq_label = QLabel("Frequency Steps", self)
         freq_label.setFixedWidth(100)
 
-        self._freq_steps = LinspaceWidget(0.09, 0.01, 9, self)
+        self._freq_steps = LinspaceWidget(0.06, 0.01, 11, self)
 
         phase_label = QLabel("Phase Steps", self)
         phase_label.setFixedWidth(100)
@@ -49,6 +58,12 @@ class SpeckleCalProcSettingsWidget(QWidget):
         widget_layout = QGridLayout()
 
         row = 0
+        col = 0
+        widget_layout.addWidget(ampl_label, row, col)
+        col += 1
+        widget_layout.addWidget(self._ampl_spinbox, row, col)
+
+        row += 1
         col = 0
         widget_layout.addWidget(angle_label, row, col)
         col += 1
@@ -69,6 +84,10 @@ class SpeckleCalProcSettingsWidget(QWidget):
         self.setLayout(widget_layout)
 
     @property
+    def amplitude(self) -> float:
+        return self._ampl_spinbox.value()
+
+    @property
     def angles_array(self) -> np.ndarray:
         return self._angle_steps.value()
 
@@ -83,7 +102,6 @@ class SpeckleCalProcSettingsWidget(QWidget):
     @property
     def n_steps(self) -> int:
         return self.angles_array.size * self.freqs_array.size * self.phases_array.size
-
 
 
 class SpeckleCalProcWindow(QWidget):
@@ -193,9 +211,9 @@ class SpeckleCalProcWindow(QWidget):
                 current_sink_storage_worker.stop()
             return
 
-        self.controls_widget.progressbar.setMaximum(self.settings_widget.n_steps)
+        self.controls_widget.progressbar.setMaximum(self.settings_widget.n_steps + 1)  # include the blank
 
-        proc_worker = SpeckleCalProcWorker(self.source, self.sink, self.settings_widget.freqs_array, self.settings_widget.angles_array, self.settings_widget.phases_array)
+        proc_worker = SpeckleCalProcWorker(self.source, self.sink, self.settings_widget.amplitude, self.settings_widget.freqs_array, self.settings_widget.angles_array, self.settings_widget.phases_array)
         proc_worker.signals.progress.connect(self.on_progress)
         proc_worker.signals.finish.connect(self.on_finish)
 
@@ -212,6 +230,9 @@ class SpeckleCalProcWindow(QWidget):
         testbed.data.threadpool.start(sink_storage_worker)
         testbed.data.workers[sink_storage_worker_id] = sink_storage_worker
         sink_storage_worker.signals.finish.connect(self.on_sink_storage_finish)
+
+        with open(f"data/output/{timestamp}_speckle_cal.pkl", "wb") as file:
+            pickle.dump((self.settings_widget.amplitude, self.settings_widget.freqs_array, self.settings_widget.angles_array, self.settings_widget.phases_array), file, protocol=pickle.HIGHEST_PROTOCOL)
 
         testbed.data.threadpool.start(proc_worker)
 

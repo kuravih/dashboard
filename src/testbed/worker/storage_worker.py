@@ -3,7 +3,7 @@ from ..worker import Worker, WorkerSignals
 from ..device import SourceSample, SinkSample
 from queue import Queue
 import struct
-from ..function import DTYPE_MAP
+from ..function import write_source_sample, write_sink_sample
 
 
 class SourceStorageWorker(Worker):
@@ -20,32 +20,13 @@ class SourceStorageWorker(Worker):
     def run(self):
         super().run()
         with open(self.filename, "wb", buffering=0) as _file:
-            header_sample = self.queue.get()
-            h, w = header_sample.capture.shape[:2]
-            tl = header_sample.roi.get("tl", (0, 0))
-            br = header_sample.roi.get("br", (w, h))
-            dtype_code = DTYPE_MAP[header_sample.capture.dtype.type]
-            header = struct.pack(
-                "<7s" + "HH" + "I" + "fff" + "HHHH" + "B",
-                b"SRCSMPL",
-                h,  # unsigned short - H
-                w,  # unsigned short - H
-                header_sample.exposure_time_us,  # unsigned int - I
-                header_sample.gain,  # float - f
-                header_sample.frame_rate_fps,  # float - f
-                header_sample.temperature_c,  # float - f
-                tl[0],  # unsigned short - H
-                tl[1],  # unsigned short - H
-                br[0],  # unsigned short - H
-                br[1],  # unsigned short - H
-                dtype_code,  # unsigned byte - B
-            )
-            _file.write(header)
+            _sample = self.queue.get()
+            write_source_sample(_file, _sample)
             while self._running:
-                sample = self.queue.get()
-                if sample is None:
+                __sample = self.queue.get()
+                if __sample is None:
                     break
-                _file.write(struct.pack("<d", sample.last_access_time.timestamp()) + sample.capture.tobytes())
+                _file.write(struct.pack("<d", __sample.last_access_time.timestamp()) + __sample.capture.tobytes())
         self.signals.finish.emit()
 
 
@@ -63,25 +44,11 @@ class SinkStorageWorker(Worker):
     def run(self):
         super().run()
         with open(self.filename, "wb", buffering=0) as _file:
-            header_sample = self.queue.get()
-            h, w = header_sample.command.shape[:2]
-            center = header_sample.center
-            dtype_code = DTYPE_MAP[header_sample.command.dtype.type]
-            header = struct.pack(
-                "<7s" + "HH" + "f" + "fff" + "B",
-                b"SNKSMPL",
-                h,  # unsigned short - H
-                w,  # unsigned short - H
-                header_sample.frame_rate_fps,  # float - f
-                center[0],  # unsigned short - H
-                center[1],  # unsigned short - H
-                header_sample.radius,  # unsigned short - H
-                dtype_code,  # unsigned byte - B
-            )
-            _file.write(header)
+            _sample = self.queue.get()
+            write_sink_sample(_file, _sample)
             while self._running:
-                sample = self.queue.get()
-                if sample is None:
+                __sample = self.queue.get()
+                if __sample is None:
                     break
-                _file.write(struct.pack("<d", sample.last_access_time.timestamp()) + sample.command.tobytes())
+                _file.write(struct.pack("<d", __sample.last_access_time.timestamp()) + __sample.command.tobytes())
         self.signals.finish.emit()

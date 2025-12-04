@@ -2,7 +2,7 @@ import time
 import numpy as np
 from PySide6.QtCore import Slot, Signal
 
-from pykato.function import sinusoid
+from pykato.function import sinusoid, text
 from pykato.log import setup_logger
 
 from ..device import SourceSample, SinkSample
@@ -20,11 +20,12 @@ class SpeckleCalProcWorkerSignals(WorkerSignals):
 
 
 class SpeckleCalProcWorker(Worker):
-    def __init__(self, _source: Camera, _sink: Modulator | Mirror, _freqs: np.ndarray, _angles: np.ndarray, _phases: np.ndarray):
+    def __init__(self, _source: Camera, _sink: Modulator | Mirror, _ampl: float, _freqs: np.ndarray, _angles: np.ndarray, _phases: np.ndarray):
         super().__init__()
         self.signals = SpeckleCalProcWorkerSignals()
         self._source = _source
         self._sink = _sink
+        self._ampl = _ampl
         self._freqs = _freqs
         self._angles = _angles
         self._phases = _phases
@@ -35,15 +36,32 @@ class SpeckleCalProcWorker(Worker):
         super().run()
         i_step = 0
         t_start = time.time()
+
+        _current_sink_sample = self._sink.pull_sample()
+
+        # ---- blank --------------------------------------------------------------------------------------------------
+        time.sleep(0.1)
+        command = self._sink.pxmax * np.clip(np.zeros(self._sink.shape) + 0.5, 0, 1)
+        logger.info("%s and %s SpeckleCalProcWorker.run : blank", self._source.name, self._sink.name)
+        self._sink.push_command(command.astype(np.uint16))
+        self.signals.new_source_sample.emit(self._source.pull_sample())
+        self.signals.new_sink_sample.emit(self._sink.pull_sample())
+        self.signals.progress.emit(i_step, time.time() - t_start)
+        # ---- blank --------------------------------------------------------------------------------------------------
+
         for _freq in self._freqs:
             for _angle in self._angles:
                 for _phase in self._phases:
-                    time.sleep(0.1)
-                    command = self._sink.pxmax * np.clip(0.25 * sinusoid(self._sink.shape, 1.0 / _freq, np.deg2rad(_phase), np.deg2rad(_angle)) + 0.5, 0, 1)
-                    logger.info("%s and %s SpeckleNullProcWorker.run : step %s of %s", self._source.name, self._sink.name, i_step, self._n_steps)
+                    command = self._sink.pxmax * np.clip(self._ampl * sinusoid(self._sink.shape, 1.0 / _freq, np.deg2rad(_phase), np.deg2rad(_angle)) + 0.5, 0, 1)
+                    # command = self._sink.pxmax * np.clip(text(self._sink.shape, f"{i_step:02d}", font_size=150), 0, 1)
+                    logger.info("%s and %s SpeckleCalProcWorker.run : step %s of %s", self._source.name, self._sink.name, i_step + 1, self._n_steps)
                     self._sink.push_command(command.astype(np.uint16))
-                    self.signals.new_source_sample.emit(self._source.pull_sample())
                     self.signals.new_sink_sample.emit(self._sink.pull_sample())
-                    self.signals.progress.emit(i_step, time.time() - t_start)
+                    time.sleep(0.1)
+                    self.signals.new_source_sample.emit(self._source.pull_sample())
+                    time.sleep(0.1)
                     i_step = i_step + 1
+                    self.signals.progress.emit(i_step, time.time() - t_start)
         self.signals.finish.emit()
+
+        self._sink.push_command(_current_sink_sample.command.astype(np.uint16))
