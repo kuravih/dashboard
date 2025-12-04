@@ -101,14 +101,17 @@ class DevicesSetupWidget(QWidget):
         sink_device_combobox.currentTextChanged.connect(on_sink_device_select)
 
         self.sink_info_button = QPushButton(QIcon(ICON_INFO), "")
+        self.sink_info_button.setEnabled(False)
         self.sink_info_button.setFixedWidth(self.sink_info_button.sizeHint().height())
         self.sink_info_button.setToolTip("Information")
 
         self.sink_settings_button = QPushButton(QIcon(ICON_GEAR), "")
+        self.sink_settings_button.setEnabled(False)
         self.sink_settings_button.setFixedWidth(self.sink_settings_button.sizeHint().height())
         self.sink_settings_button.setToolTip("Settings")
 
         self.sink_preview_button = QPushButton(QIcon(ICON_EYE), "")
+        self.sink_preview_button.setEnabled(False)
         self.sink_preview_button.setFixedWidth(self.sink_preview_button.sizeHint().height())
         self.sink_preview_button.setToolTip("Sink Preview")
 
@@ -127,14 +130,17 @@ class DevicesSetupWidget(QWidget):
         source_device_combobox.currentTextChanged.connect(on_source_device_select)
 
         self.source_info_button = QPushButton(QIcon(ICON_INFO), "")
+        self.source_info_button.setEnabled(False)
         self.source_info_button.setFixedWidth(self.source_info_button.sizeHint().height())
         self.source_info_button.setToolTip("Information")
 
         self.source_settings_button = QPushButton(QIcon(ICON_GEAR), "")
+        self.source_settings_button.setEnabled(False)
         self.source_settings_button.setFixedWidth(self.source_settings_button.sizeHint().height())
         self.source_settings_button.setToolTip("Settings")
 
         self.source_preview_button = QPushButton(QIcon(ICON_EYE), "")
+        self.source_preview_button.setEnabled(False)
         self.source_preview_button.setFixedWidth(self.source_preview_button.sizeHint().height())
         self.source_preview_button.setToolTip("Source Preview")
 
@@ -150,6 +156,10 @@ class DevicesSetupWidget(QWidget):
             sink_device_combobox.show()
             layout.addWidget(sink_device_combobox, row, col)
             col += 1
+            layout.addWidget(self.sink_info_button, row, col)
+            col += 1
+            layout.addWidget(self.sink_settings_button, row, col)
+            col += 1
             layout.addWidget(self.sink_preview_button, row, col)
 
         if self._setup_source:
@@ -160,6 +170,10 @@ class DevicesSetupWidget(QWidget):
             col += 1
             source_device_combobox.show()
             layout.addWidget(source_device_combobox, row, col)
+            col += 1
+            layout.addWidget(self.source_info_button, row, col)
+            col += 1
+            layout.addWidget(self.source_settings_button, row, col)
             col += 1
             layout.addWidget(self.source_preview_button, row, col)
 

@@ -2,7 +2,7 @@ import time
 import numpy as np
 from PySide6.QtCore import Slot, Signal
 
-from pykato.function import sinusoid, text
+from pykato.function import sinusoid
 from pykato.log import setup_logger
 
 from ..device import SourceSample, SinkSample
@@ -53,7 +53,6 @@ class SpeckleCalProcWorker(Worker):
             for _angle in self._angles:
                 for _phase in self._phases:
                     command = self._sink.pxmax * np.clip(self._ampl * sinusoid(self._sink.shape, 1.0 / _freq, np.deg2rad(_phase), np.deg2rad(_angle)) + 0.5, 0, 1)
-                    # command = self._sink.pxmax * np.clip(text(self._sink.shape, f"{i_step:02d}", font_size=150), 0, 1)
                     logger.info("%s and %s SpeckleCalProcWorker.run : step %s of %s", self._source.name, self._sink.name, i_step + 1, self._n_steps)
                     self._sink.push_command(command.astype(np.uint16))
                     self.signals.new_sink_sample.emit(self._sink.pull_sample())
