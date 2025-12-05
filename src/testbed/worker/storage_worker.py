@@ -7,9 +7,9 @@ from ..function import write_source_sample, write_sink_sample
 
 
 class SourceStorageWorker(Worker):
-    def __init__(self, filename: str, _maxsize: int = -1):
+    def __init__(self, filename: str, maxsize: int | None = None):
         super().__init__()
-        self.queue: Queue[SourceSample] = Queue(maxsize=_maxsize)
+        self.queue: Queue[SourceSample] = Queue(maxsize=-1 if maxsize is None else maxsize)
         self.filename = filename
         self.signals = WorkerSignals()
 
@@ -31,9 +31,9 @@ class SourceStorageWorker(Worker):
 
 
 class SinkStorageWorker(Worker):
-    def __init__(self, filename: str, _maxsize: int = -1):
+    def __init__(self, filename: str, maxsize: int | None = None):
         super().__init__()
-        self.queue: Queue[SinkSample] = Queue(maxsize=_maxsize)
+        self.queue: Queue[SinkSample] = Queue(maxsize=-1 if maxsize is None else maxsize)
         self.filename = filename
         self.signals = WorkerSignals()
 

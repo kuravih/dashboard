@@ -7,12 +7,14 @@ from pykato.function import timestamp_string
 
 import testbed
 from ..device.camera import Camera
-from ..device.modulator import Modulator
-from ..device.mirror import Mirror
+from .camera_window import PreviewWindow as CameraPreviewWindow, InfoWindow as CameraInfoWindow, SettingsWindow as CameraSettingsWindow
 
-from .camera_window import PreviewWindow as CameraPreviewWindow
-from .modulator_window import PreviewWindow as ModulatorPreviewWindow
-from .mirror_window import PreviewWindow as MirrorPreviewWindow
+from ..device.modulator import Modulator
+from .modulator_window import PreviewWindow as ModulatorPreviewWindow, InfoWindow as ModulatorInfoWindow, SettingsWindow as ModulatorSettingsWindow
+
+from ..device.mirror import Mirror
+from .mirror_window import PreviewWindow as MirrorPreviewWindow, InfoWindow as MirrorInfoWindow, SettingsWindow as MirrorSettingsWindow
+
 from ..worker.simple_proc_worker import SimpleProcWorker
 from ..worker.storage_worker import SinkStorageWorker, SourceStorageWorker
 
@@ -140,23 +142,83 @@ class SimpleProcWindow(QWidget):
         return self._sink
 
     def on_source_change(self, _device: Camera):
+        self.devices_widget.source_info_button.setEnabled(True)
+        self.devices_widget.source_settings_button.setEnabled(True)
+        self.devices_widget.source_preview_button.setEnabled(True)
         self._source = _device
-        # self.open_preview_window(_device) # TODO: uncomment
+        self.open_preview_window(_device)
+        self.devices_widget.source_info_button.clicked.connect(lambda _, _device=_device: self.open_info_window(_device))
+        self.devices_widget.source_settings_button.clicked.connect(lambda _, _device=_device: self.open_settings_window(_device))
         self.devices_widget.source_preview_button.clicked.connect(lambda _, _device=_device: self.open_preview_window(_device))
 
     def on_sink_change(self, _device: Modulator | Mirror):
+        self.devices_widget.sink_info_button.setEnabled(True)
+        self.devices_widget.sink_settings_button.setEnabled(True)
+        self.devices_widget.sink_preview_button.setEnabled(True)
         self._sink = _device
-        # self.open_preview_window(_device) # TODO: uncomment
+        self.open_preview_window(_device)
+        self.devices_widget.sink_info_button.clicked.connect(lambda _, _device=_device: self.open_info_window(_device))
+        self.devices_widget.sink_settings_button.clicked.connect(lambda _, _device=_device: self.open_settings_window(_device))
         self.devices_widget.sink_preview_button.clicked.connect(lambda _, _device=_device: self.open_preview_window(_device))
+
+    def open_info_window(self, _device: Camera | Modulator | Mirror):
+
+        window_name = _device.name + "_info"
+
+        @Slot()
+        def close_window():
+            testbed.data.windows.pop(window_name, None)
+
+        if window_name not in testbed.data.windows:
+            window: CameraInfoWindow | ModulatorInfoWindow | MirrorInfoWindow | None = None
+            if isinstance(_device, Camera):
+                window = CameraInfoWindow(_device)
+            elif isinstance(_device, Modulator):
+                window = ModulatorInfoWindow(_device)
+            elif isinstance(_device, Mirror):
+                window = MirrorInfoWindow(_device)
+            else:
+                raise ValueError("Invalid device")
+            window.destroyed.connect(close_window)
+            window.show()
+            window.raise_()
+            window.activateWindow()
+            testbed.data.windows[window_name] = window
+
+    def open_settings_window(self, _device: Camera | Modulator | Mirror):
+
+        window_name = _device.name + "_settings"
+
+        @Slot()
+        def close_window():
+            testbed.data.windows.pop(window_name, None)
+
+        if window_name not in testbed.data.windows:
+            window: CameraSettingsWindow | ModulatorSettingsWindow | MirrorSettingsWindow | None = None
+            if isinstance(_device, Camera):
+                window = CameraSettingsWindow(_device)
+            elif isinstance(_device, Modulator):
+                window = ModulatorSettingsWindow(_device)
+            elif isinstance(_device, Mirror):
+                window = MirrorSettingsWindow(_device)
+            else:
+                raise ValueError("Invalid device")
+            window.destroyed.connect(close_window)
+            window.show()
+            window.raise_()
+            window.activateWindow()
+            testbed.data.windows[window_name] = window
 
     def open_preview_window(self, _device: Camera | Modulator | Mirror):
 
         window_name = _device.name + "_preview"
 
+        @Slot()
         def close_window():
             testbed.data.windows.pop(window_name, None)
 
         if window_name not in testbed.data.windows:
+            window: CameraPreviewWindow | ModulatorPreviewWindow | MirrorPreviewWindow | None = None
             if isinstance(_device, Camera):
                 window = CameraPreviewWindow(_device)
             elif isinstance(_device, Modulator):
@@ -165,7 +227,6 @@ class SimpleProcWindow(QWidget):
                 window = MirrorPreviewWindow(_device)
             else:
                 raise ValueError("Invalid device")
-
             window.destroyed.connect(close_window)
             window.show()
             window.raise_()
@@ -214,6 +275,8 @@ class SimpleProcWindow(QWidget):
             current_proc_worker = testbed.data.workers.pop(proc_worker_id)
             current_proc_worker.stop()
             self.controls_widget.play_pause_button.setIcon(QIcon(ICON_RUN))
+            self.devices_widget.sink_settings_button.setEnabled(True)
+            self.devices_widget.source_settings_button.setEnabled(True)
             self.controls_widget.progressbar.setMaximum(100)
             self.controls_widget.progressbar.reset()
             self.controls_widget.progressbar.update()
@@ -253,6 +316,8 @@ class SimpleProcWindow(QWidget):
         testbed.data.threadpool.start(proc_worker)
 
         self.controls_widget.play_pause_button.setIcon(QIcon(ICON_PAUSE))
+        self.devices_widget.sink_settings_button.setEnabled(False)
+        self.devices_widget.source_settings_button.setEnabled(False)
 
         if source_preview_window_name in testbed.data.windows:
             proc_worker.signals.new_source_sample.connect(testbed.data.windows[source_preview_window_name].on_new_sample)

@@ -103,7 +103,7 @@ class SpeckleCalProcSettingsWidget(QWidget):
 
     @property
     def n_steps(self) -> int:
-        return self.angles_array.size * self.freqs_array.size * self.phases_array.size
+        return self.angles_array.size * self.freqs_array.size * self.phases_array.size + 1 # include blank
 
 
 class SpeckleCalProcWindow(QWidget):
@@ -261,6 +261,8 @@ class SpeckleCalProcWindow(QWidget):
             current_proc_worker = testbed.data.workers.pop(proc_worker_id)
             current_proc_worker.stop()
             self.controls_widget.play_pause_button.setIcon(QIcon(ICON_RUN))
+            self.devices_widget.sink_settings_button.setEnabled(True)
+            self.devices_widget.source_settings_button.setEnabled(True)
             self.controls_widget.progressbar.setMaximum(100)
             self.controls_widget.progressbar.reset()
             self.controls_widget.progressbar.update()
@@ -272,7 +274,7 @@ class SpeckleCalProcWindow(QWidget):
                 current_sink_storage_worker.stop()
             return
 
-        self.controls_widget.progressbar.setMaximum(self.settings_widget.n_steps + 1)  # include the blank
+        self.controls_widget.progressbar.setMaximum(self.settings_widget.n_steps)  # include the blank
 
         proc_worker = SpeckleCalProcWorker(self.source, self.sink, self.settings_widget.amplitude, self.settings_widget.freqs_array, self.settings_widget.angles_array, self.settings_widget.phases_array)
         proc_worker.signals.progress.connect(self.on_progress)
@@ -298,6 +300,8 @@ class SpeckleCalProcWindow(QWidget):
         testbed.data.threadpool.start(proc_worker)
 
         self.controls_widget.play_pause_button.setIcon(QIcon(ICON_PAUSE))
+        self.devices_widget.sink_settings_button.setEnabled(False)
+        self.devices_widget.source_settings_button.setEnabled(False)
 
         if source_preview_window_name in testbed.data.windows:
             proc_worker.signals.new_source_sample.connect(testbed.data.windows[source_preview_window_name].on_new_sample)

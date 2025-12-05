@@ -2,7 +2,7 @@ import time
 import numpy as np
 from PySide6.QtCore import Slot, Signal
 
-from pykato.function import preroll
+from pykato.function import text
 from pykato.log import setup_logger
 
 from ..device import SourceSample, SinkSample
@@ -32,14 +32,29 @@ class SimpleProcWorker(Worker):
         super().run()
         i_step = 0
         t_start = time.time()
+
+        _current_sink_sample = self._sink.pull_sample()
+
+        # ---- blank --------------------------------------------------------------------------------------------------
+        time.sleep(0.1)
+        command = self._sink.pxmax * np.clip(np.zeros(self._sink.shape) + 0.5, 0, 1)
+        logger.info("%s and %s SimpleProcWorker.run : blank", self._source.name, self._sink.name)
+        self._sink.push_command(command.astype(np.uint16))
+        self.signals.new_source_sample.emit(self._source.pull_sample())
+        self.signals.new_sink_sample.emit(self._sink.pull_sample())
+        self.signals.progress.emit(i_step, time.time() - t_start)
+        # ---- blank --------------------------------------------------------------------------------------------------
+
         while ((self._n_steps is None) or (self._n_steps > i_step)) and self._running:
-            time.sleep(0.1)
-            count = time.time() % 60.0
-            command = self._sink.pxmax * preroll(self._sink.shape, int(count), count / 60.0, 100)
+            command = self._sink.pxmax * np.clip(text(self._sink.shape, f"{i_step:02d}", font_size=150), 0, 1)
             logger.info("%s and %s SimpleProcWorker.run : step %s of %s", self._source.name, self._sink.name, i_step, self._n_steps)
             self._sink.push_command(command.astype(np.uint16))
-            self.signals.new_source_sample.emit(self._source.pull_sample())
             self.signals.new_sink_sample.emit(self._sink.pull_sample())
-            self.signals.progress.emit(i_step, time.time() - t_start)
+            time.sleep(0.1)
+            self.signals.new_source_sample.emit(self._source.pull_sample())
+            time.sleep(0.1)
             i_step = i_step + 1
+            self.signals.progress.emit(i_step, time.time() - t_start)
         self.signals.finish.emit()
+
+        self._sink.push_command(_current_sink_sample.command.astype(np.uint16))
