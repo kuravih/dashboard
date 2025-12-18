@@ -8,4 +8,7 @@ authors = [
 readme = "README.md"
 license = { text = "MIT" }
 requires-python = ">=3.8"
-dependencies = ["toml", "numpy", "matplotlib", "astropy", "pyzmq", "pyside6", "pykato @ git+https://github.com/kuravih/pykato.git"]
+dependencies = ["toml", "numpy", "matplotlib", "astropy", "pyzmq", "pyside6", "pykato @ git+https://github.com/kuravih/pykato.git",  "pyshmio @ git+https://github.com/kuravih/pyshmio.git"]
+
+[tool.setuptools.packages.find]
+where = ["src"]

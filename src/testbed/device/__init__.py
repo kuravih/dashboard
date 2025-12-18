@@ -4,10 +4,51 @@ import toml
 import numpy as np
 from datetime import datetime
 
-from pyshmio import SharedMemory
+from pyshmio import SharedMemory, Keyword, KeywordType, DataType
 from pykato.log import setup_logger
 
 device_logger = setup_logger("Device", terminator="\n")
+
+
+def create_camera_memory(_name: str, _full_size: tuple[int, int], _roi_size: tuple[int, int], _dtype: DataType, _serial: str, _pxmax: int, _port: int) -> SharedMemory:
+    # ---- constants ----
+    kw_kind = Keyword("KIND", KeywordType.STRING, "CAMERA", "Device kind")
+    kw_sn = Keyword("SN", KeywordType.STRING, _serial, "Serial number")
+    kw_pxmax = Keyword("PXMAX", KeywordType.LONG, int(_pxmax), "Pixel max")
+    kw_full_w = Keyword("FULL.W", KeywordType.LONG, int(_full_size[0]), "Detector width")
+    kw_full_h = Keyword("FULL.H", KeywordType.LONG, int(_full_size[1]), "Detector height")
+    kw_port = Keyword("PORT", KeywordType.LONG, int(_port), "Link port")
+    kw_width = Keyword("WIDTH", KeywordType.LONG, int(_roi_size[0]), "Width (px)")
+    kw_height = Keyword("HEIGHT", KeywordType.LONG, int(_roi_size[1]), "Height (px)")
+    # ---- variables ----
+    kw_exptime = Keyword("EXPTIME", KeywordType.LONG, int(0), "Exposure time (us)")
+    kw_frmrate = Keyword("FRMRATE", KeywordType.DOUBLE, float(0), "Frame rate (fps)")
+    kw_gain = Keyword("GAIN", KeywordType.DOUBLE, float(0), "Gain (units)")
+    kw_temp = Keyword("TEMP", KeywordType.DOUBLE, float(0), "Temperature (C)")
+    kw_roi_tl_x = Keyword("ROI.TL.X", KeywordType.LONG, int(0), "Region of interest top left x")
+    kw_roi_tl_y = Keyword("ROI.TL.Y", KeywordType.LONG, int(0), "Region of interest top left y")
+    kw_roi_br_x = Keyword("ROI.BR.X", KeywordType.LONG, int(_roi_size[0]), "Region of interest bottom right x")
+    kw_roi_br_y = Keyword("ROI.BR.Y", KeywordType.LONG, int(_roi_size[1]), "Region of interest bottom right y")
+
+    return SharedMemory.create(_name, _roi_size[0] * _roi_size[1], _dtype, [kw_kind, kw_sn, kw_pxmax, kw_full_w, kw_full_h, kw_port, kw_width, kw_height, kw_exptime, kw_frmrate, kw_gain, kw_temp, kw_roi_tl_x, kw_roi_tl_y, kw_roi_br_x, kw_roi_br_y])
+
+
+def create_modulator_memory(_name: str, _full_size: tuple[int, int], _center: tuple[int, int] | tuple[float, float], _radius: float, _dtype: DataType, _serial: str, _pxmax: int, _port: int) -> SharedMemory:
+    # ---- constants ----
+    kw_kind = Keyword("KIND", KeywordType.STRING, "SLM", "Device kind")
+    kw_sn = Keyword("SN", KeywordType.STRING, _serial, "Serial number")
+    kw_pxmax = Keyword("PXMAX", KeywordType.LONG, int(_pxmax), "Pixel max")
+    kw_full_w = Keyword("FULL.W", KeywordType.LONG, int(_full_size[0]), "Detector width")
+    kw_full_h = Keyword("FULL.H", KeywordType.LONG, int(_full_size[1]), "Detector height")
+    kw_port = Keyword("PORT", KeywordType.LONG, int(_port), "Link port")
+    kw_radmax = Keyword("RADMAX", KeywordType.LONG, int(_radius), "Maximum Radius (px)")
+    # ---- variables ----
+    kw_radius = Keyword("RADIUS", KeywordType.DOUBLE, float(_radius), "Radius (px)")
+    kw_center_x = Keyword("CENTER.X", KeywordType.LONG if isinstance(_center[0], int) else KeywordType.DOUBLE, _center[0], "Center x (px)")
+    kw_center_y = Keyword("CENTER.Y", KeywordType.LONG if isinstance(_center[1], int) else KeywordType.DOUBLE, _center[1], "Center y (px)")
+    kw_frmrate = Keyword("FRMRATE", KeywordType.DOUBLE, float(0), "Frame rate (fps)")
+
+    return SharedMemory.create(_name, 2 * _radius * 2 * _radius, _dtype, [kw_kind, kw_sn, kw_pxmax, kw_full_w, kw_full_h, kw_port, kw_radmax, kw_radius, kw_center_x, kw_center_y, kw_frmrate])
 
 
 class Device:

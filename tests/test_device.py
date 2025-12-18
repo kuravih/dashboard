@@ -1,10 +1,11 @@
 import unittest
 import numpy as np
-from testbed.device import Stream
+from testbed.device import Stream, create_camera_memory, create_modulator_memory
 from testbed.device.camera import Camera
 from testbed.device.modulator import Modulator
 from pykato.log import setup_logger
 from pykato.function import preroll
+from pyshmio import DataType
 import time
 
 logger = setup_logger("test_device", terminator="\n")
@@ -127,3 +128,38 @@ class TestDevice(unittest.TestCase):
             logger.info("frame : %s", i)
             slm.push_command(((2**16 - 1) * preroll(slm.shape, i, i / 100.0, 100)).astype(np.uint16))
             time.sleep(0.01)
+
+    def test_create_camera_memory_pupil(self):
+        pupil_camera_memory = create_camera_memory("pupil_camera", (512, 512), (512, 512), DataType.UINT16, "sim001", 2**12 - 1, 5001)
+        logger.info("pupil_camera.creation_time             : %s", pupil_camera_memory.creation_time)
+        logger.info("pupil_camera.last_access_time          : %s", pupil_camera_memory.last_access_time)
+        logger.info("pupil_camera.size                      : %s", pupil_camera_memory.size)
+        logger.info("pupil_camera.name                      : %s", pupil_camera_memory.name)
+        for ikey, key in enumerate(pupil_camera_memory.keywords):
+            logger.info("keyword %d = keywords[%s] = {.value = %s,.type = %s,.comment = %s}", ikey, key, pupil_camera_memory.keywords[key].value, pupil_camera_memory.keywords[key].type, pupil_camera_memory.keywords[key].comment)
+        logger.info("pupil_camera.shape                     : %s", pupil_camera_memory.ndarray.shape)
+        logger.info("pupil_camera.dtype                     : %s", pupil_camera_memory.ndarray.dtype)
+
+    def test_create_camera_memory_image(self):
+        image_camera_memory = create_camera_memory("image_camera", (256, 256), (256, 256), DataType.UINT16, "sim002", 2**14 - 1, 5002)
+        logger.info("image_camera.creation_time             : %s", image_camera_memory.creation_time)
+        logger.info("image_camera.last_access_time          : %s", image_camera_memory.last_access_time)
+        logger.info("image_camera.size                      : %s", image_camera_memory.size)
+        logger.info("image_camera.name                      : %s", image_camera_memory.name)
+        for ikey, key in enumerate(image_camera_memory.keywords):
+            logger.info("keyword %d = keywords[%s] = {.value = %s,.type = %s,.comment = %s}", ikey, key, image_camera_memory.keywords[key].value, image_camera_memory.keywords[key].type, image_camera_memory.keywords[key].comment)
+        logger.info("image_camera.shape                     : %s", image_camera_memory.ndarray.shape)
+        logger.info("image_camera.dtype                     : %s", image_camera_memory.ndarray.dtype)
+
+    def test_create_modulator_memory_pupil(self):
+        modulator_memory = create_modulator_memory("modulator", (360, 360), (180, 180), 180, DataType.UINT16, "sim003", 2**14 - 1, 5002)
+        logger.info("modulator.creation_time             : %s", modulator_memory.creation_time)
+        logger.info("modulator.last_access_time          : %s", modulator_memory.last_access_time)
+        logger.info("modulator.size                      : %s", modulator_memory.size)
+        logger.info("modulator.name                      : %s", modulator_memory.name)
+        for ikey, key in enumerate(modulator_memory.keywords):
+            logger.info("keyword %d = keywords[%s] = {.value = %s,.type = %s,.comment = %s}", ikey, key, modulator_memory.keywords[key].value, modulator_memory.keywords[key].type, modulator_memory.keywords[key].comment)
+        logger.info("modulator.shape                     : %s", modulator_memory.ndarray.shape)
+        logger.info("modulator.dtype                     : %s", modulator_memory.ndarray.dtype)
+
+
