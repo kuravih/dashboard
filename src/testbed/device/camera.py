@@ -94,6 +94,9 @@ class Camera(Device):
     def pull_sample(self) -> SourceSample:
         return SourceSample(self.last_access_time, self.exposure_time_us, self.gain, self.frame_rate_fps, self.temperature_c, self.roi, self.pull_capture())
 
+    def pull_blank_sample(self) -> SourceSample:
+        return SourceSample(self.last_access_time, self.exposure_time_us, self.gain, self.frame_rate_fps, self.temperature_c, self.roi, self.blank)
+
     def update_keywords(self):
         self._stream.update_keywords()
 

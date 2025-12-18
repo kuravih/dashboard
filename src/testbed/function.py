@@ -45,7 +45,7 @@ def flip_rotate(_frame: np.ndarray, _flip: Flip, _rotation: Rotation):
         return frame
 
 
-def write_source_sample(_file: FileIO, _sample: SourceSample):
+def write_source_sample_header(_file: FileIO, _sample: SourceSample):
     h, w = _sample.capture.shape[:2]
     tl = _sample.roi.get("tl", (0, 0))
     br = _sample.roi.get("br", (w, h))
@@ -66,6 +66,9 @@ def write_source_sample(_file: FileIO, _sample: SourceSample):
         dtype_code,  # unsigned byte - B
     )
     _file.write(header)
+
+
+def write_source_sample_data(_file: FileIO, _sample: SourceSample):
     _file.write(struct.pack("<d", _sample.last_access_time.timestamp()) + _sample.capture.tobytes())
 
 
@@ -107,7 +110,7 @@ def read_source_samples(filename: str) -> SourceSampleStore:
     return SourceSampleStore(exposure_us, gain, fps, temp_c, roi, np.array(captures), np.array(timestamps))
 
 
-def write_sink_sample(_file: FileIO, _sample: SinkSample):
+def write_sink_sample_header(_file: FileIO, _sample: SinkSample):
     h, w = _sample.command.shape[:2]
     center = _sample.center
     dtype_code = DTYPE_MAP[_sample.command.dtype.type]
@@ -123,6 +126,9 @@ def write_sink_sample(_file: FileIO, _sample: SinkSample):
         dtype_code,  # unsigned byte - B
     )
     _file.write(header)
+
+
+def write_sink_sample_data(_file: FileIO, _sample: SinkSample):
     _file.write(struct.pack("<d", _sample.last_access_time.timestamp()) + _sample.command.tobytes())
 
 

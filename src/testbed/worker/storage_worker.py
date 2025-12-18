@@ -2,8 +2,7 @@ from PySide6.QtCore import Slot
 from ..worker import Worker, WorkerSignals
 from ..device import SourceSample, SinkSample
 from queue import Queue
-import struct
-from ..function import write_source_sample, write_sink_sample
+from ..function import write_source_sample_header, write_source_sample_data, write_sink_sample_header, write_sink_sample_data
 
 
 class SourceStorageWorker(Worker):
@@ -21,12 +20,13 @@ class SourceStorageWorker(Worker):
         super().run()
         with open(self.filename, "wb", buffering=0) as _file:
             _sample = self.queue.get()
-            write_source_sample(_file, _sample)
+            write_source_sample_header(_file, _sample)
+            write_source_sample_data(_file, _sample)
             while self._running:
                 __sample = self.queue.get()
                 if __sample is None:
                     break
-                _file.write(struct.pack("<d", __sample.last_access_time.timestamp()) + __sample.capture.tobytes())
+                write_source_sample_data(_file, _sample)
         self.signals.finish.emit()
 
 
@@ -45,10 +45,11 @@ class SinkStorageWorker(Worker):
         super().run()
         with open(self.filename, "wb", buffering=0) as _file:
             _sample = self.queue.get()
-            write_sink_sample(_file, _sample)
+            write_sink_sample_header(_file, _sample)
+            write_sink_sample_data(_file, _sample)
             while self._running:
                 __sample = self.queue.get()
                 if __sample is None:
                     break
-                _file.write(struct.pack("<d", __sample.last_access_time.timestamp()) + __sample.command.tobytes())
+                write_sink_sample_data(_file, _sample)
         self.signals.finish.emit()

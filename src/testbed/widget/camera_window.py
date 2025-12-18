@@ -7,7 +7,7 @@ from pykato.plotfunction.preset import Histogram_Colorbar_Preset
 from pykato.function import timestamp_string
 
 from ..device.camera import Camera, SourceSample
-from ..function import Flip, Rotation, write_source_sample
+from ..function import Flip, Rotation, write_source_sample_header, write_source_sample_data
 from ..widget import Window, OrientationWidget, ROIWidget, DoubleValueSetWidget, ValueSetWidget
 from ..widget.resource import ICON_CAMERA
 from ..widget.figure_widget import FigureWidget, SourceFigureWidget
@@ -24,7 +24,7 @@ class PreviewWindow(Window):
     def __init__(self, _camera: Camera):
         super().__init__()
         self._camera = _camera
-        self._sample = self._camera.pull_sample()
+        self._sample = self._camera.pull_blank_sample()
 
         self.setWindowTitle(f"{self._camera.name} Preview")
 
@@ -431,7 +431,8 @@ class SettingsWindow(QWidget):
             timestamp = timestamp_string(frmt="%Y%m%d.%H%M%S", ms=None)
             filename = f"data/output/{timestamp}_capture_source.raw"
             with open(filename, "wb", buffering=0) as _file:
-                write_source_sample(_file, self.sample)
+                write_source_sample_header(_file, self.sample)
+                write_source_sample_data(_file, self.sample)
 
         capture_pushbutton.clicked.connect(capture_callback)
         # ---- capture ------------------------------------------------------------------------------------------------

@@ -8,7 +8,7 @@ from pykato.plotfunction.preset import Histogram_Colorbar_Preset
 from pykato.function import timestamp_string
 
 from ..widget import Window, OrientationWidget, CenterWidget, DoubleValueSetWidget
-from ..function import Flip, Rotation, write_sink_sample
+from ..function import Flip, Rotation, write_sink_sample_data, write_sink_sample_header
 from ..device.modulator import Modulator, SinkSample
 from ..widget.command_preset_widget import EFCPresetWidget, ConstPresetWidget, GradientPresetWidget, CheckerPresetWidget, SinusoidPresetWidget, BoxPresetWidget, PolkaPresetWidget, RegisterPresetWidget, DOTFPresetWidget, TextPresetWidget
 from ..widget.figure_widget import FigureWidget, ModulatorFigureWidget
@@ -27,7 +27,7 @@ class PreviewWindow(Window):
     def __init__(self, modulator: Modulator):
         super().__init__()
         self._modulator = modulator
-        self._sample = self._modulator.pull_sample()
+        self._sample = self._modulator.pull_blank_sample()
 
         self.setWindowTitle(f"{self._modulator.name} Preview")
 
@@ -402,7 +402,8 @@ class SettingsWindow(Window):
             timestamp = timestamp_string(frmt="%Y%m%d.%H%M%S", ms=None)
             filename = f"data/output/{timestamp}_command_sink.raw"
             with open(filename, "wb", buffering=0) as _file:
-                write_sink_sample(_file, self.sample)
+                write_sink_sample_header(_file, self.sample)
+                write_sink_sample_data(_file, self.sample)
 
         @Slot()
         def send_command_callback():

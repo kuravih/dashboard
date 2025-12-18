@@ -90,6 +90,9 @@ class Modulator(Device):
     def pull_sample(self) -> SinkSample:
         return SinkSample(self.last_access_time, self.frame_rate_fps, self.center, self.radius, self.command)
 
+    def pull_blank_sample(self) -> SinkSample:
+        return SinkSample(self.last_access_time, self.frame_rate_fps, self.center, self.radius, self.blank)
+
     @property
     def pxmax(self) -> float | int:
         return self._stream.pxmax
