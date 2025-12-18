@@ -171,6 +171,7 @@ def read_sink_samples(filename: str) -> SinkSampleStore:
 
 
 def find_speckles(speckle_image: np.ndarray, num_peaks: int = 1, footprint_size: int = 10, min_distance: int = 1):
+    # TODO: type hint return
     rot_speckle_image = np.rot90(speckle_image)
     peak_idx = peak_local_max(rot_speckle_image, num_peaks=num_peaks, min_distance=min_distance, threshold_abs=None)
     peak_mask = np.zeros_like(rot_speckle_image, dtype=bool)
@@ -179,3 +180,32 @@ def find_speckles(speckle_image: np.ndarray, num_peaks: int = 1, footprint_size:
     peak_mask = binary_dilation(peak_mask, disk_mask)
     label_image = label(peak_mask)
     return regionprops(label_image, rot_speckle_image), peak_mask
+
+
+def speckle_parameters(center: np.ndarray, speckle_location_px: np.ndarray, speck_calibration: tuple[tuple[float, float], tuple[float, float]]):
+    # TODO: type hint return
+    (angle_slope, angle_intercept), (freq_slope, freq_intercept) = speck_calibration
+    speckle_location_px_delta = speckle_location_px - np.array(center)
+    speckle_dist = np.hypot(speckle_location_px_delta[0], speckle_location_px_delta[1])
+    speckle_angle = -np.arctan2(speckle_location_px_delta[0], speckle_location_px_delta[1])
+    speckle_frequency = (speckle_dist - freq_intercept) / freq_slope
+    speckle_angle = (speckle_angle - angle_intercept) / angle_slope
+    return speckle_frequency, speckle_angle
+
+
+def find_speckles_pair(speckle_image: np.ndarray, num_peaks: int = 2, footprint_size: int = 10, min_distance: int = 10) -> list[np.ndarray]:
+
+    def quadrant_key(x: float, y: float) -> int:
+        if x >= 0 and y >= 0:
+            return 0  # quadrant 1
+        elif x < 0 and y >= 0:
+            return 1  # quadrant 2
+        elif x < 0 and y < 0:
+            return 2  # quadrant 3
+        else:
+            return 3  # quadrant 4
+
+    speckles, _ = find_speckles(speckle_image, num_peaks=num_peaks, footprint_size=footprint_size, min_distance=min_distance)
+    center = np.mean([speckle.weighted_centroid for speckle in speckles], axis=0)
+    speckles_sorted = sorted(speckles, key=lambda speckle: quadrant_key(speckle.weighted_centroid[0] - center[0] + 1, speckle.weighted_centroid[1] - center[1] + 1))
+    return [speckle.weighted_centroid for speckle in speckles_sorted]

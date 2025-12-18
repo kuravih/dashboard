@@ -5,7 +5,7 @@ from PySide6.QtCore import Slot, Qt, QFileInfo
 import pickle
 
 from pykato.log import setup_logger
-from pykato.function import timestamp_string
+from pykato.function import timestamp_string, chord
 
 import testbed
 from ..device.camera import Camera
@@ -45,14 +45,14 @@ class SpeckleNullProcSettingsWidget(QWidget):
 
         self._amp_steps = LinspaceWidget(0.0, 0.1, 11, self)
 
-        n_iters_label = QLabel("Nulling iterations", self)
-        n_iters_label.setFixedWidth(100)
+        n_iterations_label = QLabel("Nulling iterations", self)
+        n_iterations_label.setFixedWidth(100)
 
-        self._n_iters_spinbox = QSpinBox(self)
-        self._n_iters_spinbox.setRange(0, 9999)
-        self._n_iters_spinbox.setSingleStep(1)
-        self._n_iters_spinbox.setValue(10)
-        self._n_iters_spinbox.setToolTip("Number of nulling iterations")
+        self._n_iterations_spinbox = QSpinBox(self)
+        self._n_iterations_spinbox.setRange(0, 9999)
+        self._n_iterations_spinbox.setSingleStep(1)
+        self._n_iterations_spinbox.setValue(10)
+        self._n_iterations_spinbox.setToolTip("Number of nulling iterations")
 
         self._continuous_checkbox = QCheckBox("continuous", self)
         self._continuous_checkbox.setToolTip("Run till stop/pause button is clicked")
@@ -81,9 +81,9 @@ class SpeckleNullProcSettingsWidget(QWidget):
         @Slot(bool)
         def on_continuous_checkbox_toggle(checked: bool):
             if checked:
-                self._n_iters_spinbox.setEnabled(False)
+                self._n_iterations_spinbox.setEnabled(False)
             else:
-                self._n_iters_spinbox.setEnabled(True)
+                self._n_iterations_spinbox.setEnabled(True)
 
         self._continuous_checkbox.toggled.connect(on_continuous_checkbox_toggle)
 
@@ -111,9 +111,9 @@ class SpeckleNullProcSettingsWidget(QWidget):
 
         self.speck_cal_clear_button.clicked.connect(speck_cal_clear_button_clicked)
 
-        n_iters_layout = QHBoxLayout()
-        n_iters_layout.addWidget(self._n_iters_spinbox)
-        n_iters_layout.addWidget(self._continuous_checkbox)
+        n_iterations_layout = QHBoxLayout()
+        n_iterations_layout.addWidget(self._n_iterations_spinbox)
+        n_iterations_layout.addWidget(self._continuous_checkbox)
 
         widget_layout = QGridLayout()
 
@@ -131,9 +131,9 @@ class SpeckleNullProcSettingsWidget(QWidget):
 
         row += 1
         col = 0
-        widget_layout.addWidget(n_iters_label, row, col)
+        widget_layout.addWidget(n_iterations_label, row, col)
         col += 1
-        widget_layout.addLayout(n_iters_layout, row, col, 1, 3)
+        widget_layout.addLayout(n_iterations_layout, row, col, 1, 3)
 
         row += 1
         col = 0
@@ -151,8 +151,8 @@ class SpeckleNullProcSettingsWidget(QWidget):
         return self._continuous_checkbox.isChecked()
 
     @property
-    def n_iters(self) -> int | None:
-        return None if self.continuous else self._n_iters_spinbox.value()
+    def n_iterations(self) -> int | None:
+        return None if self.continuous else self._n_iterations_spinbox.value()
 
     @property
     def phs_array(self) -> np.ndarray:
@@ -161,7 +161,6 @@ class SpeckleNullProcSettingsWidget(QWidget):
     @property
     def amp_array(self) -> np.ndarray:
         return self._amp_steps.value()
-
 
 class SpeckleNullProcWindow(QWidget):
 
@@ -343,27 +342,28 @@ class SpeckleNullProcWindow(QWidget):
         if self.settings_widget.continuous:
             self.controls_widget.progressbar.setMaximum(0)
         else:
-            self.controls_widget.progressbar.setMaximum(self.settings_widget.n_steps)
+            self.controls_widget.progressbar.setMaximum(self.settings_widget.n_iterations)
 
-        proc_worker = SpeckleNullProcWorker(self.source, self.sink)
+        dark_hole_mask = chord(self.source.shape, 125, -0.25, np.pi/2, center=(-self.source.shape[0] / 2, -self.source.shape[1] / 2)).astype(bool)
+        speckle_mask = np.zeros_like(dark_hole_mask, dtype=bool)
+        
+        proc_worker = SpeckleNullProcWorker(self.source, self.sink, speckle_mask, self.settings_widget.speck_calibration, self.settings_widget.phs_array, self.settings_widget.amp_array, self.settings_widget.n_iterations)
         proc_worker.signals.progress.connect(self.on_progress)
         proc_worker.signals.finish.connect(self.on_finish)
 
         timestamp = timestamp_string(frmt="%Y%m%d.%H%M%S", ms=None)
 
-        if self.settings_widget.record_source:
-            source_storage_worker = SourceStorageWorker(f"data/output/{timestamp}_speckle_null_source.raw", self.settings_widget.n_steps)
-            proc_worker.signals.new_source_sample.connect(source_storage_worker.on_sample)
-            testbed.data.threadpool.start(source_storage_worker)
-            testbed.data.workers[source_storage_worker_id] = source_storage_worker
-            source_storage_worker.signals.finish.connect(self.on_source_storage_finish)
+        source_storage_worker = SourceStorageWorker(f"data/output/{timestamp}_speckle_null_source.raw", self.settings_widget.n_iterations)
+        proc_worker.signals.new_source_sample.connect(source_storage_worker.on_sample)
+        testbed.data.threadpool.start(source_storage_worker)
+        testbed.data.workers[source_storage_worker_id] = source_storage_worker
+        source_storage_worker.signals.finish.connect(self.on_source_storage_finish)
 
-        if self.settings_widget.record_sink:
-            sink_storage_worker = SinkStorageWorker(f"data/output/{timestamp}_speckle_null_sink.raw", self.settings_widget.n_steps)
-            proc_worker.signals.new_sink_sample.connect(sink_storage_worker.on_sample)
-            testbed.data.threadpool.start(sink_storage_worker)
-            testbed.data.workers[sink_storage_worker_id] = sink_storage_worker
-            sink_storage_worker.signals.finish.connect(self.on_sink_storage_finish)
+        sink_storage_worker = SinkStorageWorker(f"data/output/{timestamp}_speckle_null_sink.raw", self.settings_widget.n_iterations)
+        proc_worker.signals.new_sink_sample.connect(sink_storage_worker.on_sample)
+        testbed.data.threadpool.start(sink_storage_worker)
+        testbed.data.workers[sink_storage_worker_id] = sink_storage_worker
+        sink_storage_worker.signals.finish.connect(self.on_sink_storage_finish)
 
         testbed.data.threadpool.start(proc_worker)
 

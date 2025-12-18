@@ -33,15 +33,17 @@ class SimpleProcWorker(Worker):
         i_step = 0
         t_start = time.time()
 
-        _current_sink_sample = self._sink.pull_sample()
-
         # ---- blank --------------------------------------------------------------------------------------------------
-        time.sleep(0.1)
         command = self._sink.pxmax * np.clip(np.zeros(self._sink.shape) + 0.5, 0, 1)
         logger.info("%s and %s SimpleProcWorker.run : blank", self._source.name, self._sink.name)
+
         self._sink.push_command(command.astype(np.uint16))
-        self.signals.new_source_sample.emit(self._source.pull_sample())
-        self.signals.new_sink_sample.emit(self._sink.pull_sample())
+        _current_sink_sample = self._sink.pull_sample()
+        self.signals.new_sink_sample.emit(_current_sink_sample)
+        time.sleep(0.1)
+        _current_source_sample = self._source.pull_sample()
+        self.signals.new_source_sample.emit(_current_source_sample)
+
         self.signals.progress.emit(i_step, time.time() - t_start)
         # ---- blank --------------------------------------------------------------------------------------------------
 
@@ -57,4 +59,4 @@ class SimpleProcWorker(Worker):
             self.signals.progress.emit(i_step, time.time() - t_start)
         self.signals.finish.emit()
 
-        self._sink.push_command(_current_sink_sample.command.astype(np.uint16))
+        # self._sink.push_command(_current_sink_sample.command.astype(np.uint16))
