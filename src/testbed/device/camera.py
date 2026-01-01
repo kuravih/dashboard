@@ -14,7 +14,7 @@ class Camera(Device):
     Camera
     """
 
-    __slots__ = ("_stream", "_shape", "_link", "_rotation", "_flip")
+    __slots__ = ("_stream", "_shape", "_link", "_rotation", "_flip", "_sample", "wait_for_request", "post_response")
 
     def __init__(self, stream: Stream):
         super().__init__(stream.name)
@@ -26,6 +26,9 @@ class Camera(Device):
         if self._stream.port != -1:
             self._link = ZMQLink(port=self._stream.port)
             self._link.connect()
+        self._sample = SourceSample(self.last_access_time, self.exposure_time_us, self.gain, self.frame_rate_fps, self.temperature_c, self.roi, self.blank)
+        self.wait_for_request = self._stream.wait_for_request
+        self.post_response = self._stream.post_response
 
     @property
     def kind(self) -> Stream.Kind:
@@ -48,6 +51,60 @@ class Camera(Device):
         return self._stream.port
 
     @property
+    def shape(self) -> tuple[int, int]:
+        return self._shape
+
+    @property
+    def frame_rate_fps(self) -> float:
+        return self._stream.keywords["FRMRATE"].value
+
+    @property
+    def link(self) -> ZMQLink | None:
+        return self._link
+
+    @property
+    def blank(self) -> np.ndarray:
+        return np.zeros(self.shape)
+
+    @property
+    def sample(self) -> SourceSample:
+        return self._sample
+
+    @property
+    def creation_time(self) -> datetime:
+        return self._stream.creation_time
+
+    @property
+    def last_access_time(self) -> datetime:
+        return self._stream.last_access_time
+
+    @property
+    def rotation(self) -> Rotation:
+        return self._rotation
+
+    @rotation.setter
+    def rotation(self, _rotation: Rotation):
+        self._rotation = _rotation
+
+    @property
+    def flip(self) -> Flip:
+        return self._flip
+
+    @flip.setter
+    def flip(self, _flip: Flip):
+        self._flip = _flip
+
+    def pull_capture(self) -> SourceSample:
+        capture = flip_rotate(self._stream.get_data().reshape(self.shape), self.flip, self.rotation)
+        self._sample = SourceSample(self.last_access_time, self.exposure_time_us, self.gain, self.frame_rate_fps, self.temperature_c, self.roi, capture)
+        return self._sample
+    
+    def set_capture(self, _capture: np.ndarray) -> SourceSample:
+        self._stream.set_data(_capture)
+        self._sample = SourceSample(self.last_access_time, self.exposure_time_us, self.gain, self.frame_rate_fps, self.temperature_c, self.roi, _capture)
+        return self._sample
+
+    @property
     def exposure_time_us(self) -> int:
         return self._stream.keywords["EXPTIME"].value
 
@@ -62,40 +119,6 @@ class Camera(Device):
     @property
     def roi(self) -> dict[str, tuple[int, int]]:
         return {"br": (self._stream.keywords["ROI.BR.X"].value, self._stream.keywords["ROI.BR.Y"].value), "tl": (self._stream.keywords["ROI.TL.X"].value, self._stream.keywords["ROI.TL.Y"].value)}
-
-    @property
-    def shape(self) -> tuple[int, int]:
-        return self._shape
-
-    @property
-    def frame_rate_fps(self) -> float:
-        return self._stream.keywords["FRMRATE"].value
-
-    @property
-    def link(self) -> ZMQLink:
-        assert self._link is not None, "Link is not setup"
-        return self._link
-
-    @property
-    def blank(self) -> np.ndarray:
-        return np.zeros(self.shape)
-
-    @property
-    def creation_time(self) -> datetime:
-        return self._stream.creation_time
-
-    @property
-    def last_access_time(self) -> datetime:
-        return self._stream.last_access_time
-
-    def pull_capture(self) -> np.ndarray:
-        return flip_rotate(self._stream.get_data().reshape(self.shape), self.flip, self.rotation)
-
-    def pull_sample(self) -> SourceSample:
-        return SourceSample(self.last_access_time, self.exposure_time_us, self.gain, self.frame_rate_fps, self.temperature_c, self.roi, self.pull_capture())
-
-    def pull_blank_sample(self) -> SourceSample:
-        return SourceSample(self.last_access_time, self.exposure_time_us, self.gain, self.frame_rate_fps, self.temperature_c, self.roi, self.blank)
 
     def update_keywords(self):
         self._stream.update_keywords()
@@ -156,22 +179,6 @@ class Camera(Device):
         command = {"settings": {"nudge": {"x": x, "y": y}}}
         reply = self.link.send_command(command)
         return reply["settings"]["roi"]
-
-    @property
-    def rotation(self) -> Rotation:
-        return self._rotation
-
-    @rotation.setter
-    def rotation(self, _rotation: Rotation):
-        self._rotation = _rotation
-
-    @property
-    def flip(self) -> Flip:
-        return self._flip
-
-    @flip.setter
-    def flip(self, _flip: Flip):
-        self._flip = _flip
 
     def __del__(self):
         logger.info("Camera object %s removed", self.name)

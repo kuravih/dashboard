@@ -24,7 +24,7 @@ class PreviewWindow(Window):
     def __init__(self, _camera: Camera):
         super().__init__()
         self._camera = _camera
-        self._sample = self._camera.pull_blank_sample()
+        self._sample = self._camera.sample
 
         self.setWindowTitle(f"{self._camera.name} Preview")
 
@@ -55,6 +55,7 @@ class PreviewWindow(Window):
         layout.setContentsMargins(2, 2, 2, 2)
         widget.setLayout(layout)
 
+        self._sample = self.camera.sample
         self.preview_figure_widget = SourceFigureWidget(self.camera.blank, self.camera.pxmax, True, self)
 
         layout.addWidget(self.preview_figure_widget)
@@ -83,7 +84,7 @@ class InfoWindow(QWidget):
     def __init__(self, camera: Camera):
         super().__init__()
         self._camera = camera
-        self._sample = self._camera.pull_sample()
+        self._sample = SourceSample(self._camera.last_access_time, self._camera.exposure_time_us, self._camera.gain, self._camera.frame_rate_fps, self._camera.temperature_c, self._camera.roi, self._camera.blank)
 
         self.setWindowTitle(f"{self._camera.name} Information")
 
@@ -282,7 +283,7 @@ class InfoWindow(QWidget):
         row += 1
         layout.setRowStretch(row, row)
 
-        if self.camera.link is not None and self.camera.link.is_connected():
+        if (self.camera.link is not None) and self.camera.link.is_connected():
             uri_value_label.setText(f"{self.camera.link.uri}")
             uri_value_label.show()
             uri_label.show()
@@ -314,7 +315,7 @@ class SettingsWindow(QWidget):
     def __init__(self, camera: Camera):
         super().__init__()
         self._camera = camera
-        self._sample = self._camera.pull_sample()
+        self._sample = SourceSample(self._camera.last_access_time, self._camera.exposure_time_us, self._camera.gain, self._camera.frame_rate_fps, self._camera.temperature_c, self._camera.roi, self._camera.blank)
 
         self.setWindowTitle(f"{self._camera.name} Settings")
 

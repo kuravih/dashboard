@@ -33,7 +33,7 @@ def create_camera_memory(_name: str, _full_size: tuple[int, int], _roi_size: tup
     return SharedMemory.create(_name, _roi_size[0] * _roi_size[1], _dtype, [kw_kind, kw_sn, kw_pxmax, kw_full_w, kw_full_h, kw_port, kw_width, kw_height, kw_exptime, kw_frmrate, kw_gain, kw_temp, kw_roi_tl_x, kw_roi_tl_y, kw_roi_br_x, kw_roi_br_y])
 
 
-def create_modulator_memory(_name: str, _full_size: tuple[int, int], _center: tuple[int, int] | tuple[float, float], _radius: float, _dtype: DataType, _serial: str, _pxmax: int, _port: int) -> SharedMemory:
+def create_modulator_memory(_name: str, _full_size: tuple[int, int], _center: tuple[float, float], _radius: float, _dtype: DataType, _serial: str, _pxmax: int, _port: int) -> SharedMemory:
     # ---- constants ----
     kw_kind = Keyword("KIND", KeywordType.STRING, "SLM", "Device kind")
     kw_sn = Keyword("SN", KeywordType.STRING, _serial, "Serial number")
@@ -44,8 +44,8 @@ def create_modulator_memory(_name: str, _full_size: tuple[int, int], _center: tu
     kw_radmax = Keyword("RADMAX", KeywordType.LONG, int(_radius), "Maximum Radius (px)")
     # ---- variables ----
     kw_radius = Keyword("RADIUS", KeywordType.DOUBLE, float(_radius), "Radius (px)")
-    kw_center_x = Keyword("CENTER.X", KeywordType.LONG if isinstance(_center[0], int) else KeywordType.DOUBLE, _center[0], "Center x (px)")
-    kw_center_y = Keyword("CENTER.Y", KeywordType.LONG if isinstance(_center[1], int) else KeywordType.DOUBLE, _center[1], "Center y (px)")
+    kw_center_x = Keyword("CENTER.X", KeywordType.DOUBLE, float(_center[0]), "Center x (px)")
+    kw_center_y = Keyword("CENTER.Y", KeywordType.DOUBLE, float(_center[1]), "Center y (px)")
     kw_frmrate = Keyword("FRMRATE", KeywordType.DOUBLE, float(0), "Frame rate (fps)")
 
     return SharedMemory.create(_name, 2 * _radius * 2 * _radius, _dtype, [kw_kind, kw_sn, kw_pxmax, kw_full_w, kw_full_h, kw_port, kw_radmax, kw_radius, kw_center_x, kw_center_y, kw_frmrate])
@@ -112,15 +112,20 @@ class Stream(SharedMemory):
         def to_str(self):
             return self.name.upper()
 
-    def __init__(self, name: str):
+    def __init__(self, source: str | SharedMemory):
         """
         Construct stream object
 
         Parameters:
-            name: str
-                Name of stream
+            source: str | SharedMemory
+                Stream name or existing SharedMemory to attach to
         """
-        super().__init__(name)
+
+        if isinstance(source, SharedMemory):
+            super().__init__(source.name)
+        else:
+            super().__init__(source)
+
         if self.keywords["KIND"].value == "CAMERA":
             self._kind = Stream.Kind.CAMERA
         elif self.keywords["KIND"].value == "DM":
@@ -155,12 +160,14 @@ class Stream(SharedMemory):
         return self._port
 
     def get_data(self) -> np.ndarray:
-        if self.pull_data_from_storage() == 0:
-            return self.ndarray
+        self.post_request()
+        self.wait_for_response()
+        return self.ndarray
 
     def set_data(self, array: np.ndarray):
+        self.wait_for_request()
         self.ndarray[:] = array.ravel()
-        self.push_data_to_storage()
+        self.post_response()
 
 
 zmqlink_logger = setup_logger("ZMQLink", terminator="\n")

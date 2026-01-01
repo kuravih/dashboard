@@ -27,7 +27,7 @@ class PreviewWindow(Window):
     def __init__(self, modulator: Modulator):
         super().__init__()
         self._modulator = modulator
-        self._sample = self._modulator.pull_blank_sample()
+        self._sample = self._modulator.sample
 
         self.setWindowTitle(f"{self._modulator.name} Preview")
 
@@ -58,6 +58,7 @@ class PreviewWindow(Window):
         layout.setContentsMargins(2, 2, 2, 2)
         widget.setLayout(layout)
 
+        self._sample = self.modulator.sample
         self.preview_figure_widget = ModulatorFigureWidget(self.modulator.blank, self.modulator.pxmax, True, self)
 
         layout.addWidget(self.preview_figure_widget)
@@ -86,7 +87,7 @@ class InfoWindow(Window):
     def __init__(self, modulator: Modulator):
         super().__init__()
         self._modulator = modulator
-        self._sample = self._modulator.pull_sample()
+        self._sample = SinkSample(self._modulator.last_access_time, self._modulator.frame_rate_fps, self._modulator.center, self._modulator.radius, self._modulator.blank)
 
         self.setWindowTitle(f"{self._modulator.name} Information")
 
@@ -186,7 +187,7 @@ class InfoWindow(Window):
         self.info_radius_value_label = QLabel(f"{self.modulator.radius}", self)
         self.info_radius_value_label.setToolTip("Radius")
 
-        self.info_hist_figure_widget = FigureWidget(Histogram_Colorbar_Preset(self.modulator.command, position="bottom", vmin=0, vmax=self.modulator.pxmax, nbins=256), show_toolbar=True)
+        self.info_hist_figure_widget = FigureWidget(Histogram_Colorbar_Preset(self.modulator.sample.command, position="bottom", vmin=0, vmax=self.modulator.pxmax, nbins=256), show_toolbar=True)
         self.info_hist_figure_widget.figure.get_histogram_ax().set_ylabel("count", size=10)
         self.info_hist_figure_widget.figure.set_vlim(0, self.modulator.pxmax)
         self.info_hist_figure_widget.figure.get_cbar_ax().set_xlabel("nadu", size=10)
@@ -264,7 +265,7 @@ class InfoWindow(Window):
         row += 1
         layout.setRowStretch(row, row)
 
-        if self.modulator.link is not None and self.modulator.link.is_connected():
+        if (self.modulator.link is not None) and self.modulator.link.is_connected():
             uri_value_label.setText(f"{self.modulator.link.uri}")
             uri_value_label.show()
             uri_label.show()
@@ -294,7 +295,7 @@ class SettingsWindow(Window):
     def __init__(self, modulator: Modulator):
         super().__init__()
         self._modulator = modulator
-        self._sample = self._modulator.pull_sample()
+        self._sample = SinkSample(self._modulator.last_access_time, self._modulator.frame_rate_fps, self._modulator.center, self._modulator.radius, self._modulator.blank)
 
         self.setWindowTitle(f"{self._modulator.name} Settings")
 
@@ -411,8 +412,9 @@ class SettingsWindow(Window):
 
         @Slot()
         def add_command_callback():
-            current = self.modulator.pull_sample()
-            self.modulator.push_command(np.clip(current.command + self.preset_widget.command - np.nanmean(self.preset_widget.command), 0, self.modulator.pxmax))
+            # current = self.modulator.pull_sample()
+            # self.modulator.push_command(np.clip(current.command + self.preset_widget.command - np.nanmean(self.preset_widget.command), 0, self.modulator.pxmax))
+            pass
 
         preset_figure_widget = ModulatorFigureWidget(self.modulator.blank, self.modulator.pxmax, True, self)
 

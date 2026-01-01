@@ -2,7 +2,7 @@ import time
 import numpy as np
 from PySide6.QtCore import Slot, Signal
 
-from pykato.function import sinusoid
+from pykato.function import sinusoid, text
 from pykato.log import setup_logger
 
 from ..device import SourceSample, SinkSample
@@ -126,10 +126,12 @@ class SpeckleNullProcWorker(Worker):
         logger.info("%s and %s SpeckleNullProcWorker.run : blank", self._source.name, self._sink.name)
 
         self._sink.push_command(command.astype(np.uint16))
+
         _current_sink_sample = self._sink.pull_sample()
-        self.signals.new_sink_sample.emit(_current_sink_sample)
         time.sleep(0.1)
+        self.signals.new_sink_sample.emit(_current_sink_sample)
         _current_source_sample = self._source.pull_sample()
+        time.sleep(0.1)
         self.signals.new_source_sample.emit(_current_source_sample)
 
         self.signals.progress.emit(i_iteration, time.time() - t_start)
@@ -137,45 +139,59 @@ class SpeckleNullProcWorker(Worker):
 
         center = (self._source.shape[0] / 2, self._source.shape[1] / 2)
         while ((self._n_iterations is None) or (self._n_iterations > i_iteration)) and self._running:
+            # command = self._sink.pxmax * np.clip(text(self._sink.shape, f"{i_iteration:02d}", font_size=150), 0, 1)
             logger.info("SpeckleNullProcWorker.run iteration = %s", (f"{i_iteration}") if (self._n_iterations is None) else (f"{i_iteration} of {self._n_iterations}"))
 
             # ---- stage 0: find speckle ------------------------------------------------------------------------------
             specks, speck_stencil = find_speckles((_current_source_sample.capture * self._dh_mask).astype(float), 1, 5)
             speck_stencil = np.rot90(speck_stencil, 3)
-            logger.info("SpeckleNullProcWorker.run speckle location = %s", str(specks[0].weighted_centroid))
+            _current_source_sample.capture = _current_source_sample.capture * self._dh_mask
+            self.signals.new_source_sample.emit(_current_source_sample)
+            # logger.info("SpeckleNullProcWorker.run speckle location = %s", str(specks[0].weighted_centroid))
             # ---- stage 0: speckle found -----------------------------------------------------------------------------
 
             # ---- stage 1: calculate speckle period and angle --------------------------------------------------------
-            speck_freq, speck_angle = speckle_parameters(center, specks[0].weighted_centroid, self._speck_calibration)
-            logger.info("SpeckleNullProcWorker.run speck_freq = %f (period = %f), speck_angle = %f", speck_freq, 1.0 / speck_freq, np.rad2deg(speck_angle))
+            # speck_freq, speck_angle = speckle_parameters(center, specks[0].weighted_centroid, self._speck_calibration)
+            # logger.info("SpeckleNullProcWorker.run speck_freq = %f (period = %f), speck_angle = %f", speck_freq, 1.0 / speck_freq, np.rad2deg(speck_angle))
             # speck_data.emit(specks[0].weighted_centroid, speck_freq, speck_angle, speck_stencil)
             # ---- stage 1: speckle period and angle calculated -------------------------------------------------------
 
             # ---- stage 2: find speckle phase ------------------------------------------------------------------------
-            speck_phase = _phs_search(self._source, self._sink, _current_sink_sample.command, speck_freq, self._phases, speck_angle, speck_stencil)
-            logger.info("SpeckleNullProcWorker.run speck_phase = %f", np.rad2deg(speck_phase))
+            # speck_phase = _phs_search(self._source, self._sink, _current_sink_sample.command, speck_freq, self._phases, speck_angle, speck_stencil)
+            # logger.info("SpeckleNullProcWorker.run speck_phase = %f", np.rad2deg(speck_phase))
             # ---- stage 2: speckle phase found -----------------------------------------------------------------------
 
             # ---- stage 3: find speckle amplitude --------------------------------------------------------------------
-            speck_amplitude = _amp_search(self._source, self._sink, _current_sink_sample.command, speck_freq, speck_phase, speck_angle, self._amplitudes, speck_stencil)
-            logger.info("SpeckleNullProcWorker.run speck_amplitude = %f", speck_amplitude)
+            # speck_amplitude = _amp_search(self._source, self._sink, _current_sink_sample.command, speck_freq, speck_phase, speck_angle, self._amplitudes, speck_stencil)
+            # logger.info("SpeckleNullProcWorker.run speck_amplitude = %f", speck_amplitude)
             # ---- stage 3: speckle amplitude found -------------------------------------------------------------------
 
             # ---- stage 4: apply correction --------------------------------------------------------------------------
             # ---------------------------------------------------------------------------------------------------------
-            # command = current_cmd + 0.5 * sink.pixel_max * speck_amplitude * sinusoid(sink.shape, 1.0 / speck_freq, speck_phase, speck_angle)
-            # command = command - np.mean(command) + sink.pixel_max / 2
+            # # command = current_cmd + 0.5 * sink.pixel_max * speck_amplitude * sinusoid(sink.shape, 1.0 / speck_freq, speck_phase, speck_angle)
+            # # command = command - np.mean(command) + sink.pixel_max / 2
             # ---------------------------------------------------------------------------------------------------------
-            correction = self._sink.pixel_max * speck_amplitude * (sinusoid(self._sink.shape, 1.0 / speck_freq, speck_phase, speck_angle) / 2 + 0.5)
-            command = _current_sink_sample.command + correction
+            # correction = self._sink.pixel_max * speck_amplitude * (sinusoid(self._sink.shape, 1.0 / speck_freq, speck_phase, speck_angle) / 2 + 0.5)
+            # command = _current_sink_sample.command + correction
             # ---------------------------------------------------------------------------------------------------------
-            command = command - np.mean(command) + self._sink.pixel_max / 2
-            command = np.clip(command, 0, self._sink.pixel_max)
-            # current_cmd[:] = command
+            # command = command - np.mean(command) + self._sink.pixel_max / 2
+            # command = np.clip(command, 0, self._sink.pixel_max)
+            # # current_cmd[:] = command
             # ---- stage 4: apply correction --------------------------------------------------------------------------
 
-            # current_cap = self._source.acquire_image(self._sink.send_command_image(current_cmd))
-            # progress_data.emit(i_iteration, current_cmd, current_cap)
-            time.sleep(0.1)
-            # self.signals.progress.emit(i_iteration, time.time() - t_start)
+            # # current_cap = self._source.acquire_image(self._sink.send_command_image(current_cmd))
+            # # progress_data.emit(i_iteration, current_cmd, current_cap)
+            # time.sleep(0.1)
+            # # self.signals.progress.emit(i_iteration, time.time() - t_start)
+            # i_iteration = i_iteration + 1
+
+            # self._sink.push_command(command.astype(np.uint16))
+            # self.signals.new_sink_sample.emit(self._sink.pull_sample())
+            # time.sleep(0.1)
+            # self.signals.new_source_sample.emit(self._source.pull_sample())
+            # time.sleep(0.1)
+
             i_iteration = i_iteration + 1
+            self.signals.progress.emit(i_iteration, time.time() - t_start)
+
+        self.signals.finish.emit()

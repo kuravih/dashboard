@@ -1,6 +1,7 @@
 import sys
 from PySide6.QtGui import QIcon
-from PySide6.QtWidgets import QMainWindow, QPushButton, QFileDialog, QMessageBox, QApplication, QWidget, QVBoxLayout, QHBoxLayout, QTableWidget, QTableWidgetItem, QHeaderView
+from PySide6.QtWidgets import QMainWindow, QPushButton, QFileDialog, QMessageBox, QApplication, QWidget, QVBoxLayout, QHBoxLayout, QTableWidget, QTableWidgetItem, QHeaderView, QSpacerItem, QSizePolicy
+
 from PySide6.QtCore import Slot, QFileInfo
 
 import testbed
@@ -24,7 +25,7 @@ from testbed.widget.speckle_null_proc_window import SpeckleNullProcWindow
 from testbed.widget.dotf_proc_window import DOTFProcWindow
 
 from testbed.widget.dialog import MessageDialog
-from testbed.widget.resource import ICON_EYE, ICON_GEAR, ICON_INFO, ICON_TRASH, ICON_PLAY, ICON_PAUSE
+from testbed.widget.resource import ICON_EYE, ICON_GEAR, ICON_INFO, ICON_PLAY, ICON_PAUSE
 
 from pykato.log import setup_logger
 
@@ -274,11 +275,8 @@ class MainWindow(QMainWindow):
                     # self.on_start_stop(mirror, play_pause_button) # TODO: uncomment
                     # self.open_preview_window(mirror) # TODO: uncomment
 
-                trash_button = QPushButton(QIcon(ICON_TRASH), "", flat=True)
-                trash_button.setFixedWidth(trash_button.sizeHint().height())
-                trash_button.setToolTip("Delete")
-                trash_button.clicked.connect(self.remove_device_callback)
-                button_layout.addWidget(trash_button)
+                spacer = QSpacerItem(10, 10, QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
+                button_layout.addItem(spacer)
 
                 self.table.setCellWidget(row, 4, cell_widget)
 
@@ -288,11 +286,10 @@ class MainWindow(QMainWindow):
 
     @Slot()
     def remove_device_callback(self):
+        logger.info("remove_device_callback")
         for index in sorted(set(i.row() for i in self.table.selectedIndexes()), reverse=True):
-            for _index, _device in enumerate(testbed.data.devices):
-                if self.table.item(index, 0).text() == _device.name:
-                    logger.info("Device name %s, %d, table value %s ", _device.name, _index, self.table.item(index, 0).text())
-                    testbed.data.devices.pop(index)
+            _key = self.table.item(index, 0).text()
+            testbed.data.devices.pop(_key, None)
             self.table.removeRow(index)
 
     @Slot()

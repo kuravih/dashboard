@@ -26,4 +26,4 @@ class UpdateWorker(Worker):
         while self._running:
             time.sleep(0.1)
             # logger.info("%s UpdateWorker.run", self._camera.name)
-            self.signals.new_sample.emit(self._camera.pull_sample())
+            self.signals.new_sample.emit(self._camera.pull_capture())

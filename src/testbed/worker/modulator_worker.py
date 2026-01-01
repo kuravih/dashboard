@@ -27,4 +27,4 @@ class UpdateWorker(Worker):
         super().run()
         while self._running:
             time.sleep(0.1)
-            self.signals.new_sample.emit(self._modulator.pull_sample())
+            self.signals.new_sample.emit(self._modulator.sample)
