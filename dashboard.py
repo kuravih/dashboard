@@ -40,6 +40,7 @@ class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
         self.setWindowTitle("Testbed Controls")
+        self.setMinimumSize(640, 480)
 
         self.table = QTableWidget(0, 5)
         self.table.setHorizontalHeaderLabels(["Name", "Kind", "Shape", "Dtype", ""])

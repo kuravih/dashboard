@@ -35,24 +35,30 @@ class SimpleProcWorker(Worker):
 
         # ---- blank --------------------------------------------------------------------------------------------------
         command = self._sink.pxmax * np.clip(np.zeros(self._sink.shape) + 0.5, 0, 1)
-        logger.info("%s and %s SimpleProcWorker.run : blank", self._source.name, self._sink.name)
 
         self.signals.new_sink_sample.emit(self._sink.push_command(command.astype(np.uint16)))
-        time.sleep(5)
+        time.sleep(0.1)
+
         self.signals.new_source_sample.emit(self._source.pull_capture())
+        time.sleep(0.2)
 
         self.signals.progress.emit(i_step, time.time() - t_start)
         # ---- blank --------------------------------------------------------------------------------------------------
 
         while ((self._n_steps is None) or (self._n_steps > i_step)) and self._running:
             command = self._sink.pxmax * np.clip(text(self._sink.shape, f"{i_step:02d}", font_size=150), 0, 1)
-            logger.info("%s and %s SimpleProcWorker.run : step %s of %s", self._source.name, self._sink.name, i_step, self._n_steps)
+
             self.signals.new_sink_sample.emit(self._sink.push_command(command.astype(np.uint16)))
-            time.sleep(5)
+            time.sleep(0.1)
+        
             self.signals.new_source_sample.emit(self._source.pull_capture())
-            time.sleep(5)
+            time.sleep(0.2)
+        
             i_step = i_step + 1
             self.signals.progress.emit(i_step, time.time() - t_start)
+
+            logger.info("%s and %s SimpleProcWorker.run : step %s of %s", self._source.name, self._sink.name, i_step, self._n_steps)
+
         self.signals.finish.emit()
 
         # self._sink.push_command(_current_sink_sample.command.astype(np.uint16))

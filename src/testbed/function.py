@@ -6,7 +6,7 @@ from .device import SinkSample, SinkSampleStore, SourceSample, SourceSampleStore
 from io import FileIO
 
 from skimage.feature import peak_local_max
-from skimage.morphology import disk, binary_dilation
+from skimage.morphology import disk, dilation
 from skimage.measure import label, regionprops
 
 
@@ -177,7 +177,7 @@ def find_speckles(speckle_image: np.ndarray, num_peaks: int = 1, footprint_size:
     peak_mask = np.zeros_like(rot_speckle_image, dtype=bool)
     peak_mask[tuple(peak_idx.T)] = True
     disk_mask = disk(footprint_size)
-    peak_mask = binary_dilation(peak_mask, disk_mask)
+    peak_mask = dilation(peak_mask, disk_mask)
     label_image = label(peak_mask)
     return regionprops(label_image, rot_speckle_image), peak_mask
 
@@ -206,6 +206,6 @@ def find_speckles_pair(speckle_image: np.ndarray, num_peaks: int = 2, footprint_
             return 3  # quadrant 4
 
     speckles, _ = find_speckles(speckle_image, num_peaks=num_peaks, footprint_size=footprint_size, min_distance=min_distance)
-    center = np.mean([speckle.weighted_centroid for speckle in speckles], axis=0)
-    speckles_sorted = sorted(speckles, key=lambda speckle: quadrant_key(speckle.weighted_centroid[0] - center[0] + 1, speckle.weighted_centroid[1] - center[1] + 1))
-    return [speckle.weighted_centroid for speckle in speckles_sorted]
+    center = np.mean([speckle.centroid_weighted for speckle in speckles], axis=0)
+    speckles_sorted = sorted(speckles, key=lambda speckle: quadrant_key(speckle.centroid_weighted[0] - center[0] + 1, speckle.centroid_weighted[1] - center[1] + 1))
+    return [speckle.centroid_weighted for speckle in speckles_sorted]

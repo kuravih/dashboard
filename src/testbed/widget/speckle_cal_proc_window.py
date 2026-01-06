@@ -294,7 +294,7 @@ class SpeckleCalProcWindow(QWidget):
         testbed.data.workers[sink_storage_worker_id] = sink_storage_worker
         sink_storage_worker.signals.finish.connect(self.on_sink_storage_finish)
 
-        with open(f"data/output/{timestamp}_speckle_cal.pkl", "wb") as file:
+        with open(f"data/output/{timestamp}_speckle_cal_parameters.pkl", "wb") as file:
             pickle.dump((self.settings_widget.amplitude, self.settings_widget.freqs_array, self.settings_widget.angles_array, self.settings_widget.phases_array), file, protocol=pickle.HIGHEST_PROTOCOL)
 
         testbed.data.threadpool.start(proc_worker)
