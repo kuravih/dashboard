@@ -1,3 +1,4 @@
+from ast import List
 from enum import Enum, auto
 import struct
 import numpy as np
@@ -8,6 +9,7 @@ from io import FileIO
 from skimage.feature import peak_local_max
 from skimage.morphology import disk, dilation
 from skimage.measure import label, regionprops
+from skimage.measure._regionprops import RegionProperties
 
 
 DTYPE_MAP = {
@@ -37,7 +39,7 @@ class Rotation(Enum):
     LEFT = auto()
 
 
-def flip_rotate(_frame: np.ndarray, _flip: Flip, _rotation: Rotation):
+def flip_rotate(_frame: np.ndarray, _flip: Flip, _rotation: Rotation) -> np.ndarray:
     frame = np.rot90(_frame, _rotation.value - 1)
     if _flip == Flip.NEG:
         return np.fliplr(frame)
@@ -170,8 +172,7 @@ def read_sink_samples(filename: str) -> SinkSampleStore:
     return SinkSampleStore(fps, center, radius, np.array(commands), np.array(timestamps))
 
 
-def find_speckles(speckle_image: np.ndarray, num_peaks: int = 1, footprint_size: int = 10, min_distance: int = 1):
-    # TODO: type hint return
+def find_speckles(speckle_image: np.ndarray, num_peaks: int = 1, footprint_size: int = 10, min_distance: int = 1) -> tuple[list[tuple[float, float]], np.ndarray]:
     rot_speckle_image = speckle_image
     peak_idx = peak_local_max(rot_speckle_image, num_peaks=num_peaks, min_distance=min_distance, threshold_abs=None)
     peak_mask = np.zeros_like(rot_speckle_image, dtype=bool)
@@ -179,11 +180,12 @@ def find_speckles(speckle_image: np.ndarray, num_peaks: int = 1, footprint_size:
     disk_mask = disk(footprint_size)
     peak_mask = dilation(peak_mask, disk_mask)
     label_image = label(peak_mask)
-    return regionprops(label_image, rot_speckle_image), peak_mask
+    speckles = regionprops(label_image, rot_speckle_image)
+    ind = np.lexsort(([speckle.centroid_weighted[0] for speckle in speckles], [speckle.centroid_weighted[1] for speckle in speckles]))
+    return [(speckles[i].centroid_weighted[1], speckles[i].centroid_weighted[0]) for i in ind], peak_mask
 
 
-def speckle_parameters(center: np.ndarray, speckle_location_px: np.ndarray, speck_calibration: tuple[tuple[float, float], tuple[float, float]]):
-    # TODO: type hint return
+def speckle_parameters(center: np.ndarray, speckle_location_px: np.ndarray, speck_calibration: tuple[tuple[float, float], tuple[float, float]]) -> tuple[float, float]:
     (angle_slope, angle_intercept), (freq_slope, freq_intercept) = speck_calibration
     speckle_location_px_delta = speckle_location_px - np.array(center)
     speckle_dist = np.hypot(speckle_location_px_delta[0], speckle_location_px_delta[1])
@@ -191,21 +193,3 @@ def speckle_parameters(center: np.ndarray, speckle_location_px: np.ndarray, spec
     speckle_frequency = (speckle_dist - freq_intercept) / freq_slope
     speckle_angle = (speckle_angle - angle_intercept) / angle_slope
     return speckle_frequency, speckle_angle
-
-
-def find_speckles_pair(speckle_image: np.ndarray, num_peaks: int = 2, footprint_size: int = 10, min_distance: int = 10) -> list[np.ndarray]:
-
-    def quadrant_key(x: float, y: float) -> int:
-        if x >= 0 and y >= 0:
-            return 0  # quadrant 1
-        elif x < 0 and y >= 0:
-            return 1  # quadrant 2
-        elif x < 0 and y < 0:
-            return 2  # quadrant 3
-        else:
-            return 3  # quadrant 4
-
-    speckles, _ = find_speckles(speckle_image, num_peaks=num_peaks, footprint_size=footprint_size, min_distance=min_distance)
-    center = np.mean([speckle.centroid_weighted for speckle in speckles], axis=0)
-    speckles_sorted = sorted(speckles, key=lambda speckle: quadrant_key(speckle.centroid_weighted[0] - center[0] + 1, speckle.centroid_weighted[1] - center[1] + 1))
-    return [speckle.centroid_weighted for speckle in speckles_sorted]

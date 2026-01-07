@@ -1,7 +1,9 @@
 import unittest
-from testbed.function import read_source_samples, read_sink_samples
+from testbed.function import read_source_samples, read_sink_samples, find_speckles
 from pykato.log import setup_logger
+from pykato.function import airy
 from pykato.plotfunction.preset import Imshow_Preset
+import numpy as np
 
 logger = setup_logger("test_read_functions", terminator="\n")
 
@@ -26,3 +28,32 @@ class TestFunction(unittest.TestCase):
         logger.info("samples.radius           : %f", samples.radius)
         imshow_preset = Imshow_Preset(samples.commands[0])
         imshow_preset.savefig("data/plot/20251124.140308_command_sink_checker.png")
+
+    def test_find_speckles(self):
+        width, height = 512, 256
+        radius = 5
+        count = np.random.randint(0, 10)
+        xys = np.random.uniform((radius, radius), (width - radius, height - radius), (count, 2))
+        idx = np.lexsort((xys[:, 1], xys[:, 0]))
+        speckle_locations_in = xys[idx]
+
+        speckle_image = np.zeros((height, width))
+        for x, y in speckle_locations_in:
+            speckle_image += airy((width, height), center=(x, y), radius=0.7, height=2**16 - 1)
+
+        speckle_locations_out, _ = find_speckles(speckle_image, num_peaks=count, footprint_size=radius)
+
+        diagram = Imshow_Preset(speckle_image)
+        for x, y in speckle_locations_out:
+            diagram.get_imshow_ax().plot(x, y, "o", markersize=4, markerfacecolor="None", color="red")
+        diagram.get_imshow_ax().set_xlabel("x px")
+        diagram.get_imshow_ax().set_ylabel("y px")
+        diagram.get_imshow_ax().set_title("Speckle Detection")
+
+        self.assertEqual(count, len(speckle_locations_out), "Not all speckles detected")
+
+        for (x1, y1), (x2, y2) in zip(speckle_locations_in, speckle_locations_out):
+            self.assertAlmostEqual(x1, x2, places=1)
+            self.assertAlmostEqual(y1, y2, places=1)
+
+        diagram.savefig("data/plot/find_speckles.png")
