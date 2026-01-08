@@ -1043,7 +1043,7 @@ class FilePresetWidget(QWidget):  # TODO: fix this, closing the stream window ca
         command_file_lineedit.setEnabled(False)
 
         browse_command_file_button = QPushButton("Browse", self)
-        browse_command_file_button.clicked.connect(self.browse_cmd_file)
+        # browse_command_file_button.clicked.connect(browse_cmd_file)
         browse_command_file_button.setFixedWidth(75)
 
         command_file_layout = QHBoxLayout()
@@ -1129,7 +1129,7 @@ class FilePresetWidget(QWidget):  # TODO: fix this, closing the stream window ca
 
         @Slot()
         def browse_cmd_file():
-            dialog_filename, _ = QFileDialog.getOpenFileName(self, "Open Command", ".", "Command File (*.fits)", options=QFileDialog.Options() | QFileDialog.DontUseNativeDialog)
+            dialog_filename, _ = QFileDialog.getOpenFileName(self, "Open Command", ".", "Command File (*.fits)", options=QFileDialog.Option.DontUseNativeDialog | QFileDialog.Option.ReadOnly)
             if dialog_filename:
                 cmd_file_info = QFileInfo(dialog_filename)
                 self.command_file_lineedit.setText(cmd_file_info.fileName())
@@ -1519,7 +1519,7 @@ class FilePresetWidget2(QWidget):  # TODO: fix this, closing the stream window c
 
         @Slot()
         def browse_cmd_file():
-            dialog_filename, _ = QFileDialog.getOpenFileName(self, "Open Command", ".", "Command File (*.fits)", options=QFileDialog.Options() | QFileDialog.DontUseNativeDialog)
+            dialog_filename, _ = QFileDialog.getOpenFileName(self, "Open Command", ".", "Command File (*.fits)", options=QFileDialog.Option.DontUseNativeDialog | QFileDialog.Option.ReadOnly)
             if dialog_filename:
                 cmd_file_info = QFileInfo(dialog_filename)
                 cmd_filename = f"{cmd_file_info.absolutePath()}/{cmd_file_info.baseName()}.fits"

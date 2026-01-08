@@ -15,10 +15,6 @@ from testbed.device.modulator import Modulator
 from testbed.widget.modulator_window import PreviewWindow as ModulatorPreviewWindow, InfoWindow as ModulatorInfoWindow, SettingsWindow as ModulatorSettingsWindow
 from testbed.worker.modulator_worker import UpdateWorker as ModulatorUpdateWorker
 
-from testbed.device.mirror import Mirror
-from testbed.widget.mirror_window import PreviewWindow as MirrorPreviewWindow, InfoWindow as MirrorInfoWindow, SettingsWindow as MirrorSettingsWindow
-from testbed.worker.mirror_worker import UpdateWorker as MirrorUpdateWorker
-
 from testbed.widget.simple_proc_window import SimpleProcWindow
 from testbed.widget.speckle_cal_proc_window import SpeckleCalProcWindow
 from testbed.widget.speckle_null_proc_window import SpeckleNullProcWindow
@@ -44,9 +40,9 @@ class MainWindow(QMainWindow):
 
         self.table = QTableWidget(0, 5)
         self.table.setHorizontalHeaderLabels(["Name", "Kind", "Shape", "Dtype", ""])
-        self.table.horizontalHeader().setSectionResizeMode(0, QHeaderView.Stretch)
-        self.table.setEditTriggers(QTableWidget.NoEditTriggers)
-        self.table.setSelectionBehavior(QTableWidget.SelectRows)
+        self.table.horizontalHeader().setSectionResizeMode(0, QHeaderView.ResizeMode.Stretch)
+        self.table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
+        self.table.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
 
         add_device_button = QPushButton("Add Device")
         add_device_button.clicked.connect(self.add_device_callback)
@@ -81,15 +77,15 @@ class MainWindow(QMainWindow):
         layout.addWidget(dotf_proc_button)
         self.setCentralWidget(container)
 
-    def open_preview_window(self, _device: Camera | Modulator | Mirror):
+    def open_preview_window(self, _device: Camera | Modulator):
 
         window_name = _device.name + "_preview"
         update_worker_id = _device.name + "_worker"
 
         @Slot()
         def close_window():
-            if update_worker_id in testbed.data.workers:
-                testbed.data.workers[update_worker_id].signals.new_sample.disconnect(testbed.data.windows[window_name].on_new_sample)
+            # if update_worker_id in testbed.data.workers:
+            #     testbed.data.workers[update_worker_id].signals.new_sample.disconnect(testbed.data.windows[window_name].on_new_sample)
             testbed.data.windows.pop(window_name, None)
 
         if window_name not in testbed.data.windows:
@@ -97,8 +93,6 @@ class MainWindow(QMainWindow):
                 window = CameraPreviewWindow(_device)
             elif isinstance(_device, Modulator):
                 window = ModulatorPreviewWindow(_device)
-            elif isinstance(_device, Mirror):
-                window = MirrorPreviewWindow(_device)
             else:
                 raise ValueError("Invalid device")
 
@@ -111,7 +105,7 @@ class MainWindow(QMainWindow):
             if update_worker_id in testbed.data.workers:
                 testbed.data.workers[update_worker_id].signals.new_sample.connect(testbed.data.windows[window_name].on_new_sample)
 
-    def open_info_window(self, _device: Camera | Modulator | Mirror):
+    def open_info_window(self, _device: Camera | Modulator):
 
         window_name = _device.name + "_info"
         update_worker_id = _device.name + "_worker"
@@ -127,8 +121,6 @@ class MainWindow(QMainWindow):
                 window = CameraInfoWindow(_device)
             elif isinstance(_device, Modulator):
                 window = ModulatorInfoWindow(_device)
-            elif isinstance(_device, Mirror):
-                window = MirrorInfoWindow(_device)
             else:
                 raise ValueError("Invalid device")
             window.destroyed.connect(close_window)
@@ -140,7 +132,7 @@ class MainWindow(QMainWindow):
             if update_worker_id in testbed.data.workers:
                 testbed.data.workers[update_worker_id].signals.new_sample.connect(testbed.data.windows[window_name].on_new_sample)
 
-    def open_settings_window(self, _device: Camera | Modulator | Mirror):
+    def open_settings_window(self, _device: Camera | Modulator):
 
         window_name = _device.name + "_settings"
         update_worker_id = _device.name + "_worker"
@@ -156,8 +148,6 @@ class MainWindow(QMainWindow):
                 window = CameraSettingsWindow(_device)
             elif isinstance(_device, Modulator):
                 window = ModulatorSettingsWindow(_device)
-            elif isinstance(_device, Mirror):
-                window = MirrorSettingsWindow(_device)
             else:
                 raise ValueError("Invalid device")
             window.destroyed.connect(close_window)
@@ -169,7 +159,7 @@ class MainWindow(QMainWindow):
             if update_worker_id in testbed.data.workers:
                 testbed.data.workers[update_worker_id].signals.new_sample.connect(testbed.data.windows[window_name].on_new_sample)
 
-    def on_start_stop(self, _device: Camera | Modulator | Mirror, _button: QPushButton):
+    def on_start_stop(self, _device: Camera | Modulator, _button: QPushButton):
 
         update_worker_id = _device.name + "_worker"
         preview_window_name = _device.name + "_preview"
@@ -187,8 +177,6 @@ class MainWindow(QMainWindow):
             update_worker = CameraUpdateWorker(_device)
         elif isinstance(_device, Modulator):
             update_worker = ModulatorUpdateWorker(_device)
-        elif isinstance(_device, Mirror):
-            update_worker = MirrorUpdateWorker(_device)
         else:
             raise ValueError("Invalid device")
 
@@ -264,17 +252,6 @@ class MainWindow(QMainWindow):
                     testbed.data.devices[stream_name] = modulator
                     # self.on_start_stop(modulator, play_pause_button) # TODO: uncomment
                     # self.open_preview_window(modulator) # TODO: uncomment
-                elif stream.kind == Stream.Kind.DM:
-                    mirror = Mirror(stream)
-                    self.table.setItem(row, 2, QTableWidgetItem(str(mirror.shape)))
-                    self.table.setItem(row, 3, QTableWidgetItem("dtype"))
-                    preview_button.clicked.connect(lambda _, _mirror=mirror: self.open_preview_window(_mirror))
-                    info_button.clicked.connect(lambda _, _mirror=mirror: self.open_info_window(_mirror))
-                    settings_button.clicked.connect(lambda _, _mirror=mirror: self.open_settings_window(_mirror))
-                    play_pause_button.clicked.connect(lambda _, _button=play_pause_button, _mirror=mirror: self.on_start_stop(_mirror, _button))
-                    testbed.data.devices[stream_name] = mirror
-                    # self.on_start_stop(mirror, play_pause_button) # TODO: uncomment
-                    # self.open_preview_window(mirror) # TODO: uncomment
 
                 spacer = QSpacerItem(10, 10, QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
                 button_layout.addItem(spacer)

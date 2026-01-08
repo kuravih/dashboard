@@ -135,7 +135,7 @@ class DOTFProcSettingsWidget(QWidget):
 
 class DOTFProcWindow(QWidget):
     def __init__(self, parent=None):
-        super().__init__(parent, Qt.Dialog)
+        super().__init__(parent, Qt.WindowType.Dialog)
         self.setWindowModality(Qt.WindowModality.WindowModal)
         self.setWindowTitle("DOTF Process")
         self._sink = None
@@ -191,13 +191,13 @@ class DOTFProcWindow(QWidget):
     def on_progress(self, step: int, t_elapsed: float):
         self.controls_widget.progressbar.setValue(step + 1)
         self.controls_widget.progressbar.setTime(t_elapsed)
-        self.controls_widget.progressbar.update()
+        self.controls_widget.progressbar.updateProgress()
 
     @Slot()
     def on_finish(self):
         proc_worker_id = "simple_proc_worker"
         self.controls_widget.progressbar.reset()
-        self.controls_widget.progressbar.update()
+        self.controls_widget.progressbar.updateProgress()
         if proc_worker_id in testbed.data.workers:  # an update worker is in progress
             current_proc_worker = testbed.data.workers.pop(proc_worker_id)
             current_proc_worker.stop()
@@ -214,7 +214,7 @@ class DOTFProcWindow(QWidget):
             self.controls_widget.play_pause_button.setIcon(QIcon(ICON_RUN))
             self.controls_widget.progressbar.setMaximum(100)
             self.controls_widget.progressbar.reset()
-            self.controls_widget.progressbar.update()
+            self.controls_widget.progressbar.updateProgress()
             return
 
         if self.settings_widget.continuous:

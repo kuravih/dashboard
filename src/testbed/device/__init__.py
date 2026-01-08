@@ -103,11 +103,7 @@ class Stream(SharedMemory):
             elif kind.upper() == "SLM":
                 return cls.SLM
             else:
-                raise ValueError(f"Unknown color: {kind}")
-
-        @classmethod
-        def to_str(cls):
-            return cls.name.upper()
+                raise ValueError(f"Unknown kind: {kind}")
 
         def to_str(self):
             return self.name.upper()
@@ -121,10 +117,10 @@ class Stream(SharedMemory):
                 Stream name or existing SharedMemory to attach to
         """
 
-        if isinstance(source, SharedMemory):
-            super().__init__(source.name)
-        else:
+        if isinstance(source, str):
             super().__init__(source)
+        else:
+            super().__init__(source.name)
 
         if self.keywords["KIND"].value == "CAMERA":
             self._kind = Stream.Kind.CAMERA

@@ -5,8 +5,8 @@ class WorkerSignals(QObject):
     progress = Signal(int, float)  # step, elapsed_time
     finish = Signal()
 
-class Worker(QRunnable):
 
+class Worker(QRunnable):
     def stop(self):
         self._running = False
 

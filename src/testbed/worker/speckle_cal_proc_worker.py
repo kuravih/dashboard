@@ -49,21 +49,33 @@ class SpeckleCalProcWorker(Worker):
         self.signals.progress.emit(i_step, time.time() - t_start)
         # ---- blank --------------------------------------------------------------------------------------------------
 
-        for _freq in self._freqs:
-            for _angle in self._angles:
-                for _phase in self._phases:
-                    command = self._sink.pxmax * np.clip(self._ampl * sinusoid(self._sink.shape, 1.0 / _freq, np.deg2rad(_phase), np.deg2rad(_angle)) + 0.5, 0, 1)
+        logger.info("%s and %s SpeckleCalProcWorker.run : step %s of %s", self._source.name, self._sink.name, i_step, self._n_steps)
+
+        i_freq = 0
+        while (self._freqs.size > i_freq) and self._running:
+            i_angle = 0
+            while (self._angles.size > i_angle) and self._running:
+                i_phase = 0
+                while (self._phases.size > i_phase) and self._running:
+
+                    command = self._sink.pxmax * np.clip(self._ampl * sinusoid(self._sink.shape, 1.0 / self._freqs[i_freq], np.deg2rad(self._phases[i_phase]), np.deg2rad(self._angles[i_angle])) + 0.5, 0, 1)
 
                     self.signals.new_sink_sample.emit(self._sink.push_command(command.astype(np.uint16)))
                     time.sleep(0.1)
-                    
+
                     self.signals.new_source_sample.emit(self._source.pull_capture())
                     time.sleep(0.2)
-                
+
                     i_step = i_step + 1
                     self.signals.progress.emit(i_step, time.time() - t_start)
 
                     logger.info("%s and %s SpeckleCalProcWorker.run : step %s of %s", self._source.name, self._sink.name, i_step, self._n_steps)
+
+                    i_phase = i_phase + 1
+
+                i_angle = i_angle + 1
+
+            i_freq = i_freq + 1
 
         self.signals.finish.emit()
 

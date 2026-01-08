@@ -2,7 +2,7 @@ import numpy as np
 from datetime import datetime
 
 from . import Device, Stream, ZMQLink, SinkSample
-from ..function import flip_rotate
+from ..function import Flip, Rotation, flip_rotate
 
 from pykato.log import setup_logger
 
@@ -20,8 +20,8 @@ class Mirror(Device):
         super().__init__(stream.name)
         self._stream = stream
         self._max_radius = self._stream.keywords["RADMAX"].value
-        self._rotation = 0  # 0 for 0deg, 1 for 90deg, 2 for 180deg, 3 for 270deg
-        self._flip = False
+        self._rotation = Rotation.UP  # UP for 0deg, RIGHT for 90deg, DOWN for 180deg, LEFT for 270deg
+        self._flip = Flip.NEG
         self._shape = (int(2 * np.ceil(self.radius)), int(2 * np.ceil(self.radius)))
         self._command = self.blank
         self._link = None
@@ -123,23 +123,19 @@ class Mirror(Device):
         return reply["settings"]["radius"]
 
     @property
-    def rotation(self) -> int:
+    def rotation(self) -> Rotation:
         return self._rotation
 
     @rotation.setter
-    def rotation(self, value: int):
-        if value not in [0, 1, 2, 3]:
-            raise ValueError("value must be 0, 1, 2 or 3")
+    def rotation(self, value: Rotation):
         self._rotation = value
 
     @property
-    def flip(self) -> bool:
+    def flip(self) -> Flip:
         return self._flip
 
     @flip.setter
-    def flip(self, value: bool):
-        if not isinstance(value, bool):
-            raise ValueError("Value must be a bool")
+    def flip(self, value: Flip):
         self._flip = value
 
     def __del__(self):

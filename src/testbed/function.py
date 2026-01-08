@@ -1,16 +1,17 @@
-from ast import List
+import pickle
 from enum import Enum, auto
 import struct
 import numpy as np
 from datetime import datetime
 from .device import SinkSample, SinkSampleStore, SourceSample, SourceSampleStore
 from io import FileIO
+from pykato.log import setup_logger
 
 from skimage.feature import peak_local_max
 from skimage.morphology import disk, dilation
 from skimage.measure import label, regionprops
-from skimage.measure._regionprops import RegionProperties
 
+logger = setup_logger("function", terminator="\n")
 
 DTYPE_MAP = {
     np.uint8: 1,
@@ -31,6 +32,13 @@ class Flip(Enum):
     NEG = auto()
     POS = auto()
 
+    @classmethod
+    def from_bool(cls, value: bool):
+        return cls.POS if value else cls.NEG
+
+    def to_bool(self) -> bool:
+        return self is Flip.POS
+
 
 class Rotation(Enum):
     UP = auto()
@@ -38,13 +46,19 @@ class Rotation(Enum):
     DOWN = auto()
     LEFT = auto()
 
+    @classmethod
+    def from_int(cls, i: int) -> "Rotation":
+        return {0: cls.UP, 1: cls.RIGHT, 2: cls.DOWN, 3: cls.LEFT}[i]
+
+    def to_int(self):
+        return {Rotation.UP: 0, Rotation.RIGHT: 1, Rotation.DOWN: 2, Rotation.LEFT: 3}[self]
+
 
 def flip_rotate(_frame: np.ndarray, _flip: Flip, _rotation: Rotation) -> np.ndarray:
-    frame = np.rot90(_frame, _rotation.value - 1)
+    frame = np.rot90(_frame, _rotation.to_int())
     if _flip == Flip.NEG:
-        return np.fliplr(frame)
-    else:
-        return frame
+        frame = np.fliplr(frame)
+    return frame
 
 
 def write_source_sample_header(_file: FileIO, _sample: SourceSample):
@@ -193,3 +207,24 @@ def speckle_parameters(center: np.ndarray, speckle_location_px: np.ndarray, spec
     speckle_frequency = (speckle_dist - freq_intercept) / freq_slope
     speckle_angle = (speckle_angle - angle_intercept) / angle_slope
     return speckle_frequency, speckle_angle
+
+
+def is_speckle_calibration_file_valid(speck_cal_filepath: str) -> bool:
+    with open(speck_cal_filepath, "rb") as _input:
+        d = pickle.load(_input)
+
+    if "speck_angle_cmd_angle" not in d:
+        return False
+    if "slope" not in d["speck_angle_cmd_angle"]:
+        return False
+    if "intercept" not in d["speck_angle_cmd_angle"]:
+        return False
+
+    if "speck_dist_cmd_freq" not in d:
+        return False
+    if "slope" not in d["speck_dist_cmd_freq"]:
+        return False
+    if "intercept" not in d["speck_dist_cmd_freq"]:
+        return False
+
+    return True

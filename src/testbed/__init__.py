@@ -1,15 +1,19 @@
 from PySide6.QtCore import QThreadPool
 
-from .device import Device
-from .widget import Window
-from .worker import Worker
+from .device.camera import Camera
+from .device.modulator import Modulator
+from .widget.camera_window import PreviewWindow as CameraPreviewWindow, InfoWindow as CameraInfoWindow, SettingsWindow as CameraSettingsWindow
+from .widget.modulator_window import PreviewWindow as ModulatorPreviewWindow, InfoWindow as ModulatorInfoWindow, SettingsWindow as ModulatorSettingsWindow
+
+from .worker.camera_worker import UpdateWorker as CameraUpdateWorker
+from .worker.modulator_worker import UpdateWorker as ModulatorUpdateWorker
 
 
 class Data:
-    threadpool = QThreadPool()
-    devices: dict[str, Device] = {}
-    windows: dict[str, Window] = {}
-    workers: dict[str, Worker] = {}
+    threadpool = QThreadPool.globalInstance()
+    devices: dict[str, Camera | Modulator] = {}
+    windows: dict[str, CameraPreviewWindow | CameraInfoWindow | CameraSettingsWindow | ModulatorPreviewWindow | ModulatorInfoWindow | ModulatorSettingsWindow] = {}
+    workers: dict[str, CameraUpdateWorker | ModulatorUpdateWorker] = {}
 
 
 data = Data()

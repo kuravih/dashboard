@@ -1,5 +1,5 @@
 import unittest
-from testbed.function import read_source_samples, read_sink_samples, find_speckles
+from testbed.function import read_source_samples, read_sink_samples, find_speckles, is_speckle_calibration_file_valid
 from pykato.log import setup_logger
 from pykato.function import airy
 from pykato.plotfunction.preset import Imshow_Preset
@@ -57,3 +57,6 @@ class TestFunction(unittest.TestCase):
             self.assertAlmostEqual(y1, y2, places=1)
 
         diagram.savefig("data/plot/find_speckles.png")
+
+    def test_is_speckle_calibration_file_valid(self):
+        assert is_speckle_calibration_file_valid("data/output/speckle_calibration_instrument/20251201.155742_speckle_cal_speckle_calibration.pkl")

@@ -123,47 +123,37 @@ class SpeckleNullProcWorker(Worker):
 
         # ---- blank --------------------------------------------------------------------------------------------------
         command = self._sink.pxmax * np.clip(np.zeros(self._sink.shape) + 0.5, 0, 1)
-        logger.info("%s and %s SpeckleNullProcWorker.run : blank", self._source.name, self._sink.name)
 
-        self._sink.push_command(command.astype(np.uint16))
-
-        _current_sink_sample = self._sink.pull_sample()
-        time.sleep(0.1)
+        _current_sink_sample = self._sink.push_command(command.astype(np.uint16))
         self.signals.new_sink_sample.emit(_current_sink_sample)
-        _current_source_sample = self._source.pull_sample()
         time.sleep(0.1)
+
+        _current_source_sample = self._source.pull_capture()
         self.signals.new_source_sample.emit(_current_source_sample)
+        time.sleep(0.2)
 
         self.signals.progress.emit(i_iteration, time.time() - t_start)
         # ---- blank --------------------------------------------------------------------------------------------------
 
+        logger.info("%s and %s SpeckleNullProcWorker.run : iteration %s of %s", self._source.name, self._sink.name, i_iteration, self._n_iterations)
+
         center = (self._source.shape[0] / 2, self._source.shape[1] / 2)
         while ((self._n_iterations is None) or (self._n_iterations > i_iteration)) and self._running:
-            # command = self._sink.pxmax * np.clip(text(self._sink.shape, f"{i_iteration:02d}", font_size=150), 0, 1)
-            logger.info("SpeckleNullProcWorker.run iteration = %s", (f"{i_iteration}") if (self._n_iterations is None) else (f"{i_iteration} of {self._n_iterations}"))
-
             # ---- stage 0: find speckle ------------------------------------------------------------------------------
             specks, speck_stencil = find_speckles((_current_source_sample.capture * self._dh_mask).astype(float), 1, 5)
-            speck_stencil = np.rot90(speck_stencil, 3)
-            _current_source_sample.capture = _current_source_sample.capture * self._dh_mask
-            self.signals.new_source_sample.emit(_current_source_sample)
-            # logger.info("SpeckleNullProcWorker.run speckle location = %s", str(specks[0].weighted_centroid))
             # ---- stage 0: speckle found -----------------------------------------------------------------------------
 
             # ---- stage 1: calculate speckle period and angle --------------------------------------------------------
-            # speck_freq, speck_angle = speckle_parameters(center, specks[0].weighted_centroid, self._speck_calibration)
-            # logger.info("SpeckleNullProcWorker.run speck_freq = %f (period = %f), speck_angle = %f", speck_freq, 1.0 / speck_freq, np.rad2deg(speck_angle))
-            # speck_data.emit(specks[0].weighted_centroid, speck_freq, speck_angle, speck_stencil)
+            speck_freq, speck_angle = speckle_parameters(center, specks, self._speck_calibration)
+            # emit debug data
             # ---- stage 1: speckle period and angle calculated -------------------------------------------------------
 
             # ---- stage 2: find speckle phase ------------------------------------------------------------------------
-            # speck_phase = _phs_search(self._source, self._sink, _current_sink_sample.command, speck_freq, self._phases, speck_angle, speck_stencil)
-            # logger.info("SpeckleNullProcWorker.run speck_phase = %f", np.rad2deg(speck_phase))
+            speck_phase = _phs_search(self._source, self._sink, _current_sink_sample.command, speck_freq, self._phases, speck_angle, speck_stencil)
             # ---- stage 2: speckle phase found -----------------------------------------------------------------------
 
             # ---- stage 3: find speckle amplitude --------------------------------------------------------------------
-            # speck_amplitude = _amp_search(self._source, self._sink, _current_sink_sample.command, speck_freq, speck_phase, speck_angle, self._amplitudes, speck_stencil)
-            # logger.info("SpeckleNullProcWorker.run speck_amplitude = %f", speck_amplitude)
+            speck_amplitude = _amp_search(self._source, self._sink, _current_sink_sample.command, speck_freq, speck_phase, speck_angle, self._amplitudes, speck_stencil)
             # ---- stage 3: speckle amplitude found -------------------------------------------------------------------
 
             # ---- stage 4: apply correction --------------------------------------------------------------------------

@@ -45,6 +45,8 @@ class SimpleProcWorker(Worker):
         self.signals.progress.emit(i_step, time.time() - t_start)
         # ---- blank --------------------------------------------------------------------------------------------------
 
+        logger.info("%s and %s SimpleProcWorker.run : step %s of %s", self._source.name, self._sink.name, i_step, self._n_steps)
+
         while ((self._n_steps is None) or (self._n_steps > i_step)) and self._running:
             command = self._sink.pxmax * np.clip(text(self._sink.shape, f"{i_step:02d}", font_size=150), 0, 1)
 

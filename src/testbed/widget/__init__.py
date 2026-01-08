@@ -188,7 +188,7 @@ class ProgressBar(QWidget):
         self.time = 0
         self.bar = QProgressBar()
         self.label = QLabel("")
-        self.label.setAlignment(Qt.AlignCenter)
+        self.label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.label.setStyleSheet("color: white;")
         self.format = ""
 
@@ -203,7 +203,7 @@ class ProgressBar(QWidget):
     def setTime(self, _time: float):
         self.time = _time
 
-    def update(self):
+    def updateProgress(self):
         if self.bar.maximum() == 0:
             self.bar.setFormat("")
             self.label.setText(f"Step {self.bar.value()} - {time.strftime('%H:%M:%S', time.gmtime(self.time))}")
@@ -345,8 +345,8 @@ class NSpinBoxesWidget(QWidget):
 
 class OrientationWidget(QWidget):
 
-    rotation_change = Signal(Rotation)
-    flip_change = Signal(Flip)
+    rotation_changed = Signal(Rotation)
+    flip_changed = Signal(Flip)
 
     def __init__(self, rotation: Rotation = Rotation.UP, flip: Flip = Flip.NEG, parent=None):
         super().__init__(parent)
@@ -386,12 +386,12 @@ class OrientationWidget(QWidget):
     def _on_rotation_changed(self, id_):
         mapping = [Rotation.UP, Rotation.RIGHT, Rotation.DOWN, Rotation.LEFT]
         self._rotation = mapping[id_]
-        self.rotation_change.emit(self._rotation)
+        self.rotation_changed.emit(self._rotation)
 
     @Slot()
     def _on_flip_change(self, state):
         self._flip = Flip.POS if state else Flip.NEG
-        self.flip_change.emit(self._flip)
+        self.flip_changed.emit(self._flip)
 
     # --- getters / setters ---
     def get_flip(self) -> Flip:

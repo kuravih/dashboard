@@ -122,7 +122,7 @@ class SimpleProcSettingsWidget(QWidget):
 
 class SimpleProcWindow(QWidget):
     def __init__(self, parent=None):
-        super().__init__(parent, Qt.Dialog)
+        super().__init__(parent, Qt.WindowType.Dialog)
         self.setWindowModality(Qt.WindowModality.WindowModal)
         self.setWindowTitle("Simple Process")
         self._sink = None
@@ -237,13 +237,13 @@ class SimpleProcWindow(QWidget):
     def on_progress(self, step: int, t_elapsed: float):
         self.controls_widget.progressbar.setValue(step + 1)
         self.controls_widget.progressbar.setTime(t_elapsed)
-        self.controls_widget.progressbar.update()
+        self.controls_widget.progressbar.updateProgress()
 
     @Slot()
     def on_finish(self):
         proc_worker_id = "simple_proc_worker"
         self.controls_widget.progressbar.reset()
-        self.controls_widget.progressbar.update()
+        self.controls_widget.progressbar.updateProgress()
         if proc_worker_id in testbed.data.workers:  # an update worker is in progress
             current_proc_worker = testbed.data.workers.pop(proc_worker_id)
             current_proc_worker.stop()
@@ -279,7 +279,7 @@ class SimpleProcWindow(QWidget):
             self.devices_widget.source_settings_button.setEnabled(True)
             self.controls_widget.progressbar.setMaximum(100)
             self.controls_widget.progressbar.reset()
-            self.controls_widget.progressbar.update()
+            self.controls_widget.progressbar.updateProgress()
             if source_storage_worker_id in testbed.data.workers:
                 current_source_storage_worker = testbed.data.workers.pop(source_storage_worker_id)
                 current_source_storage_worker.stop()

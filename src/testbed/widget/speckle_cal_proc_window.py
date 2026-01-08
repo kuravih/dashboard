@@ -103,12 +103,12 @@ class SpeckleCalProcSettingsWidget(QWidget):
 
     @property
     def n_steps(self) -> int:
-        return self.angles_array.size * self.freqs_array.size * self.phases_array.size + 1 # include blank
+        return self.angles_array.size * self.freqs_array.size * self.phases_array.size + 1  # include blank
 
 
 class SpeckleCalProcWindow(QWidget):
     def __init__(self, parent=None):
-        super().__init__(parent, Qt.Dialog)
+        super().__init__(parent, Qt.WindowType.Dialog)
         self.setWindowModality(Qt.WindowModality.WindowModal)
         self.setWindowTitle("Speckle Calibration")
         self._sink = None
@@ -223,13 +223,13 @@ class SpeckleCalProcWindow(QWidget):
     def on_progress(self, step: int, t_elapsed: float):
         self.controls_widget.progressbar.setValue(step + 1)
         self.controls_widget.progressbar.setTime(t_elapsed)
-        self.controls_widget.progressbar.update()
+        self.controls_widget.progressbar.updateProgress()
 
     @Slot()
     def on_finish(self):
         proc_worker_id = "speckle_cal_proc_worker"
         self.controls_widget.progressbar.reset()
-        self.controls_widget.progressbar.update()
+        self.controls_widget.progressbar.updateProgress()
         if proc_worker_id in testbed.data.workers:  # an update worker is in progress
             current_proc_worker = testbed.data.workers.pop(proc_worker_id)
             current_proc_worker.stop()
@@ -258,6 +258,7 @@ class SpeckleCalProcWindow(QWidget):
         sink_preview_window_name = self.sink.name + "_preview"
 
         if proc_worker_id in testbed.data.workers:  # an update worker is in progress
+            logger.info("stopping running process")
             current_proc_worker = testbed.data.workers.pop(proc_worker_id)
             current_proc_worker.stop()
             self.controls_widget.play_pause_button.setIcon(QIcon(ICON_RUN))
@@ -265,7 +266,7 @@ class SpeckleCalProcWindow(QWidget):
             self.devices_widget.source_settings_button.setEnabled(True)
             self.controls_widget.progressbar.setMaximum(100)
             self.controls_widget.progressbar.reset()
-            self.controls_widget.progressbar.update()
+            self.controls_widget.progressbar.updateProgress()
             if source_storage_worker_id in testbed.data.workers:
                 current_source_storage_worker = testbed.data.workers.pop(source_storage_worker_id)
                 current_source_storage_worker.stop()
@@ -274,7 +275,7 @@ class SpeckleCalProcWindow(QWidget):
                 current_sink_storage_worker.stop()
             return
 
-        self.controls_widget.progressbar.setMaximum(self.settings_widget.n_steps)  # include the blank
+        self.controls_widget.progressbar.setMaximum(self.settings_widget.n_steps)
 
         proc_worker = SpeckleCalProcWorker(self.source, self.sink, self.settings_widget.amplitude, self.settings_widget.freqs_array, self.settings_widget.angles_array, self.settings_widget.phases_array)
         proc_worker.signals.progress.connect(self.on_progress)
@@ -294,8 +295,9 @@ class SpeckleCalProcWindow(QWidget):
         testbed.data.workers[sink_storage_worker_id] = sink_storage_worker
         sink_storage_worker.signals.finish.connect(self.on_sink_storage_finish)
 
-        with open(f"data/output/{timestamp}_speckle_cal_parameters.pkl", "wb") as file:
-            pickle.dump((self.settings_widget.amplitude, self.settings_widget.freqs_array, self.settings_widget.angles_array, self.settings_widget.phases_array), file, protocol=pickle.HIGHEST_PROTOCOL)
+        with open(f"data/output/{timestamp}_speckle_cal_parameters.pkl", "wb") as _file:
+            parameters_dict = {"amplitudes": self.settings_widget.amplitude, "frequencies": self.settings_widget.freqs_array, "angles": self.settings_widget.angles_array, "phases": self.settings_widget.phases_array}
+            pickle.dump(parameters_dict, _file, protocol=pickle.HIGHEST_PROTOCOL)
 
         testbed.data.threadpool.start(proc_worker)
 

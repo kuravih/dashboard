@@ -8,7 +8,7 @@ from pykato.plotfunction.preset import Histogram_Colorbar_Preset
 from pykato.function import timestamp_string
 
 from ..widget import Window, OrientationWidget, CenterWidget, DoubleValueSetWidget
-from ..function import Flip, Rotation, write_sink_sample_data, write_sink_sample_header
+from ..function import Flip, Rotation, flip_rotate, write_sink_sample_data, write_sink_sample_header
 from ..device.modulator import Modulator, SinkSample
 from ..widget.command_preset_widget import EFCPresetWidget, ConstPresetWidget, GradientPresetWidget, CheckerPresetWidget, SinusoidPresetWidget, BoxPresetWidget, PolkaPresetWidget, RegisterPresetWidget, DOTFPresetWidget, TextPresetWidget
 from ..widget.figure_widget import FigureWidget, ModulatorFigureWidget
@@ -68,7 +68,7 @@ class PreviewWindow(Window):
     @Slot()
     def on_update_window(self):
         # logger.info("PreviewWindow.on_update_window")
-        self.preview_figure_widget.figure.get_image().set_data(self.sample.command)
+        self.preview_figure_widget.figure.get_image().set_data(flip_rotate(self.sample.command, self.modulator.flip, self.modulator.rotation))
         self.preview_figure_widget.figure.canvas.draw()
 
     def closeEvent(self, event):
@@ -129,17 +129,17 @@ class InfoWindow(Window):
         uri_value_label.setToolTip("Device URI")
 
         kind_label = QLabel("Kind", self)
-        kind_modulator_radiobutton = QRadioButton("CAMERA", self)
-        kind_modulator_radiobutton.setEnabled(False)
-        kind_modulator_radiobutton.setToolTip("Device is a Modulator")
+        kind_camera_radiobutton = QRadioButton("CAMERA", self)
+        kind_camera_radiobutton.setEnabled(False)
+        kind_camera_radiobutton.setToolTip("Device is a Modulator")
         kind_slm_radiobutton = QRadioButton("SLM", self)
         kind_slm_radiobutton.setEnabled(False)
         kind_slm_radiobutton.setToolTip("Device is an SLM")
         kind_dm_radiobutton = QRadioButton("DM", self)
         kind_dm_radiobutton.setEnabled(False)
         kind_dm_radiobutton.setToolTip("Device is a DM")
-        kind_modulator_radiobutton.setChecked(True)
-        kind_slm_radiobutton.setChecked(False)
+        kind_camera_radiobutton.setChecked(False)
+        kind_slm_radiobutton.setChecked(True)
         kind_dm_radiobutton.setChecked(False)
 
         frame_rate_label = QLabel("Frame rate (fps)", self)
@@ -149,12 +149,12 @@ class InfoWindow(Window):
         kind_spacer = QSpacerItem(10, 10, QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Maximum)
 
         kind_group = QButtonGroup(self)
-        kind_group.addButton(kind_modulator_radiobutton)
+        kind_group.addButton(kind_camera_radiobutton)
         kind_group.addButton(kind_slm_radiobutton)
         kind_group.addButton(kind_dm_radiobutton)
 
         kind_layout = QHBoxLayout()
-        kind_layout.addWidget(kind_modulator_radiobutton)
+        kind_layout.addWidget(kind_camera_radiobutton)
         kind_layout.addWidget(kind_slm_radiobutton)
         kind_layout.addWidget(kind_dm_radiobutton)
         kind_layout.addItem(kind_spacer)
@@ -335,8 +335,8 @@ class SettingsWindow(Window):
         orientation_label = QLabel("Orientation", self)
         orientation_label.setFixedWidth(100)
         orientation_widget = OrientationWidget(self.modulator.rotation, self.modulator.flip, self)
-        orientation_widget.rotation_change.connect(set_rotation)
-        orientation_widget.flip_change.connect(set_flip)
+        orientation_widget.rotation_changed.connect(set_rotation)
+        orientation_widget.flip_changed.connect(set_flip)
         # ---- orientation setting ------------------------------------------------------------------------------------
 
         # ---- radius setting -----------------------------------------------------------------------------------------

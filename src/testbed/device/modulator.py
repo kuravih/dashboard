@@ -2,7 +2,7 @@ import numpy as np
 from datetime import datetime
 
 from . import Device, Stream, ZMQLink, SinkSample
-from ..function import flip_rotate, Rotation, Flip
+from ..function import Flip, Rotation
 
 from pykato.log import setup_logger
 
@@ -20,8 +20,8 @@ class Modulator(Device):
         super().__init__(stream.name)
         self._stream = stream
         self._max_radius = self._stream.keywords["RADMAX"].value
-        self._rotation = Rotation.UP
-        self._flip = Flip.POS
+        self._rotation = Rotation.UP  # UP for 0deg, RIGHT for 90deg, DOWN for 180deg, LEFT for 270deg
+        self._flip = Flip.NEG
         self._shape = (int(2 * np.ceil(self.radius)), int(2 * np.ceil(self.radius)))
         self._link = None
         if self._stream.port != -1:
@@ -84,25 +84,24 @@ class Modulator(Device):
         return self._rotation
 
     @rotation.setter
-    def rotation(self, _rotation: Rotation):
-        self._rotation = _rotation
+    def rotation(self, value: Rotation):
+        self._rotation = value
 
     @property
     def flip(self) -> Flip:
         return self._flip
 
     @flip.setter
-    def flip(self, _flip: Flip):
-        self._flip = _flip
+    def flip(self, value: Flip):
+        self._flip = value
 
     def push_command(self, _command: np.ndarray) -> SinkSample:
         self._stream.set_data(_command)
-        command = flip_rotate(_command, self.flip, self.rotation)
-        self._sample = SinkSample(self.last_access_time, self.frame_rate_fps, self.center, self.radius, command)
+        self._sample = SinkSample(self.last_access_time, self.frame_rate_fps, self.center, self.radius, _command)
         return self._sample
 
     def get_command(self) -> SinkSample:
-        command = flip_rotate(self._stream.get_data().reshape(self.shape), self.flip, self.rotation)
+        command = self._stream.get_data().reshape(self.shape)
         self._sample = SinkSample(self.last_access_time, self.frame_rate_fps, self.center, self.radius, command)
         return self._sample
 

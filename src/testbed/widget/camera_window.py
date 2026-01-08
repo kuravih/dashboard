@@ -7,7 +7,7 @@ from pykato.plotfunction.preset import Histogram_Colorbar_Preset
 from pykato.function import timestamp_string
 
 from ..device.camera import Camera, SourceSample
-from ..function import Flip, Rotation, write_source_sample_header, write_source_sample_data
+from ..function import Flip, Rotation, flip_rotate, write_source_sample_header, write_source_sample_data
 from ..widget import Window, OrientationWidget, ROIWidget, DoubleValueSetWidget, ValueSetWidget
 from ..widget.resource import ICON_CAMERA
 from ..widget.figure_widget import FigureWidget, SourceFigureWidget
@@ -64,8 +64,7 @@ class PreviewWindow(Window):
 
     @Slot()
     def on_update_window(self):
-        # logger.info("PreviewWindow.on_update_window")
-        self.preview_figure_widget.figure.get_image().set_data(self.sample.capture)
+        self.preview_figure_widget.figure.get_image().set_data(flip_rotate(self.sample.capture, self.camera.flip, self.camera.rotation))
         self.preview_figure_widget.figure.canvas.draw_idle()
 
     def closeEvent(self, event):
@@ -343,8 +342,8 @@ class SettingsWindow(QWidget):
 
         # ---- orientation setting ------------------------------------------------------------------------------------
         @Slot(Rotation)
-        def set_camera_rotation(_rotaion: Rotation):
-            self.camera.rotation = _rotaion
+        def set_camera_rotation(_rotation: Rotation):
+            self.camera.rotation = _rotation
 
         @Slot(Flip)
         def set_camera_flip(_flip: Flip):
@@ -353,8 +352,8 @@ class SettingsWindow(QWidget):
         orientation_label = QLabel("Orientation", self)
         orientation_label.setFixedWidth(100)
         orientation_widget = OrientationWidget(self.camera.rotation, self.camera.flip, self)
-        orientation_widget.rotation_change.connect(set_camera_rotation)
-        orientation_widget.flip_change.connect(set_camera_flip)
+        orientation_widget.rotation_changed.connect(set_camera_rotation)
+        orientation_widget.flip_changed.connect(set_camera_flip)
         # ---- orientation setting ------------------------------------------------------------------------------------
 
         # ---- temperature setting ------------------------------------------------------------------------------------
