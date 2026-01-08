@@ -20,7 +20,7 @@ from .mirror_window import PreviewWindow as MirrorPreviewWindow, InfoWindow as M
 from ..worker.speckle_cal_proc_worker import SpeckleCalProcWorker
 from ..worker.storage_worker import SinkStorageWorker, SourceStorageWorker
 
-from ..widget import DevicesSetupWidget, TaskControlsWidget
+from ..widget import DevicesSetupWidget, TaskControlsWidget, Window
 from ..widget.resource import ICON_RUN, ICON_PAUSE
 from ..widget import LinspaceWidget
 
@@ -29,7 +29,7 @@ logger = setup_logger("speckle_cal_proc_window", terminator="\n")
 
 class SpeckleCalProcSettingsWidget(QWidget):
     """
-    Speckle Calibration Process Window
+    Speckle Calibration Process Settings
     """
 
     def __init__(self, parent=None):
@@ -106,7 +106,11 @@ class SpeckleCalProcSettingsWidget(QWidget):
         return self.angles_array.size * self.freqs_array.size * self.phases_array.size + 1  # include blank
 
 
-class SpeckleCalProcWindow(QWidget):
+class SpeckleCalProcWindow(Window):
+    """
+    Speckle Calibration Process Window
+    """
+
     def __init__(self, parent=None):
         super().__init__(parent, Qt.WindowType.Dialog)
         self.setWindowModality(Qt.WindowModality.WindowModal)
@@ -279,27 +283,25 @@ class SpeckleCalProcWindow(QWidget):
 
         proc_worker = SpeckleCalProcWorker(self.source, self.sink, self.settings_widget.amplitude, self.settings_widget.freqs_array, self.settings_widget.angles_array, self.settings_widget.phases_array)
         proc_worker.signals.progress.connect(self.on_progress)
-        proc_worker.signals.finish.connect(self.on_finish)
+        proc_worker.signals.finished.connect(self.on_finish)
 
         timestamp = timestamp_string(frmt="%Y%m%d.%H%M%S", ms=None)
 
         source_storage_worker = SourceStorageWorker(f"data/output/{timestamp}_speckle_cal_source.raw", self.settings_widget.n_steps)
         proc_worker.signals.new_source_sample.connect(source_storage_worker.on_sample)
-        testbed.data.threadpool.start(source_storage_worker)
+        source_storage_worker.signals.finished.connect(self.on_source_storage_finish)
         testbed.data.workers[source_storage_worker_id] = source_storage_worker
-        source_storage_worker.signals.finish.connect(self.on_source_storage_finish)
+        testbed.data.threadpool.start(source_storage_worker)
 
         sink_storage_worker = SinkStorageWorker(f"data/output/{timestamp}_speckle_cal_sink.raw", self.settings_widget.n_steps)
         proc_worker.signals.new_sink_sample.connect(sink_storage_worker.on_sample)
-        testbed.data.threadpool.start(sink_storage_worker)
+        sink_storage_worker.signals.finished.connect(self.on_sink_storage_finish)
         testbed.data.workers[sink_storage_worker_id] = sink_storage_worker
-        sink_storage_worker.signals.finish.connect(self.on_sink_storage_finish)
+        testbed.data.threadpool.start(sink_storage_worker)
 
         with open(f"data/output/{timestamp}_speckle_cal_parameters.pkl", "wb") as _file:
             parameters_dict = {"amplitudes": self.settings_widget.amplitude, "frequencies": self.settings_widget.freqs_array, "angles": self.settings_widget.angles_array, "phases": self.settings_widget.phases_array}
             pickle.dump(parameters_dict, _file, protocol=pickle.HIGHEST_PROTOCOL)
-
-        testbed.data.threadpool.start(proc_worker)
 
         self.controls_widget.play_pause_button.setIcon(QIcon(ICON_PAUSE))
         self.devices_widget.sink_settings_button.setEnabled(False)
@@ -311,6 +313,7 @@ class SpeckleCalProcWindow(QWidget):
             proc_worker.signals.new_sink_sample.connect(testbed.data.windows[sink_preview_window_name].on_new_sample)
 
         testbed.data.workers[proc_worker_id] = proc_worker
+        testbed.data.threadpool.start(proc_worker)
 
     def setup_main_widget(self) -> QWidget:
         widget = QWidget(self)

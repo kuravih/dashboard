@@ -1,7 +1,7 @@
 import numpy as np
 
 from PySide6.QtWidgets import QWidget, QVBoxLayout, QLabel, QRadioButton, QSpacerItem, QButtonGroup, QSizePolicy, QGridLayout, QHBoxLayout, QPushButton, QComboBox
-from PySide6.QtCore import QTimer, Slot
+from PySide6.QtCore import QTimer, Slot, Qt
 
 from pykato.log import setup_logger
 from pykato.plotfunction.preset import Histogram_Colorbar_Preset
@@ -24,8 +24,8 @@ class PreviewWindow(Window):
     Modulator Preview Window
     """
 
-    def __init__(self, modulator: Modulator):
-        super().__init__()
+    def __init__(self, modulator: Modulator, parent: QWidget | None = None):
+        super().__init__(parent, Qt.WindowType.Dialog)
         self._modulator = modulator
         self._sample = self._modulator.sample
 
@@ -84,8 +84,8 @@ class InfoWindow(Window):
     Modulator Info Window
     """
 
-    def __init__(self, modulator: Modulator):
-        super().__init__()
+    def __init__(self, modulator: Modulator, parent: QWidget | None = None):
+        super().__init__(parent, Qt.WindowType.Dialog)
         self._modulator = modulator
         self._sample = SinkSample(self._modulator.last_access_time, self._modulator.frame_rate_fps, self._modulator.center, self._modulator.radius, self._modulator.blank)
 
@@ -292,8 +292,8 @@ class InfoWindow(Window):
 # ==== SettingsWindow =================================================================================================
 class SettingsWindow(Window):
 
-    def __init__(self, modulator: Modulator):
-        super().__init__()
+    def __init__(self, modulator: Modulator, parent: QWidget | None = None):
+        super().__init__(parent, Qt.WindowType.Dialog)
         self._modulator = modulator
         self._sample = SinkSample(self._modulator.last_access_time, self._modulator.frame_rate_fps, self._modulator.center, self._modulator.radius, self._modulator.blank)
 

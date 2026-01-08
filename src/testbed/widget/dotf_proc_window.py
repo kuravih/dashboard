@@ -224,7 +224,7 @@ class DOTFProcWindow(QWidget):
 
         proc_worker = SimpleProcWorker(self.source, self.sink, self.settings_widget.n_steps)
         proc_worker.signals.progress.connect(self.on_progress)
-        proc_worker.signals.finish.connect(self.on_finish)
+        proc_worker.signals.finished.connect(self.on_finish)
 
         testbed.data.threadpool.start(proc_worker)
         self.controls_widget.play_pause_button.setIcon(QIcon(ICON_PAUSE))

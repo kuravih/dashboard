@@ -18,13 +18,17 @@ from .mirror_window import PreviewWindow as MirrorPreviewWindow, InfoWindow as M
 from ..worker.simple_proc_worker import SimpleProcWorker
 from ..worker.storage_worker import SinkStorageWorker, SourceStorageWorker
 
-from ..widget import DevicesSetupWidget, TaskControlsWidget
+from ..widget import DevicesSetupWidget, TaskControlsWidget, Window
 from ..widget.resource import ICON_RUN, ICON_PAUSE
 
 logger = setup_logger("simple_proc_window", terminator="\n")
 
 
 class SimpleProcSettingsWidget(QWidget):
+    """
+    Simple Process Settings
+    """
+
     def __init__(self, parent=None):
         super().__init__(parent)
 
@@ -120,7 +124,11 @@ class SimpleProcSettingsWidget(QWidget):
         return self._sleep_s_spinbox.value()
 
 
-class SimpleProcWindow(QWidget):
+class SimpleProcWindow(Window):
+    """
+    Simple Process Window
+    """
+
     def __init__(self, parent=None):
         super().__init__(parent, Qt.WindowType.Dialog)
         self.setWindowModality(Qt.WindowModality.WindowModal)
@@ -295,25 +303,23 @@ class SimpleProcWindow(QWidget):
 
         proc_worker = SimpleProcWorker(self.source, self.sink, self.settings_widget.n_steps)
         proc_worker.signals.progress.connect(self.on_progress)
-        proc_worker.signals.finish.connect(self.on_finish)
+        proc_worker.signals.finished.connect(self.on_finish)
 
         timestamp = timestamp_string(frmt="%Y%m%d.%H%M%S", ms=None)
 
         if self.settings_widget.record_source:
             source_storage_worker = SourceStorageWorker(f"data/output/{timestamp}_simple_proc_source.raw", self.settings_widget.n_steps)
             proc_worker.signals.new_source_sample.connect(source_storage_worker.on_sample)
-            testbed.data.threadpool.start(source_storage_worker)
+            source_storage_worker.signals.finished.connect(self.on_source_storage_finish)
             testbed.data.workers[source_storage_worker_id] = source_storage_worker
-            source_storage_worker.signals.finish.connect(self.on_source_storage_finish)
+            testbed.data.threadpool.start(source_storage_worker)
 
         if self.settings_widget.record_sink:
             sink_storage_worker = SinkStorageWorker(f"data/output/{timestamp}_simple_proc_sink.raw", self.settings_widget.n_steps)
             proc_worker.signals.new_sink_sample.connect(sink_storage_worker.on_sample)
-            testbed.data.threadpool.start(sink_storage_worker)
+            sink_storage_worker.signals.finished.connect(self.on_sink_storage_finish)
             testbed.data.workers[sink_storage_worker_id] = sink_storage_worker
-            sink_storage_worker.signals.finish.connect(self.on_sink_storage_finish)
-
-        testbed.data.threadpool.start(proc_worker)
+            testbed.data.threadpool.start(sink_storage_worker)
 
         self.controls_widget.play_pause_button.setIcon(QIcon(ICON_PAUSE))
         self.devices_widget.sink_settings_button.setEnabled(False)
@@ -325,6 +331,7 @@ class SimpleProcWindow(QWidget):
             proc_worker.signals.new_sink_sample.connect(testbed.data.windows[sink_preview_window_name].on_new_sample)
 
         testbed.data.workers[proc_worker_id] = proc_worker
+        testbed.data.threadpool.start(proc_worker)
 
     def setup_main_widget(self) -> QWidget:
         widget = QWidget(self)

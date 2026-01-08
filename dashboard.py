@@ -84,23 +84,21 @@ class MainWindow(QMainWindow):
 
         @Slot()
         def close_window():
-            # if update_worker_id in testbed.data.workers:
-            #     testbed.data.workers[update_worker_id].signals.new_sample.disconnect(testbed.data.windows[window_name].on_new_sample)
             testbed.data.windows.pop(window_name, None)
 
         if window_name not in testbed.data.windows:
             if isinstance(_device, Camera):
-                window = CameraPreviewWindow(_device)
+                preview_window = CameraPreviewWindow(_device, parent=self)
             elif isinstance(_device, Modulator):
-                window = ModulatorPreviewWindow(_device)
+                preview_window = ModulatorPreviewWindow(_device, parent=self)
             else:
                 raise ValueError("Invalid device")
 
-            window.destroyed.connect(close_window)
-            window.show()
-            window.raise_()
-            window.activateWindow()
-            testbed.data.windows[window_name] = window
+            preview_window.destroyed.connect(close_window)
+            preview_window.show()
+            preview_window.raise_()
+            preview_window.activateWindow()
+            testbed.data.windows[window_name] = preview_window
 
             if update_worker_id in testbed.data.workers:
                 testbed.data.workers[update_worker_id].signals.new_sample.connect(testbed.data.windows[window_name].on_new_sample)
@@ -112,22 +110,20 @@ class MainWindow(QMainWindow):
 
         @Slot()
         def close_window():
-            if update_worker_id in testbed.data.workers:
-                testbed.data.workers[update_worker_id].signals.new_sample.disconnect(testbed.data.windows[window_name].on_new_sample)
             testbed.data.windows.pop(window_name, None)
 
         if window_name not in testbed.data.windows:
             if isinstance(_device, Camera):
-                window = CameraInfoWindow(_device)
+                info_window = CameraInfoWindow(_device, parent=self)
             elif isinstance(_device, Modulator):
-                window = ModulatorInfoWindow(_device)
+                info_window = ModulatorInfoWindow(_device, parent=self)
             else:
                 raise ValueError("Invalid device")
-            window.destroyed.connect(close_window)
-            window.show()
-            window.raise_()
-            window.activateWindow()
-            testbed.data.windows[window_name] = window
+            info_window.destroyed.connect(close_window)
+            info_window.show()
+            info_window.raise_()
+            info_window.activateWindow()
+            testbed.data.windows[window_name] = info_window
 
             if update_worker_id in testbed.data.workers:
                 testbed.data.workers[update_worker_id].signals.new_sample.connect(testbed.data.windows[window_name].on_new_sample)
@@ -139,22 +135,20 @@ class MainWindow(QMainWindow):
 
         @Slot()
         def close_window():
-            if update_worker_id in testbed.data.workers:
-                testbed.data.workers[update_worker_id].signals.new_sample.disconnect(testbed.data.windows[window_name].on_new_sample)
             testbed.data.windows.pop(window_name, None)
 
         if window_name not in testbed.data.windows:
             if isinstance(_device, Camera):
-                window = CameraSettingsWindow(_device)
+                settings_window = CameraSettingsWindow(_device, parent=self)
             elif isinstance(_device, Modulator):
-                window = ModulatorSettingsWindow(_device)
+                settings_window = ModulatorSettingsWindow(_device, parent=self)
             else:
                 raise ValueError("Invalid device")
-            window.destroyed.connect(close_window)
-            window.show()
-            window.raise_()
-            window.activateWindow()
-            testbed.data.windows[window_name] = window
+            settings_window.destroyed.connect(close_window)
+            settings_window.show()
+            settings_window.raise_()
+            settings_window.activateWindow()
+            testbed.data.windows[window_name] = settings_window
 
             if update_worker_id in testbed.data.workers:
                 testbed.data.workers[update_worker_id].signals.new_sample.connect(testbed.data.windows[window_name].on_new_sample)
@@ -180,10 +174,6 @@ class MainWindow(QMainWindow):
         else:
             raise ValueError("Invalid device")
 
-        testbed.data.threadpool.start(update_worker)
-        _button.setIcon(QIcon(ICON_PAUSE))
-        _button.setToolTip("Start")
-
         if preview_window_name in testbed.data.windows:
             update_worker.signals.new_sample.connect(testbed.data.windows[preview_window_name].on_new_sample)
         if info_window_name in testbed.data.windows:
@@ -192,6 +182,10 @@ class MainWindow(QMainWindow):
             update_worker.signals.new_sample.connect(testbed.data.windows[settings_window_name].on_new_sample)
 
         testbed.data.workers[update_worker_id] = update_worker
+
+        testbed.data.threadpool.start(update_worker)
+        _button.setIcon(QIcon(ICON_PAUSE))
+        _button.setToolTip("Start")
 
     @Slot()
     def add_device_callback(self):

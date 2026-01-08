@@ -1,5 +1,5 @@
 from PySide6.QtWidgets import QWidget, QVBoxLayout, QLabel, QRadioButton, QSpacerItem, QButtonGroup, QSizePolicy, QGridLayout, QHBoxLayout, QPushButton
-from PySide6.QtCore import Slot, QTimer
+from PySide6.QtCore import Slot, QTimer, Qt
 from PySide6.QtGui import QIcon
 
 from pykato.log import setup_logger
@@ -21,8 +21,8 @@ class PreviewWindow(Window):
     Camera Preview Window
     """
 
-    def __init__(self, _camera: Camera):
-        super().__init__()
+    def __init__(self, _camera: Camera, parent: QWidget | None = None):
+        super().__init__(parent, Qt.WindowType.Dialog)
         self._camera = _camera
         self._sample = self._camera.sample
 
@@ -75,13 +75,13 @@ class PreviewWindow(Window):
 
 
 # ==== InfoWindow ===============================================================================================
-class InfoWindow(QWidget):
+class InfoWindow(Window):
     """
     Camera Info Window
     """
 
-    def __init__(self, camera: Camera):
-        super().__init__()
+    def __init__(self, camera: Camera, parent=None):
+        super().__init__(parent, Qt.WindowType.Dialog)
         self._camera = camera
         self._sample = SourceSample(self._camera.last_access_time, self._camera.exposure_time_us, self._camera.gain, self._camera.frame_rate_fps, self._camera.temperature_c, self._camera.roi, self._camera.blank)
 
@@ -309,10 +309,10 @@ class InfoWindow(QWidget):
 
 
 # ==== SettingsWindow ===========================================================================================
-class SettingsWindow(QWidget):
+class SettingsWindow(Window):
 
-    def __init__(self, camera: Camera):
-        super().__init__()
+    def __init__(self, camera: Camera, parent=None):
+        super().__init__(parent, Qt.WindowType.Dialog)
         self._camera = camera
         self._sample = SourceSample(self._camera.last_access_time, self._camera.exposure_time_us, self._camera.gain, self._camera.frame_rate_fps, self._camera.temperature_c, self._camera.roi, self._camera.blank)
 

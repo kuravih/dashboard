@@ -1,5 +1,5 @@
 import time
-from PySide6.QtCore import Slot, Signal
+from PySide6.QtCore import Slot, Signal, QObject
 
 from pykato.log import setup_logger
 
@@ -27,3 +27,4 @@ class UpdateWorker(Worker):
             time.sleep(0.1)
             # logger.info("%s UpdateWorker.run", self._camera.name)
             self.signals.new_sample.emit(self._camera.pull_capture())
+        self.signals.finished.emit()
