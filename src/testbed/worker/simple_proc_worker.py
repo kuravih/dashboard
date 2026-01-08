@@ -61,6 +61,6 @@ class SimpleProcWorker(Worker):
 
             logger.info("%s and %s SimpleProcWorker.run : step %s of %s", self._source.name, self._sink.name, i_step, self._n_steps)
 
-        self.signals.finish.emit()
+        self.signals.finished.emit()
 
         # self._sink.push_command(_current_sink_sample.command.astype(np.uint16))

@@ -27,7 +27,7 @@ class SourceStorageWorker(Worker):
                 if __sample is None:
                     break
                 write_source_sample_data(_file, _sample)
-        self.signals.finish.emit()
+        self.signals.finished.emit()
 
 
 class SinkStorageWorker(Worker):
@@ -52,4 +52,4 @@ class SinkStorageWorker(Worker):
                 if __sample is None:
                     break
                 write_sink_sample_data(_file, _sample)
-        self.signals.finish.emit()
+        self.signals.finished.emit()

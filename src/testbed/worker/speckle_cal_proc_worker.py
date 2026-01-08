@@ -77,6 +77,6 @@ class SpeckleCalProcWorker(Worker):
 
             i_freq = i_freq + 1
 
-        self.signals.finish.emit()
+        self.signals.finished.emit()
 
         # self._sink.push_command(_current_sink_sample.command.astype(np.uint16))

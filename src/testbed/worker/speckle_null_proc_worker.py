@@ -184,4 +184,4 @@ class SpeckleNullProcWorker(Worker):
             i_iteration = i_iteration + 1
             self.signals.progress.emit(i_iteration, time.time() - t_start)
 
-        self.signals.finish.emit()
+        self.signals.finished.emit()

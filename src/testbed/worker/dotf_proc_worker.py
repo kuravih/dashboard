@@ -42,4 +42,4 @@ class SimpleProcWorker(Worker):
             self.signals.new_sink_sample.emit(self._sink.pull_sample())
             self.signals.progress.emit(i_step, time.time() - t_start)
             i_step = i_step + 1
-        self.signals.finish.emit()
+        self.signals.finished.emit()
