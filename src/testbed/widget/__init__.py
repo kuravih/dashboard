@@ -70,17 +70,17 @@ class DevicesSetupWidget(QWidget):
             Show the source settings button?
 
     Signals:
-        sink_change: Signal()
+        sink_changed: Signal()
             Signal changing the sink.
 
-        source_change: Signal()
+        source_changed: Signal()
             Signal changing the source.
     """
 
-    sink_change = Signal(Device)
-    source_change = Signal(Device)
+    sink_changed = Signal(Device)
+    source_changed = Signal(Device)
 
-    def __init__(self, devices: dict[str, Device], setup_sink: bool = True, setup_source: bool = True, parent=None):
+    def __init__(self, devices: dict[str, Camera | Modulator], setup_sink: bool = True, setup_source: bool = True, parent=None):
         super().__init__(parent)
         self._devices = devices
         self._setup_sink = setup_sink
@@ -96,7 +96,7 @@ class DevicesSetupWidget(QWidget):
 
         @Slot(str)
         def on_sink_device_select(key: str):
-            self.sink_change.emit(self._devices[key])
+            self.sink_changed.emit(self._devices[key])
 
         sink_device_combobox.currentTextChanged.connect(on_sink_device_select)
 
@@ -125,7 +125,7 @@ class DevicesSetupWidget(QWidget):
 
         @Slot(str)
         def on_source_device_select(key: str):
-            self.source_change.emit(self._devices[key])
+            self.source_changed.emit(self._devices[key])
 
         source_device_combobox.currentTextChanged.connect(on_source_device_select)
 
@@ -777,9 +777,15 @@ class TaskControlsWidget(QWidget):
         self.progressbar = ProgressBar(self)
         # self.progressbar.hide()
 
+        self.preview_button = QPushButton(QIcon(ICON_EYE), "")
+        self.preview_button.setEnabled(False)
+        self.preview_button.setFixedWidth(self.preview_button.sizeHint().height())
+        self.preview_button.setToolTip("Process Preview")
+
         layout = QHBoxLayout()
         layout.addWidget(self.play_pause_button)
         layout.addWidget(self.progressbar, stretch=1)
+        layout.addWidget(self.preview_button)
         layout.addStretch()
 
         self.setLayout(layout)

@@ -8,7 +8,6 @@ authors = [
 ]
 requires-python = ">=3.12"
 dependencies = [
-    "pykato @ git+https://github.com/kuravih/pykato.git",
     "toml>=0.10.2",
     "numpy>=2.4.0",
     "matplotlib>=3.10.8",

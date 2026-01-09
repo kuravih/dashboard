@@ -133,7 +133,7 @@ class ModulatorFigureWidget(SinkFigureWidget):
 
     def __init__(self, _frame: np.ndarray, _pxmax: float, toolbar: bool = False, parent=None):
         super().__init__(_frame, _pxmax, toolbar, parent)
-        self.figure.get_imshow_ax().set_title("SLM")
+        self.figure.get_imshow_ax().set_title("SLM", size=10)
         self.figure.get_imshow_ax().set_xlabel("px", size=10)
         self.figure.get_imshow_ax().set_ylabel("px", size=10)
         self.figure.get_imshow_ax().axhline(_frame.shape[0] / 2 - 0.5, alpha=0.25, linewidth=0.5, color="white")
@@ -158,6 +158,27 @@ class SourceFigureWidget(FigureWidget):
         self.figure.get_imshow_ax().axhline(_frame.shape[0] / 2, alpha=0.25, linewidth=0.5, color="white")
         self.figure.get_imshow_ax().axvline(_frame.shape[1] / 2, alpha=0.25, linewidth=0.5, color="white")
         self.figure.get_imshow_ax().add_patch(patches.Circle((_frame.shape[0] / 2, _frame.shape[1] / 2), radius=225, fill=False, alpha=0.25, linewidth=0.5, color="white", transform=self.figure.get_imshow_ax().transData))
+        self.setMinimumSize(100, 100)
+
+
+class ContrastFigureWidget(FigureWidget):
+    """
+    Contrast Figure widget
+    """
+
+    def __init__(self, frame: np.ndarray, mask: np.ndarray, show_toolbar: bool = False, parent=None):
+        super().__init__(Imshow_Colorbar_Preset(frame), show_toolbar, parent)
+        self.figure.get_image().set_cmap("jet")
+        self.figure.get_image().set_clim(-5, 0)
+        self.figure.get_image().set_alpha(np.where(mask, 1.0, 0.9))
+        self.figure.get_imshow_ax().set_title("Speckle field", size=10)
+        self.figure.get_imshow_ax().set_xlabel("px", size=10)
+        self.figure.get_imshow_ax().set_ylabel("px", size=10)
+        self.figure.get_cbar_ax().set_title("Contrast", size=10)
+        self.figure.get_imshow_ax().axhline(frame.shape[0] / 2, alpha=0.25, linewidth=0.5, color="white")
+        self.figure.get_imshow_ax().axvline(frame.shape[1] / 2, alpha=0.25, linewidth=0.5, color="white")
+        self.figure.get_imshow_ax().add_patch(patches.Circle((frame.shape[0] / 2, frame.shape[1] / 2), radius=225, fill=False, alpha=0.25, linewidth=0.5, color="white", transform=self.figure.get_imshow_ax().transData))
+        self.figure.get_imshow_ax().imshow(np.zeros_like(frame), cmap="gray", vmin=0, vmax=1, zorder=-1)
         self.setMinimumSize(100, 100)
 
 

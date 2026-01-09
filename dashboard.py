@@ -77,7 +77,7 @@ class MainWindow(QMainWindow):
         layout.addWidget(dotf_proc_button)
         self.setCentralWidget(container)
 
-    def open_preview_window(self, _device: Camera | Modulator):
+    def open_device_preview_window(self, _device: Camera | Modulator):
 
         window_name = _device.name + "_preview"
         update_worker_id = _device.name + "_worker"
@@ -103,7 +103,7 @@ class MainWindow(QMainWindow):
             if update_worker_id in testbed.data.workers:
                 testbed.data.workers[update_worker_id].signals.new_sample.connect(testbed.data.windows[window_name].on_new_sample)
 
-    def open_info_window(self, _device: Camera | Modulator):
+    def open_device_info_window(self, _device: Camera | Modulator):
 
         window_name = _device.name + "_info"
         update_worker_id = _device.name + "_worker"
@@ -128,7 +128,7 @@ class MainWindow(QMainWindow):
             if update_worker_id in testbed.data.workers:
                 testbed.data.workers[update_worker_id].signals.new_sample.connect(testbed.data.windows[window_name].on_new_sample)
 
-    def open_settings_window(self, _device: Camera | Modulator):
+    def open_device_settings_window(self, _device: Camera | Modulator):
 
         window_name = _device.name + "_settings"
         update_worker_id = _device.name + "_worker"
@@ -228,24 +228,24 @@ class MainWindow(QMainWindow):
                     camera = Camera(stream)
                     self.table.setItem(row, 2, QTableWidgetItem(str(camera.shape)))
                     self.table.setItem(row, 3, QTableWidgetItem("dtype"))
-                    preview_button.clicked.connect(lambda _, _camera=camera: self.open_preview_window(_camera))
-                    info_button.clicked.connect(lambda _, _camera=camera: self.open_info_window(_camera))
-                    settings_button.clicked.connect(lambda _, _camera=camera: self.open_settings_window(_camera))
+                    preview_button.clicked.connect(lambda _, _camera=camera: self.open_device_preview_window(_camera))
+                    info_button.clicked.connect(lambda _, _camera=camera: self.open_device_info_window(_camera))
+                    settings_button.clicked.connect(lambda _, _camera=camera: self.open_device_settings_window(_camera))
                     play_pause_button.clicked.connect(lambda _, _button=play_pause_button, _camera=camera: self.on_start_stop(_camera, _button))
                     testbed.data.devices[stream_name] = camera
                     # self.on_start_stop(camera, play_pause_button) # TODO: uncomment
-                    # self.open_preview_window(camera) # TODO: uncomment
+                    # self.open_device_preview_window(camera) # TODO: uncomment
                 elif stream.kind == Stream.Kind.SLM:
                     modulator = Modulator(stream)
                     self.table.setItem(row, 2, QTableWidgetItem(str(modulator.shape)))
                     self.table.setItem(row, 3, QTableWidgetItem("dtype"))
-                    preview_button.clicked.connect(lambda _, _modulator=modulator: self.open_preview_window(_modulator))
-                    info_button.clicked.connect(lambda _, _modulator=modulator: self.open_info_window(_modulator))
-                    settings_button.clicked.connect(lambda _, _modulator=modulator: self.open_settings_window(_modulator))
+                    preview_button.clicked.connect(lambda _, _modulator=modulator: self.open_device_preview_window(_modulator))
+                    info_button.clicked.connect(lambda _, _modulator=modulator: self.open_device_info_window(_modulator))
+                    settings_button.clicked.connect(lambda _, _modulator=modulator: self.open_device_settings_window(_modulator))
                     play_pause_button.clicked.connect(lambda _, _button=play_pause_button, _modulator=modulator: self.on_start_stop(_modulator, _button))
                     testbed.data.devices[stream_name] = modulator
                     # self.on_start_stop(modulator, play_pause_button) # TODO: uncomment
-                    # self.open_preview_window(modulator) # TODO: uncomment
+                    # self.open_device_preview_window(modulator) # TODO: uncomment
 
                 spacer = QSpacerItem(10, 10, QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
                 button_layout.addItem(spacer)

@@ -156,15 +156,15 @@ class DOTFProcWindow(QWidget):
 
     def on_source_change(self, _device: Camera):
         self._source = _device
-        # self.open_preview_window(_device) # TODO: uncomment
-        self.devices_widget.source_preview_button.clicked.connect(lambda _, _device=_device: self.open_preview_window(_device))
+        # self.open_device_preview_window(_device) # TODO: uncomment
+        self.devices_widget.source_preview_button.clicked.connect(lambda _, _device=_device: self.open_device_preview_window(_device))
 
     def on_sink_change(self, _device: Modulator | Mirror):
         self._sink = _device
-        # self.open_preview_window(_device) # TODO: uncomment
-        self.devices_widget.sink_preview_button.clicked.connect(lambda _, _device=_device: self.open_preview_window(_device))
+        # self.open_device_preview_window(_device) # TODO: uncomment
+        self.devices_widget.sink_preview_button.clicked.connect(lambda _, _device=_device: self.open_device_preview_window(_device))
 
-    def open_preview_window(self, _device: Camera | Modulator | Mirror):
+    def open_device_preview_window(self, _device: Camera | Modulator | Mirror):
 
         window_name = _device.name + "_preview"
 
@@ -242,8 +242,8 @@ class DOTFProcWindow(QWidget):
         widget.setLayout(layout)
 
         self.devices_widget = DevicesSetupWidget(testbed.data.devices, parent=self)
-        self.devices_widget.source_change.connect(self.on_source_change)
-        self.devices_widget.sink_change.connect(self.on_sink_change)
+        self.devices_widget.source_changed.connect(self.on_source_change)
+        self.devices_widget.sink_changed.connect(self.on_sink_change)
 
         self.settings_widget = DOTFProcSettingsWidget(self)
         # self.settings_widget.hide()

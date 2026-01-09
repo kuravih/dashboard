@@ -154,22 +154,28 @@ class SimpleProcWindow(Window):
         self.devices_widget.source_settings_button.setEnabled(True)
         self.devices_widget.source_preview_button.setEnabled(True)
         self._source = _device
-        self.open_preview_window(_device)
-        self.devices_widget.source_info_button.clicked.connect(lambda _, _device=_device: self.open_info_window(_device))
-        self.devices_widget.source_settings_button.clicked.connect(lambda _, _device=_device: self.open_settings_window(_device))
-        self.devices_widget.source_preview_button.clicked.connect(lambda _, _device=_device: self.open_preview_window(_device))
+        self.open_device_preview_window(_device)
+        self.devices_widget.source_info_button.clicked.connect(lambda _, _device=_device: self.open_device_info_window(_device))
+        self.devices_widget.source_settings_button.clicked.connect(lambda _, _device=_device: self.open_device_settings_window(_device))
+        self.devices_widget.source_preview_button.clicked.connect(lambda _, _device=_device: self.open_device_preview_window(_device))
+        if self._source is not None and self._sink is not None:
+            self.controls_widget.preview_button.setEnabled(True)
+            self.controls_widget.play_pause_button.setEnabled(True)
 
     def on_sink_change(self, _device: Modulator | Mirror):
         self.devices_widget.sink_info_button.setEnabled(True)
         self.devices_widget.sink_settings_button.setEnabled(True)
         self.devices_widget.sink_preview_button.setEnabled(True)
         self._sink = _device
-        self.open_preview_window(_device)
-        self.devices_widget.sink_info_button.clicked.connect(lambda _, _device=_device: self.open_info_window(_device))
-        self.devices_widget.sink_settings_button.clicked.connect(lambda _, _device=_device: self.open_settings_window(_device))
-        self.devices_widget.sink_preview_button.clicked.connect(lambda _, _device=_device: self.open_preview_window(_device))
+        self.open_device_preview_window(_device)
+        self.devices_widget.sink_info_button.clicked.connect(lambda _, _device=_device: self.open_device_info_window(_device))
+        self.devices_widget.sink_settings_button.clicked.connect(lambda _, _device=_device: self.open_device_settings_window(_device))
+        self.devices_widget.sink_preview_button.clicked.connect(lambda _, _device=_device: self.open_device_preview_window(_device))
+        if self._source is not None and self._sink is not None:
+            self.controls_widget.preview_button.setEnabled(True)
+            self.controls_widget.play_pause_button.setEnabled(True)
 
-    def open_info_window(self, _device: Camera | Modulator | Mirror):
+    def open_device_info_window(self, _device: Camera | Modulator | Mirror):
 
         window_name = _device.name + "_info"
 
@@ -193,7 +199,7 @@ class SimpleProcWindow(Window):
             window.activateWindow()
             testbed.data.windows[window_name] = window
 
-    def open_settings_window(self, _device: Camera | Modulator | Mirror):
+    def open_device_settings_window(self, _device: Camera | Modulator | Mirror):
 
         window_name = _device.name + "_settings"
 
@@ -217,7 +223,7 @@ class SimpleProcWindow(Window):
             window.activateWindow()
             testbed.data.windows[window_name] = window
 
-    def open_preview_window(self, _device: Camera | Modulator | Mirror):
+    def open_device_preview_window(self, _device: Camera | Modulator | Mirror):
 
         window_name = _device.name + "_preview"
 
@@ -339,15 +345,17 @@ class SimpleProcWindow(Window):
         widget.setLayout(layout)
 
         self.devices_widget = DevicesSetupWidget(testbed.data.devices, parent=self)
-        self.devices_widget.source_change.connect(self.on_source_change)
-        self.devices_widget.sink_change.connect(self.on_sink_change)
+        self.devices_widget.source_changed.connect(self.on_source_change)
+        self.devices_widget.sink_changed.connect(self.on_sink_change)
 
         self.settings_widget = SimpleProcSettingsWidget(self)
-        # self.settings_widget.hide()
 
         self.controls_widget = TaskControlsWidget(self)
+        self.controls_widget.play_pause_button.setEnabled(False)
         self.controls_widget.play_pause_button.clicked.connect(self.on_start_stop)
-        # self.controls_widget.hide()
+        self.controls_widget.preview_button.show()
+        self.controls_widget.preview_button.setEnabled(False)
+        self.controls_widget.preview_button.clicked.connect(self.open_process_preview_window)
 
         layout.addWidget(self.devices_widget)
         layout.addWidget(self.settings_widget)

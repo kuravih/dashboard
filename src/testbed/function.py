@@ -199,13 +199,12 @@ def find_speckles(speckle_image: np.ndarray, num_peaks: int = 1, footprint_size:
     return [(speckles[i].centroid_weighted[1], speckles[i].centroid_weighted[0]) for i in ind], peak_mask
 
 
-def speckle_parameters(center: np.ndarray, speckle_location_px: np.ndarray, speck_calibration: tuple[tuple[float, float], tuple[float, float]]) -> tuple[float, float]:
-    (angle_slope, angle_intercept), (freq_slope, freq_intercept) = speck_calibration
-    speckle_location_px_delta = speckle_location_px - np.array(center)
+def speckle_parameters(center: tuple[float, float], speckle_location_px: tuple[float, float], speck_calibration: dict[str, dict[str, float]]) -> tuple[float, float]:
+    speckle_location_px_delta = np.array(speckle_location_px) - np.array(center)
     speckle_dist = np.hypot(speckle_location_px_delta[0], speckle_location_px_delta[1])
     speckle_angle = -np.arctan2(speckle_location_px_delta[0], speckle_location_px_delta[1])
-    speckle_frequency = (speckle_dist - freq_intercept) / freq_slope
-    speckle_angle = (speckle_angle - angle_intercept) / angle_slope
+    speckle_frequency = (speckle_dist - speck_calibration['speck_dist_cmd_freq']['intercept']) / speck_calibration['speck_dist_cmd_freq']['slope']
+    speckle_angle = (speckle_angle - speck_calibration['speck_angle_cmd_angle']['intercept']) / speck_calibration['speck_angle_cmd_angle']['slope']
     return speckle_frequency, speckle_angle
 
 
@@ -228,3 +227,5 @@ def is_speckle_calibration_file_valid(speck_cal_filepath: str) -> bool:
         return False
 
     return True
+
+

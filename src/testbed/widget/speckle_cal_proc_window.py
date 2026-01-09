@@ -14,9 +14,6 @@ from .camera_window import PreviewWindow as CameraPreviewWindow, InfoWindow as C
 from ..device.modulator import Modulator
 from .modulator_window import PreviewWindow as ModulatorPreviewWindow, InfoWindow as ModulatorInfoWindow, SettingsWindow as ModulatorSettingsWindow
 
-from ..device.mirror import Mirror
-from .mirror_window import PreviewWindow as MirrorPreviewWindow, InfoWindow as MirrorInfoWindow, SettingsWindow as MirrorSettingsWindow
-
 from ..worker.speckle_cal_proc_worker import SpeckleCalProcWorker
 from ..worker.storage_worker import SinkStorageWorker, SourceStorageWorker
 
@@ -128,7 +125,7 @@ class SpeckleCalProcWindow(Window):
         return self._source
 
     @property
-    def sink(self) -> Modulator | Mirror | None:
+    def sink(self) -> Modulator | None:
         return self._sink
 
     def on_source_change(self, _device: Camera):
@@ -136,22 +133,26 @@ class SpeckleCalProcWindow(Window):
         self.devices_widget.source_settings_button.setEnabled(True)
         self.devices_widget.source_preview_button.setEnabled(True)
         self._source = _device
-        self.open_preview_window(_device)
-        self.devices_widget.source_info_button.clicked.connect(lambda _, _device=_device: self.open_info_window(_device))
-        self.devices_widget.source_settings_button.clicked.connect(lambda _, _device=_device: self.open_settings_window(_device))
-        self.devices_widget.source_preview_button.clicked.connect(lambda _, _device=_device: self.open_preview_window(_device))
+        self.open_device_preview_window(_device)
+        self.devices_widget.source_info_button.clicked.connect(lambda _, _device=_device: self.open_device_info_window(_device))
+        self.devices_widget.source_settings_button.clicked.connect(lambda _, _device=_device: self.open_device_settings_window(_device))
+        self.devices_widget.source_preview_button.clicked.connect(lambda _, _device=_device: self.open_device_preview_window(_device))
+        if self._source is not None and self._sink is not None:
+            self.controls_widget.preview_button.setEnabled(True)
 
-    def on_sink_change(self, _device: Modulator | Mirror):
+    def on_sink_change(self, _device: Modulator):
         self.devices_widget.sink_info_button.setEnabled(True)
         self.devices_widget.sink_settings_button.setEnabled(True)
         self.devices_widget.sink_preview_button.setEnabled(True)
         self._sink = _device
-        self.open_preview_window(_device)
-        self.devices_widget.sink_info_button.clicked.connect(lambda _, _device=_device: self.open_info_window(_device))
-        self.devices_widget.sink_settings_button.clicked.connect(lambda _, _device=_device: self.open_settings_window(_device))
-        self.devices_widget.sink_preview_button.clicked.connect(lambda _, _device=_device: self.open_preview_window(_device))
+        self.open_device_preview_window(_device)
+        self.devices_widget.sink_info_button.clicked.connect(lambda _, _device=_device: self.open_device_info_window(_device))
+        self.devices_widget.sink_settings_button.clicked.connect(lambda _, _device=_device: self.open_device_settings_window(_device))
+        self.devices_widget.sink_preview_button.clicked.connect(lambda _, _device=_device: self.open_device_preview_window(_device))
+        if self._source is not None and self._sink is not None:
+            self.controls_widget.preview_button.setEnabled(True)
 
-    def open_info_window(self, _device: Camera | Modulator | Mirror):
+    def open_device_info_window(self, _device: Camera | Modulator):
 
         window_name = _device.name + "_info"
 
@@ -160,13 +161,11 @@ class SpeckleCalProcWindow(Window):
             testbed.data.windows.pop(window_name, None)
 
         if window_name not in testbed.data.windows:
-            window: CameraInfoWindow | ModulatorInfoWindow | MirrorInfoWindow | None = None
+            window: CameraInfoWindow | ModulatorInfoWindow | None = None
             if isinstance(_device, Camera):
                 window = CameraInfoWindow(_device)
             elif isinstance(_device, Modulator):
                 window = ModulatorInfoWindow(_device)
-            elif isinstance(_device, Mirror):
-                window = MirrorInfoWindow(_device)
             else:
                 raise ValueError("Invalid device")
             window.destroyed.connect(close_window)
@@ -175,7 +174,7 @@ class SpeckleCalProcWindow(Window):
             window.activateWindow()
             testbed.data.windows[window_name] = window
 
-    def open_settings_window(self, _device: Camera | Modulator | Mirror):
+    def open_device_settings_window(self, _device: Camera | Modulator):
 
         window_name = _device.name + "_settings"
 
@@ -184,13 +183,11 @@ class SpeckleCalProcWindow(Window):
             testbed.data.windows.pop(window_name, None)
 
         if window_name not in testbed.data.windows:
-            window: CameraSettingsWindow | ModulatorSettingsWindow | MirrorSettingsWindow | None = None
+            window: CameraSettingsWindow | ModulatorSettingsWindow | None = None
             if isinstance(_device, Camera):
                 window = CameraSettingsWindow(_device)
             elif isinstance(_device, Modulator):
                 window = ModulatorSettingsWindow(_device)
-            elif isinstance(_device, Mirror):
-                window = MirrorSettingsWindow(_device)
             else:
                 raise ValueError("Invalid device")
             window.destroyed.connect(close_window)
@@ -199,7 +196,7 @@ class SpeckleCalProcWindow(Window):
             window.activateWindow()
             testbed.data.windows[window_name] = window
 
-    def open_preview_window(self, _device: Camera | Modulator | Mirror):
+    def open_device_preview_window(self, _device: Camera | Modulator):
 
         window_name = _device.name + "_preview"
 
@@ -208,13 +205,11 @@ class SpeckleCalProcWindow(Window):
             testbed.data.windows.pop(window_name, None)
 
         if window_name not in testbed.data.windows:
-            window: CameraPreviewWindow | ModulatorPreviewWindow | MirrorPreviewWindow | None = None
+            window: CameraPreviewWindow | ModulatorPreviewWindow | None = None
             if isinstance(_device, Camera):
                 window = CameraPreviewWindow(_device)
             elif isinstance(_device, Modulator):
                 window = ModulatorPreviewWindow(_device)
-            elif isinstance(_device, Mirror):
-                window = MirrorPreviewWindow(_device)
             else:
                 raise ValueError("Invalid device")
             window.destroyed.connect(close_window)
@@ -321,15 +316,15 @@ class SpeckleCalProcWindow(Window):
         widget.setLayout(layout)
 
         self.devices_widget = DevicesSetupWidget(testbed.data.devices, parent=self)
-        self.devices_widget.source_change.connect(self.on_source_change)
-        self.devices_widget.sink_change.connect(self.on_sink_change)
+        self.devices_widget.source_changed.connect(self.on_source_change)
+        self.devices_widget.sink_changed.connect(self.on_sink_change)
 
         self.settings_widget = SpeckleCalProcSettingsWidget(self)
-        # self.settings_widget.hide()
 
         self.controls_widget = TaskControlsWidget(self)
+        self.controls_widget.play_pause_button.setEnabled(False)
         self.controls_widget.play_pause_button.clicked.connect(self.on_start_stop)
-        # self.controls_widget.hide()
+        self.controls_widget.preview_button.hide()
 
         layout.addWidget(self.devices_widget)
         layout.addWidget(self.settings_widget)
