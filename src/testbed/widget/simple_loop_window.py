@@ -158,7 +158,7 @@ class MainWindow(Window):
         self.devices_widget.source_settings_button.clicked.connect(lambda _, _device=_device: self.open_device_settings_window(_device))
         self.devices_widget.source_preview_button.clicked.connect(lambda _, _device=_device: self.open_device_preview_window(_device))
         if self._source is not None and self._sink is not None:
-            self.controls_widget.task_preview_button.setEnabled(True)
+            self.controls_widget.preview_button.setEnabled(True)
             self.controls_widget.play_pause_button.setEnabled(True)
 
     def on_sink_change(self, _device: Modulator):
@@ -171,12 +171,12 @@ class MainWindow(Window):
         self.devices_widget.sink_settings_button.clicked.connect(lambda _, _device=_device: self.open_device_settings_window(_device))
         self.devices_widget.sink_preview_button.clicked.connect(lambda _, _device=_device: self.open_device_preview_window(_device))
         if self._source is not None and self._sink is not None:
-            self.controls_widget.task_preview_button.setEnabled(True)
+            self.controls_widget.preview_button.setEnabled(True)
             self.controls_widget.play_pause_button.setEnabled(True)
 
     def open_device_info_window(self, _device: Camera | Modulator):
 
-        info_window_id = f"{_device.name}_info"
+        info_window_id = f"{_device.name}_info_window"
 
         @Slot()
         def close_window():
@@ -198,7 +198,7 @@ class MainWindow(Window):
 
     def open_device_settings_window(self, _device: Camera | Modulator):
 
-        settings_window_id = f"{_device.name}_settings"
+        settings_window_id = f"{_device.name}_settings_window"
 
         @Slot()
         def close_window():
@@ -220,7 +220,7 @@ class MainWindow(Window):
 
     def open_device_preview_window(self, _device: Camera | Modulator):
 
-        preview_window_id = f"{_device.name}_preview"
+        preview_window_id = f"{_device.name}_preview_window"
 
         @Slot()
         def close_window():
@@ -275,8 +275,8 @@ class MainWindow(Window):
         worker_id = f"{_PROCESS_}_worker"
         source_storage_worker_id = f"{_PROCESS_}_source_storage_worker"
         sink_storage_worker_id = f"{_PROCESS_}_sink_storage_worker"
-        source_preview_window_id = f"{self.source.name}_preview"
-        sink_preview_window_id = f"{self.sink.name}_preview"
+        source_preview_window_id = f"{self.source.name}_preview_window"
+        sink_preview_window_id = f"{self.sink.name}_preview_window"
 
         if worker_id in testbed.data.workers:  # an update worker is in progress
             current_worker = testbed.data.workers.pop(worker_id)
@@ -346,7 +346,8 @@ class MainWindow(Window):
         self.controls_widget = TaskControlsWidget(self)
         self.controls_widget.play_pause_button.setEnabled(False)
         self.controls_widget.play_pause_button.clicked.connect(self.on_start_stop)
-        self.controls_widget.task_preview_button.hide()
+        self.controls_widget.preview_button.hide()
+        self.controls_widget.result_button.hide()
 
         layout.addWidget(self.devices_widget)
         layout.addWidget(self.settings_widget)
@@ -357,14 +358,14 @@ class MainWindow(Window):
 
     def closeEvent(self, event):
         if self.source is not None:
-            source_preview_window_id = f"{self.source.name}_preview"
+            source_preview_window_id = f"{self.source.name}_preview_window"
             if source_preview_window_id in testbed.data.windows:
                 logger.info("Cannot close main window until preview windows are closed.")
                 event.ignore()
                 return
 
         if self.sink is not None:
-            sink_preview_window_id = f"{self.sink.name}_preview"
+            sink_preview_window_id = f"{self.sink.name}_preview_window"
             if sink_preview_window_id in testbed.data.windows:
                 logger.info("Cannot close main window until preview windows are closed.")
                 event.ignore()

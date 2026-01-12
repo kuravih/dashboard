@@ -14,7 +14,7 @@ from .widget.speckle_calibration_window import MainWindow as SpeckleCalibrationW
 from .worker.speckle_calibration_worker import MainWorker as SpeckleCalibrationWorker
 
 SPECKLE_NULLING = "speckle_nulling"
-from .widget.speckle_nulling_window import MainWindow as SpeckleNullingWindow
+from .widget.speckle_nulling_window import MainWindow as SpeckleNullingWindow, MainPreviewWindow as SpeckleNullingPreviewWindow, ContrastWindow as SpeckleNullingContrastWindow
 from .worker.speckle_nulling_worker import MainWorker as SpeckleNullingWorker
 
 from .worker.camera_worker import UpdateWorker as CameraUpdateWorker
@@ -22,10 +22,11 @@ from .worker.modulator_worker import UpdateWorker as ModulatorUpdateWorker
 from .worker.storage_worker import SourceStorageWorker, SinkStorageWorker
 
 
+
 class Data:
     threadpool = QThreadPool.globalInstance()
     devices: dict[str, Camera | Modulator] = {}
-    windows: dict[str, CameraPreviewWindow | CameraInfoWindow | CameraSettingsWindow | ModulatorPreviewWindow | ModulatorInfoWindow | ModulatorSettingsWindow | SimpleLoopWindow | SpeckleCalibrationWindow | SpeckleNullingWindow] = {}
+    windows: dict[str, CameraPreviewWindow | CameraInfoWindow | CameraSettingsWindow | ModulatorPreviewWindow | ModulatorInfoWindow | ModulatorSettingsWindow | SimpleLoopWindow | SpeckleCalibrationWindow | SpeckleNullingWindow | SpeckleNullingPreviewWindow | SpeckleNullingContrastWindow] = {}
     workers: dict[str, CameraUpdateWorker | ModulatorUpdateWorker | SourceStorageWorker | SinkStorageWorker | SimpleLoopWorker | SpeckleCalibrationWorker | SpeckleNullingWorker] = {}
 
 

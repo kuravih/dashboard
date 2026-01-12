@@ -74,8 +74,8 @@ class MainWindow(QMainWindow):
 
     def open_device_preview_window(self, _device: Camera | Modulator):
 
-        preview_window_id =  f"{_device.name}_preview"
-        device_update_worker_id = f"{_device.name}_worker"
+        preview_window_id =  f"{_device.name}_preview_window"
+        device_update_worker_id = f"{_device.name}_update_worker"
 
         @Slot()
         def close_window():
@@ -101,8 +101,8 @@ class MainWindow(QMainWindow):
 
     def open_device_info_window(self, _device: Camera | Modulator):
 
-        info_window_id = f"{_device.name}_info"
-        device_update_worker_id = f"{_device.name}_worker"
+        info_window_id = f"{_device.name}_info_window"
+        device_update_worker_id = f"{_device.name}_update_worker"
 
         @Slot()
         def close_window():
@@ -127,8 +127,8 @@ class MainWindow(QMainWindow):
 
     def open_device_settings_window(self, _device: Camera | Modulator):
 
-        settings_window_id = f"{_device.name}_settings"
-        device_update_worker_id = f"{_device.name}_worker"
+        settings_window_id = f"{_device.name}_settings_window"
+        device_update_worker_id = f"{_device.name}_update_worker"
 
         @Slot()
         def close_window():
@@ -153,10 +153,10 @@ class MainWindow(QMainWindow):
 
     def on_start_stop(self, _device: Camera | Modulator, _button: QPushButton):
 
-        preview_window_id = f"{_device.name}_preview"
-        info_window_id = f"{_device.name}_info"
-        settings_window_id = f"{_device.name}_settings"
-        device_update_worker_id = f"{_device.name}_worker"
+        preview_window_id = f"{_device.name}_preview_window"
+        info_window_id = f"{_device.name}_info_window"
+        settings_window_id = f"{_device.name}_settings_window"
+        device_update_worker_id = f"{_device.name}_update_worker"
 
         if device_update_worker_id in testbed.data.workers:  # an update worker is in progress
             current_device_update_worker = testbed.data.workers.pop(device_update_worker_id)
