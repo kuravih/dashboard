@@ -55,7 +55,7 @@ class MainWorker(Worker):
             self.signals.new_source_sample.emit(_current_source_sample)
             time.sleep(0.2)
 
-            measurement = np.log10(_current_source_sample.capture/(2**12 - 1))
+            measurement = np.log10(_current_source_sample.capture / (2**12 - 1))
             self.signals.measurement.emit(measurement)
 
             speck_intensity[i_phs] = np.mean(_current_source_sample.capture[speck_stencil])
@@ -96,7 +96,7 @@ class MainWorker(Worker):
             self.signals.new_source_sample.emit(_current_source_sample)
             time.sleep(0.2)
 
-            measurement = np.log10(_current_source_sample.capture/(2**12 - 1))
+            measurement = np.log10(_current_source_sample.capture / (2**12 - 1))
             self.signals.measurement.emit(measurement)
 
             speck_intensity[i_amp] = np.mean(_current_source_sample.capture[speck_stencil])
@@ -131,7 +131,7 @@ class MainWorker(Worker):
 
         # ---- blank --------------------------------------------------------------------------------------------------
         command = self._sink.pxmax * (np.zeros(self._sink.shape) + 0.5)
-        command = command + self._sink.pxmax * 0.5 * (sinusoid(self._sink.shape, 1.0 / 0.035, 0, np.pi/6) / 2 + 0.5)
+        command = command + self._sink.pxmax * 0.5 * (sinusoid(self._sink.shape, 1.0 / 0.035, 0, np.pi / 6) / 2 + 0.5)
 
         _current_sink_sample = self._sink.push_command(command.astype(np.uint16))
         self.signals.new_sink_sample.emit(_current_sink_sample)
@@ -143,7 +143,7 @@ class MainWorker(Worker):
 
         # capture = flip_rotate(_current_source_sample.capture, self._source.flip, self._source.rotation)
         capture = _current_source_sample.capture
-        measurement = np.log10(capture/(2**12 - 1))
+        measurement = np.log10(capture / (2**12 - 1))
         self.signals.measurement.emit(measurement)
 
         self.signals.progress.emit(i_iteration, time.time() - t_start)

@@ -54,10 +54,10 @@ class MainWorker(Worker):
 
             self.signals.new_sink_sample.emit(self._sink.push_command(command.astype(np.uint16)))
             time.sleep(0.1)
-        
+
             self.signals.new_source_sample.emit(self._source.pull_capture())
             time.sleep(0.2)
-        
+
             i_step = i_step + 1
             self.signals.progress.emit(i_step, time.time() - t_start)
 

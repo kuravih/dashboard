@@ -364,7 +364,7 @@ class MainWindow(Window):
                 return
 
         if self.sink is not None:
-            sink_preview_window_id =  f"{self.sink.name}_preview"
+            sink_preview_window_id = f"{self.sink.name}_preview"
             if sink_preview_window_id in testbed.data.windows:
                 logger.info("Cannot close main window until preview windows are closed.")
                 event.ignore()

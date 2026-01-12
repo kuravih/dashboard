@@ -272,8 +272,6 @@ class SpeckleNullProcContrastWindow(Window):
         event.accept()
 
 
-
-
 class SpeckleNullProcMoreWindow(Window):
     """
     Speckle Nulling Contrast Window
@@ -337,11 +335,6 @@ class SpeckleNullProcMoreWindow(Window):
             self.update_timer.stop()
         self.deleteLater()
         event.accept()
-
-
-
-
-
 
 
 class MainWindow(Window):
