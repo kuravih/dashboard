@@ -20,7 +20,6 @@ from mpl_toolkits.axes_grid1 import make_axes_locatable
 
 from .resource import ICON_HOUSE, ICON_MOVE, ICON_MAGNIFY, ICON_DISK
 
-# from dash.function import constrained_sin_fit_fn, quadratic_fit_fn
 
 logger = setup_logger("figure_widget", terminator="\n")
 
@@ -171,6 +170,7 @@ class ContrastFigureWidget(FigureWidget):
         self.figure.get_image().set_cmap("jet")
         self.figure.get_image().set_clim(-5, 0)
         self.figure.get_image().set_alpha(np.where(mask, 1.0, 0.9))
+        # self.figure.get_image().set_clim(0, 2**12 - 1)
         self.figure.get_imshow_ax().set_title("Speckle field", size=10)
         self.figure.get_imshow_ax().set_xlabel("px", size=10)
         self.figure.get_imshow_ax().set_ylabel("px", size=10)
@@ -179,6 +179,7 @@ class ContrastFigureWidget(FigureWidget):
         self.figure.get_imshow_ax().axvline(frame.shape[1] / 2, alpha=0.25, linewidth=0.5, color="white")
         self.figure.get_imshow_ax().add_patch(patches.Circle((frame.shape[0] / 2, frame.shape[1] / 2), radius=225, fill=False, alpha=0.25, linewidth=0.5, color="white", transform=self.figure.get_imshow_ax().transData))
         self.figure.get_imshow_ax().imshow(np.zeros_like(frame), cmap="gray", vmin=0, vmax=1, zorder=-1)
+        self.figure.get_imshow_ax().invert_yaxis()
         self.setMinimumSize(100, 100)
 
 

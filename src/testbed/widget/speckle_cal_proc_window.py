@@ -17,9 +17,9 @@ from .modulator_window import PreviewWindow as ModulatorPreviewWindow, InfoWindo
 from ..worker.speckle_cal_proc_worker import SpeckleCalProcWorker
 from ..worker.storage_worker import SinkStorageWorker, SourceStorageWorker
 
-from ..widget import DevicesSetupWidget, TaskControlsWidget, Window
-from ..widget.resource import ICON_RUN, ICON_PAUSE
-from ..widget import LinspaceWidget
+from . import DevicesSetupWidget, TaskControlsWidget, Window
+from .resource import ICON_RUN, ICON_PAUSE
+from . import LinspaceWidget
 
 logger = setup_logger("speckle_cal_proc_window", terminator="\n")
 
@@ -154,69 +154,69 @@ class SpeckleCalProcWindow(Window):
 
     def open_device_info_window(self, _device: Camera | Modulator):
 
-        window_name = _device.name + "_info"
+        info_window_id = _device.name + "_info"
 
         @Slot()
         def close_window():
-            testbed.data.windows.pop(window_name, None)
+            testbed.data.windows.pop(info_window_id, None)
 
-        if window_name not in testbed.data.windows:
-            window: CameraInfoWindow | ModulatorInfoWindow | None = None
+        if info_window_id not in testbed.data.windows:
+            info_window: CameraInfoWindow | ModulatorInfoWindow | None = None
             if isinstance(_device, Camera):
-                window = CameraInfoWindow(_device)
+                info_window = CameraInfoWindow(_device)
             elif isinstance(_device, Modulator):
-                window = ModulatorInfoWindow(_device)
+                info_window = ModulatorInfoWindow(_device)
             else:
                 raise ValueError("Invalid device")
-            window.destroyed.connect(close_window)
-            window.show()
-            window.raise_()
-            window.activateWindow()
-            testbed.data.windows[window_name] = window
+            info_window.destroyed.connect(close_window)
+            info_window.show()
+            info_window.raise_()
+            info_window.activateWindow()
+            testbed.data.windows[info_window_id] = info_window
 
     def open_device_settings_window(self, _device: Camera | Modulator):
 
-        window_name = _device.name + "_settings"
+        settings_window_id = _device.name + "_settings"
 
         @Slot()
         def close_window():
-            testbed.data.windows.pop(window_name, None)
+            testbed.data.windows.pop(settings_window_id, None)
 
-        if window_name not in testbed.data.windows:
-            window: CameraSettingsWindow | ModulatorSettingsWindow | None = None
+        if settings_window_id not in testbed.data.windows:
+            settings_window: CameraSettingsWindow | ModulatorSettingsWindow | None = None
             if isinstance(_device, Camera):
-                window = CameraSettingsWindow(_device)
+                settings_window = CameraSettingsWindow(_device)
             elif isinstance(_device, Modulator):
-                window = ModulatorSettingsWindow(_device)
+                settings_window = ModulatorSettingsWindow(_device)
             else:
                 raise ValueError("Invalid device")
-            window.destroyed.connect(close_window)
-            window.show()
-            window.raise_()
-            window.activateWindow()
-            testbed.data.windows[window_name] = window
+            settings_window.destroyed.connect(close_window)
+            settings_window.show()
+            settings_window.raise_()
+            settings_window.activateWindow()
+            testbed.data.windows[settings_window_id] = settings_window
 
     def open_device_preview_window(self, _device: Camera | Modulator):
 
-        window_name = _device.name + "_preview"
+        preview_window_id = _device.name + "_preview"
 
         @Slot()
         def close_window():
-            testbed.data.windows.pop(window_name, None)
+            testbed.data.windows.pop(preview_window_id, None)
 
-        if window_name not in testbed.data.windows:
-            window: CameraPreviewWindow | ModulatorPreviewWindow | None = None
+        if preview_window_id not in testbed.data.windows:
+            preview_window: CameraPreviewWindow | ModulatorPreviewWindow | None = None
             if isinstance(_device, Camera):
-                window = CameraPreviewWindow(_device)
+                preview_window = CameraPreviewWindow(_device)
             elif isinstance(_device, Modulator):
-                window = ModulatorPreviewWindow(_device)
+                preview_window = ModulatorPreviewWindow(_device)
             else:
                 raise ValueError("Invalid device")
-            window.destroyed.connect(close_window)
-            window.show()
-            window.raise_()
-            window.activateWindow()
-            testbed.data.windows[window_name] = window
+            preview_window.destroyed.connect(close_window)
+            preview_window.show()
+            preview_window.raise_()
+            preview_window.activateWindow()
+            testbed.data.windows[preview_window_id] = preview_window
 
     @Slot(int, float)  # step, elapsed_time
     def on_progress(self, step: int, t_elapsed: float):
@@ -253,8 +253,8 @@ class SpeckleCalProcWindow(Window):
         proc_worker_id = "speckle_cal_proc_worker"
         source_storage_worker_id = "speckle_cal_proc_source_storage_worker"
         sink_storage_worker_id = "speckle_cal_proc_sink_storage_worker"
-        source_preview_window_name = self.source.name + "_preview"
-        sink_preview_window_name = self.sink.name + "_preview"
+        source_preview_window_id = self.source.name + "_preview"
+        sink_preview_window_id = self.sink.name + "_preview"
 
         if proc_worker_id in testbed.data.workers:  # an update worker is in progress
             logger.info("stopping running process")
@@ -302,10 +302,10 @@ class SpeckleCalProcWindow(Window):
         self.devices_widget.sink_settings_button.setEnabled(False)
         self.devices_widget.source_settings_button.setEnabled(False)
 
-        if source_preview_window_name in testbed.data.windows:
-            proc_worker.signals.new_source_sample.connect(testbed.data.windows[source_preview_window_name].on_new_sample)
-        if sink_preview_window_name in testbed.data.windows:
-            proc_worker.signals.new_sink_sample.connect(testbed.data.windows[sink_preview_window_name].on_new_sample)
+        if source_preview_window_id in testbed.data.windows:
+            proc_worker.signals.new_source_sample.connect(testbed.data.windows[source_preview_window_id].on_new_sample)
+        if sink_preview_window_id in testbed.data.windows:
+            proc_worker.signals.new_sink_sample.connect(testbed.data.windows[sink_preview_window_id].on_new_sample)
 
         testbed.data.workers[proc_worker_id] = proc_worker
         testbed.data.threadpool.start(proc_worker)
@@ -324,7 +324,7 @@ class SpeckleCalProcWindow(Window):
         self.controls_widget = TaskControlsWidget(self)
         self.controls_widget.play_pause_button.setEnabled(False)
         self.controls_widget.play_pause_button.clicked.connect(self.on_start_stop)
-        self.controls_widget.preview_button.hide()
+        self.controls_widget.task_preview_button.hide()
 
         layout.addWidget(self.devices_widget)
         layout.addWidget(self.settings_widget)
@@ -335,15 +335,15 @@ class SpeckleCalProcWindow(Window):
 
     def closeEvent(self, event):
         if self.source is not None:
-            source_preview_window_name = self.source.name + "_preview"
-            if source_preview_window_name in testbed.data.windows:
+            source_preview_window_id = self.source.name + "_preview"
+            if source_preview_window_id in testbed.data.windows:
                 logger.info("Cannot close main window until preview windows are closed.")
                 event.ignore()
                 return
 
         if self.sink is not None:
-            sink_preview_window_name = self.sink.name + "_preview"
-            if sink_preview_window_name in testbed.data.windows:
+            sink_preview_window_id = self.sink.name + "_preview"
+            if sink_preview_window_id in testbed.data.windows:
                 logger.info("Cannot close main window until preview windows are closed.")
                 event.ignore()
                 return

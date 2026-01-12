@@ -68,7 +68,8 @@ class PreviewWindow(Window):
     @Slot()
     def on_update_window(self):
         # logger.info("PreviewWindow.on_update_window")
-        self.preview_figure_widget.figure.get_image().set_data(flip_rotate(self.sample.command, self.modulator.flip, self.modulator.rotation))
+        # self.preview_figure_widget.figure.get_image().set_data(flip_rotate(self.sample.command, self.modulator.flip, self.modulator.rotation))
+        self.preview_figure_widget.figure.get_image().set_data(self.sample.command)
         self.preview_figure_widget.figure.canvas.draw()
 
     def closeEvent(self, event):

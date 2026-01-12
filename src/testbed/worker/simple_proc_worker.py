@@ -8,7 +8,6 @@ from pykato.log import setup_logger
 from ..device import SourceSample, SinkSample
 from ..device.camera import Camera
 from ..device.modulator import Modulator
-from ..device.mirror import Mirror
 from ..worker import Worker, WorkerSignals
 
 logger = setup_logger("simple_proc_worker", terminator="\n")
@@ -20,7 +19,7 @@ class SimpleProcWorkerSignals(WorkerSignals):
 
 
 class SimpleProcWorker(Worker):
-    def __init__(self, _source: Camera, _sink: Modulator | Mirror, n_steps: int | None = None):
+    def __init__(self, _source: Camera, _sink: Modulator, n_steps: int | None = None):
         super().__init__()
         self.signals = SimpleProcWorkerSignals()
         self._source = _source

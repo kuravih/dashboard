@@ -8,8 +8,7 @@ from pykato.log import setup_logger
 from ..device import SourceSample, SinkSample
 from ..device.camera import Camera
 from ..device.modulator import Modulator
-from ..device.mirror import Mirror
-from ..worker import Worker, WorkerSignals
+from . import Worker, WorkerSignals
 
 logger = setup_logger("speckle_cal_proc_worker", terminator="\n")
 
@@ -20,7 +19,7 @@ class SpeckleCalProcWorkerSignals(WorkerSignals):
 
 
 class SpeckleCalProcWorker(Worker):
-    def __init__(self, _source: Camera, _sink: Modulator | Mirror, _ampl: float, _freqs: np.ndarray, _angles: np.ndarray, _phases: np.ndarray):
+    def __init__(self, _source: Camera, _sink: Modulator, _ampl: float, _freqs: np.ndarray, _angles: np.ndarray, _phases: np.ndarray):
         super().__init__()
         self.signals = SpeckleCalProcWorkerSignals()
         self._source = _source

@@ -203,8 +203,8 @@ def speckle_parameters(center: tuple[float, float], speckle_location_px: tuple[f
     speckle_location_px_delta = np.array(speckle_location_px) - np.array(center)
     speckle_dist = np.hypot(speckle_location_px_delta[0], speckle_location_px_delta[1])
     speckle_angle = -np.arctan2(speckle_location_px_delta[0], speckle_location_px_delta[1])
-    speckle_frequency = (speckle_dist - speck_calibration['speck_dist_cmd_freq']['intercept']) / speck_calibration['speck_dist_cmd_freq']['slope']
-    speckle_angle = (speckle_angle - speck_calibration['speck_angle_cmd_angle']['intercept']) / speck_calibration['speck_angle_cmd_angle']['slope']
+    speckle_frequency = (speckle_dist - speck_calibration["speck_dist_cmd_freq"]["intercept"]) / speck_calibration["speck_dist_cmd_freq"]["slope"]
+    speckle_angle = (speckle_angle - speck_calibration["speck_angle_cmd_angle"]["intercept"]) / speck_calibration["speck_angle_cmd_angle"]["slope"]
     return speckle_frequency, speckle_angle
 
 
@@ -229,3 +229,13 @@ def is_speckle_calibration_file_valid(speck_cal_filepath: str) -> bool:
     return True
 
 
+def sin_fit_fn(x, amplitude, frequency, phase, offset):
+    return amplitude * np.sin(frequency * x + phase) + offset
+
+
+def constrained_sin_fit_fn(x, amplitude, phase, offset):
+    return sin_fit_fn(x, amplitude, 1.0, phase, offset)
+
+
+def quadratic_fit_fn(x, a, b, c):
+    return a * x * x + b * x + c

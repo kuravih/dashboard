@@ -9,9 +9,8 @@ from PySide6.QtGui import QIcon, QCursor
 from ..device import Device, Stream
 from ..device.camera import Camera
 from ..device.modulator import Modulator
-from ..device.mirror import Mirror
-from ..widget.figure_widget import FigureWidget, SourceFigureWidget, WavefrontFigureWidget, MirrorFigureWidget, ModulatorFigureWidget, PhaseModulationFigureWidget, AmpModulationFigureWidget, SpeckleNullFigureWidget
-from ..widget.resource import ICON_RUN, ICON_STEP_FORWARD, ICON_PAUSE, ICON_UNPAUSE, ICON_DISK, ICON_STOP, ICON_PRINT, ICON_EYE, ICON_UP_ARROW, ICON_DOWN_ARROW, ICON_LEFT_ARROW, ICON_RIGHT_ARROW, ICON_INFO, ICON_GEAR
+from ..widget.figure_widget import FigureWidget, SourceFigureWidget, WavefrontFigureWidget, ModulatorFigureWidget, PhaseModulationFigureWidget, AmpModulationFigureWidget, SpeckleNullFigureWidget
+from ..widget.resource import ICON_RUN, ICON_STEP_FORWARD, ICON_PAUSE, ICON_UNPAUSE, ICON_DISK, ICON_STOP, ICON_PRINT, ICON_EYE, ICON_UP_ARROW, ICON_DOWN_ARROW, ICON_LEFT_ARROW, ICON_RIGHT_ARROW, ICON_INFO, ICON_GEAR, ICON_SUN
 from ..function import Rotation, Flip
 
 
@@ -767,25 +766,32 @@ class TaskControlsWidget(QWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
 
-        self.play_pause_button = QPushButton("", self)
+        self.play_pause_button = QPushButton(QIcon(ICON_RUN), "", parent=self)
         self.play_pause_button.setFixedWidth(self.play_pause_button.sizeHint().height())
-        self.play_pause_button.setIcon(QIcon(ICON_RUN))
         self.play_pause_button.setToolTip("Run Process")
-        # self.play_pause_button.setEnabled(False)
+        self.play_pause_button.setEnabled(False)
         # self.play_pause_button.hide()
 
         self.progressbar = ProgressBar(self)
         # self.progressbar.hide()
 
-        self.preview_button = QPushButton(QIcon(ICON_EYE), "")
-        self.preview_button.setEnabled(False)
-        self.preview_button.setFixedWidth(self.preview_button.sizeHint().height())
-        self.preview_button.setToolTip("Process Preview")
+        self.task_preview_button = QPushButton(QIcon(ICON_EYE), "", parent=self)
+        self.task_preview_button.setFixedWidth(self.play_pause_button.sizeHint().height())
+        self.task_preview_button.setToolTip("Process Preview")
+        self.task_preview_button.setEnabled(False)
+        # self.task_preview_button.hide()
+
+        self.contrast_preview_button = QPushButton(QIcon(ICON_SUN), "", parent=self)
+        self.contrast_preview_button.setFixedWidth(self.contrast_preview_button.sizeHint().height())
+        self.contrast_preview_button.setToolTip("Contrast Preview")
+        self.contrast_preview_button.setEnabled(False)
+        # self.contrast_preview_button.hide()
 
         layout = QHBoxLayout()
         layout.addWidget(self.play_pause_button)
         layout.addWidget(self.progressbar, stretch=1)
-        layout.addWidget(self.preview_button)
+        layout.addWidget(self.task_preview_button)
+        layout.addWidget(self.contrast_preview_button)
         layout.addStretch()
 
         self.setLayout(layout)
