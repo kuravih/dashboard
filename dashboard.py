@@ -15,9 +15,9 @@ from testbed.device.modulator import Modulator
 from testbed.widget.modulator_window import PreviewWindow as ModulatorPreviewWindow, InfoWindow as ModulatorInfoWindow, SettingsWindow as ModulatorSettingsWindow
 from testbed.worker.modulator_worker import UpdateWorker as ModulatorUpdateWorker
 
-from testbed.widget.simple_proc_window import SimpleProcWindow
-from testbed.widget.speckle_cal_proc_window import SpeckleCalProcWindow
-from testbed.widget.speckle_null_proc_window import SpeckleNullProcWindow
+from testbed.widget.simple_loop_window import MainWindow as SimpleLoopWindow
+from testbed.widget.speckle_calibration_window import MainWindow as SpeckleCalibrationWindow
+from testbed.widget.speckle_nulling_window import MainWindow as SpeckleNullingWindow
 
 from testbed.widget.dialog import MessageDialog
 from testbed.widget.resource import ICON_EYE, ICON_GEAR, ICON_INFO, ICON_PLAY, ICON_PAUSE
@@ -49,14 +49,14 @@ class MainWindow(QMainWindow):
         remove_device_button = QPushButton("Remove Device")
         remove_device_button.clicked.connect(self.remove_device_callback)
 
-        simple_proc_button = QPushButton("Simple Process")
-        simple_proc_button.clicked.connect(self.open_simple_proc_window)
+        simple_loop_button = QPushButton("Simple Process")
+        simple_loop_button.clicked.connect(self.open_simple_loop_window)
 
-        speckle_cal_proc_button = QPushButton("Speckle Calibration Process")
-        speckle_cal_proc_button.clicked.connect(self.open_speckle_cal_proc_window)
+        speckle_calibration_button = QPushButton("Speckle Calibration Process")
+        speckle_calibration_button.clicked.connect(self.open_speckle_calibration_window)
 
-        speckle_null_proc_button = QPushButton("Speckle Nulling Process")
-        speckle_null_proc_button.clicked.connect(self.open_speckle_null_proc_window)
+        speckle_nulling_button = QPushButton("Speckle Nulling Process")
+        speckle_nulling_button.clicked.connect(self.open_speckle_nulling_window)
 
         device_button_layout = QHBoxLayout()
         device_button_layout.addWidget(add_device_button)
@@ -67,9 +67,9 @@ class MainWindow(QMainWindow):
         layout = QVBoxLayout(container)
         layout.addWidget(self.table)
         layout.addLayout(device_button_layout)
-        layout.addWidget(simple_proc_button)
-        layout.addWidget(speckle_cal_proc_button)
-        layout.addWidget(speckle_null_proc_button)
+        layout.addWidget(simple_loop_button)
+        layout.addWidget(speckle_calibration_button)
+        layout.addWidget(speckle_nulling_button)
         self.setCentralWidget(container)
 
     def open_device_preview_window(self, _device: Camera | Modulator):
@@ -264,55 +264,55 @@ class MainWindow(QMainWindow):
             self.table.removeRow(index)
 
     @Slot()
-    def open_simple_proc_window(self):
+    def open_simple_loop_window(self):
 
-        simple_proc_window_id = f"{testbed.SIMPLE}_proc_window"
+        simple_loop_window_id = f"{testbed.SIMPLE_LOOP}_window"
 
         @Slot()
         def close_window():
-            testbed.data.windows.pop(simple_proc_window_id, None)
+            testbed.data.windows.pop(simple_loop_window_id, None)
 
-        if simple_proc_window_id not in testbed.data.windows:
-            simple_proc_window = SimpleProcWindow(self)
-            simple_proc_window.destroyed.connect(close_window)
-            simple_proc_window.show()
-            simple_proc_window.raise_()
-            simple_proc_window.activateWindow()
-            testbed.data.windows[simple_proc_window_id] = simple_proc_window
+        if simple_loop_window_id not in testbed.data.windows:
+            simple_loop_window = SimpleLoopWindow(self)
+            simple_loop_window.destroyed.connect(close_window)
+            simple_loop_window.show()
+            simple_loop_window.raise_()
+            simple_loop_window.activateWindow()
+            testbed.data.windows[simple_loop_window_id] = simple_loop_window
 
     @Slot()
-    def open_speckle_cal_proc_window(self):
+    def open_speckle_calibration_window(self):
 
-        speckle_cal_proc_window_id = f"{testbed.SPECKLE_CALIBRATION}_proc_window"
+        speckle_calibration_window_id = f"{testbed.SPECKLE_CALIBRATION}_window"
 
         @Slot()
         def close_window():
-            testbed.data.windows.pop(speckle_cal_proc_window_id, None)
+            testbed.data.windows.pop(speckle_calibration_window_id, None)
 
-        if speckle_cal_proc_window_id not in testbed.data.windows:
-            speckle_cal_proc_window = SpeckleCalProcWindow(self)
-            speckle_cal_proc_window.destroyed.connect(close_window)
-            speckle_cal_proc_window.show()
-            speckle_cal_proc_window.raise_()
-            speckle_cal_proc_window.activateWindow()
-            testbed.data.windows[speckle_cal_proc_window_id] = speckle_cal_proc_window
+        if speckle_calibration_window_id not in testbed.data.windows:
+            speckle_calibration_window = SpeckleCalibrationWindow(self)
+            speckle_calibration_window.destroyed.connect(close_window)
+            speckle_calibration_window.show()
+            speckle_calibration_window.raise_()
+            speckle_calibration_window.activateWindow()
+            testbed.data.windows[speckle_calibration_window_id] = speckle_calibration_window
 
     @Slot()
-    def open_speckle_null_proc_window(self):
+    def open_speckle_nulling_window(self):
 
-        speckle_null_proc_window_id = f"{testbed.SPECKLE_NULLING}_null_proc_window"
+        speckle_nulling_window_id = f"{testbed.SPECKLE_NULLING}_window"
 
         @Slot()
         def close_window():
-            testbed.data.windows.pop(speckle_null_proc_window_id, None)
+            testbed.data.windows.pop(speckle_nulling_window_id, None)
 
-        if speckle_null_proc_window_id not in testbed.data.windows:
-            speckle_null_proc_window = SpeckleNullProcWindow(self)
-            speckle_null_proc_window.destroyed.connect(close_window)
-            speckle_null_proc_window.show()
-            speckle_null_proc_window.raise_()
-            speckle_null_proc_window.activateWindow()
-            testbed.data.windows[speckle_null_proc_window_id] = speckle_null_proc_window
+        if speckle_nulling_window_id not in testbed.data.windows:
+            speckle_nulling_window = SpeckleNullingWindow(self)
+            speckle_nulling_window.destroyed.connect(close_window)
+            speckle_nulling_window.show()
+            speckle_nulling_window.raise_()
+            speckle_nulling_window.activateWindow()
+            testbed.data.windows[speckle_nulling_window_id] = speckle_nulling_window
 
     def closeEvent(self, event):
         if testbed.data.windows:

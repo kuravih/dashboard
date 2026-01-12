@@ -14,7 +14,7 @@ from ..device.mirror import Mirror
 from .camera_window import PreviewWindow as CameraPreviewWindow
 from .modulator_window import PreviewWindow as ModulatorPreviewWindow
 from .mirror_window import PreviewWindow as MirrorPreviewWindow
-from ..worker.simple_proc_worker import SimpleProcWorker
+from ..worker.simple_loop_worker import SimpleProcWorker
 
 from ..widget import DevicesSetupWidget, TaskControlsWidget
 from ..widget.resource import ICON_RUN, ICON_PAUSE

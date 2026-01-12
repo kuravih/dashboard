@@ -1,8 +1,8 @@
 import numpy as np
+import pickle
 from PySide6.QtGui import QIcon
 from PySide6.QtWidgets import QFileDialog, QMessageBox, QVBoxLayout, QWidget, QLabel, QSpinBox, QHBoxLayout, QCheckBox, QGridLayout, QLineEdit, QPushButton
 from PySide6.QtCore import Slot, Qt, QFileInfo, QTimer, Signal
-import pickle
 
 from pykato.log import setup_logger
 from pykato.function import timestamp_string, chord
@@ -14,7 +14,7 @@ from .camera_window import PreviewWindow as CameraPreviewWindow, InfoWindow as C
 from ..device.modulator import Modulator
 from .modulator_window import PreviewWindow as ModulatorPreviewWindow, InfoWindow as ModulatorInfoWindow, SettingsWindow as ModulatorSettingsWindow
 
-from ..worker.speckle_null_proc_worker import SpeckleNullProcWorker
+from ..worker.speckle_nulling_worker import MainWorker
 from ..worker.storage_worker import SinkStorageWorker, SourceStorageWorker
 
 from . import DevicesSetupWidget, TaskControlsWidget, Window
@@ -25,12 +25,12 @@ from .figure_widget import ContrastFigureWidget
 
 from ..function import is_speckle_calibration_file_valid
 
-_PROCESS_ = testbed.SPECKLE_CALIBRATION
+_PROCESS_ = testbed.SPECKLE_NULLING
 
-logger = setup_logger(f"{_PROCESS_}_proc_window", terminator="\n")
+logger = setup_logger(f"{_PROCESS_}_window", terminator="\n")
 
 
-class SpeckleNullProcSettingsWidget(QWidget):
+class MainSettingsWidget(QWidget):
     """
     Speckle Nulling Process Settings
     """
@@ -344,7 +344,7 @@ class SpeckleNullProcMoreWindow(Window):
 
 
 
-class SpeckleNullProcWindow(Window):
+class MainWindow(Window):
     """
     Speckle Nulling Process Window
     """
@@ -480,40 +480,40 @@ class SpeckleNullProcWindow(Window):
 
     @Slot()
     def on_finish(self):
-        proc_worker_id = f"{_PROCESS_}_proc_worker"
+        worker_id = f"{_PROCESS_}_worker"
         self.controls_widget.progressbar.reset()
         self.controls_widget.progressbar.updateProgress()
-        if proc_worker_id in testbed.data.workers:  # an update worker is in progress
-            current_proc_worker = testbed.data.workers.pop(proc_worker_id)
-            current_proc_worker.stop()
+        if worker_id in testbed.data.workers:  # an update worker is in progress
+            current_worker = testbed.data.workers.pop(worker_id)
+            current_worker.stop()
             self.controls_widget.play_pause_button.setIcon(QIcon(ICON_RUN))
 
     @Slot()
     def on_source_storage_finish(self):
-        source_storage_worker_id = f"{_PROCESS_}_proc_source_storage_worker"
+        source_storage_worker_id = f"{_PROCESS_}_source_storage_worker"
         if source_storage_worker_id in testbed.data.workers:
             source_storage_worker = testbed.data.workers.pop(source_storage_worker_id)
             source_storage_worker.stop()
 
     @Slot()
     def on_sink_storage_finish(self):
-        sink_storage_worker_id = f"{_PROCESS_}_proc_sink_storage_worker"
+        sink_storage_worker_id = f"{_PROCESS_}_sink_storage_worker"
         if sink_storage_worker_id in testbed.data.workers:
             sink_storage_worker = testbed.data.workers.pop(sink_storage_worker_id)
             sink_storage_worker.stop()
 
     @Slot()
     def on_start_stop(self):
-        proc_worker_id = f"{_PROCESS_}_proc_worker"
-        source_storage_worker_id = f"{_PROCESS_}_proc_source_storage_worker"
-        sink_storage_worker_id = f"{_PROCESS_}_proc_sink_storage_worker"
+        worker_id = f"{_PROCESS_}_worker"
+        source_storage_worker_id = f"{_PROCESS_}_source_storage_worker"
+        sink_storage_worker_id = f"{_PROCESS_}_sink_storage_worker"
         source_preview_window_id = f"{self.source.name}_preview"
         sink_preview_window_id = f"{self.sink.name}_preview"
-        proc_preview_window_id = f"{_PROCESS_}_proc_preview_window"
+        proc_preview_window_id = f"{_PROCESS_}_preview_window"
 
-        if proc_worker_id in testbed.data.workers:  # an update worker is in progress
-            current_proc_worker = testbed.data.workers.pop(proc_worker_id)
-            current_proc_worker.stop()
+        if worker_id in testbed.data.workers:  # an update worker is in progress
+            current_worker = testbed.data.workers.pop(worker_id)
+            current_worker.stop()
             self.controls_widget.play_pause_button.setIcon(QIcon(ICON_RUN))
             self.devices_widget.sink_settings_button.setEnabled(False)
             self.devices_widget.source_settings_button.setEnabled(False)
@@ -533,22 +533,22 @@ class SpeckleNullProcWindow(Window):
         else:
             self.controls_widget.progressbar.setMaximum(self.settings_widget.n_iterations)
 
-        proc_worker = SpeckleNullProcWorker(self.source, self.sink, self.settings_widget.dark_hole_mask, self.settings_widget.speckle_calibration, self.settings_widget.phs_array, self.settings_widget.amp_array, self.settings_widget.n_iterations)
-        proc_worker.signals.progress.connect(self.on_progress)
-        proc_worker.signals.finished.connect(self.on_finish)
+        worker = MainWorker(self.source, self.sink, self.settings_widget.dark_hole_mask, self.settings_widget.speckle_calibration, self.settings_widget.phs_array, self.settings_widget.amp_array, self.settings_widget.n_iterations)
+        worker.signals.progress.connect(self.on_progress)
+        worker.signals.finished.connect(self.on_finish)
 
         timestamp = timestamp_string(frmt="%Y%m%d.%H%M%S", ms=None)
 
         if self.settings_widget.record_source:
-            source_storage_worker = SourceStorageWorker(f"data/output/{timestamp}_speckle_null_source.raw", self.settings_widget.n_iterations)
-            proc_worker.signals.new_source_sample.connect(source_storage_worker.on_sample)
+            source_storage_worker = SourceStorageWorker(f"data/output/{timestamp}_{_PROCESS_}_source.raw", self.settings_widget.n_iterations)
+            worker.signals.new_source_sample.connect(source_storage_worker.on_sample)
             source_storage_worker.signals.finished.connect(self.on_source_storage_finish)
             testbed.data.workers[source_storage_worker_id] = source_storage_worker
             testbed.data.threadpool.start(source_storage_worker)
 
         if self.settings_widget.record_sink:
-            sink_storage_worker = SinkStorageWorker(f"data/output/{timestamp}_speckle_null_sink.raw", self.settings_widget.n_iterations)
-            proc_worker.signals.new_sink_sample.connect(sink_storage_worker.on_sample)
+            sink_storage_worker = SinkStorageWorker(f"data/output/{timestamp}_{_PROCESS_}_sink.raw", self.settings_widget.n_iterations)
+            worker.signals.new_sink_sample.connect(sink_storage_worker.on_sample)
             sink_storage_worker.signals.finished.connect(self.on_sink_storage_finish)
             testbed.data.workers[sink_storage_worker_id] = sink_storage_worker
             testbed.data.threadpool.start(sink_storage_worker)
@@ -558,20 +558,20 @@ class SpeckleNullProcWindow(Window):
         self.devices_widget.source_settings_button.setEnabled(False)
 
         if source_preview_window_id in testbed.data.windows:
-            proc_worker.signals.new_source_sample.connect(testbed.data.windows[source_preview_window_id].on_new_sample)
+            worker.signals.new_source_sample.connect(testbed.data.windows[source_preview_window_id].on_new_sample)
         if sink_preview_window_id in testbed.data.windows:
-            proc_worker.signals.new_sink_sample.connect(testbed.data.windows[sink_preview_window_id].on_new_sample)
+            worker.signals.new_sink_sample.connect(testbed.data.windows[sink_preview_window_id].on_new_sample)
         if proc_preview_window_id in testbed.data.windows:
-            proc_worker.signals.speckle_location.connect(testbed.data.windows[proc_preview_window_id].on_speckle_location)
-            proc_worker.signals.speckle_parameters.connect(testbed.data.windows[proc_preview_window_id].on_speckle_parameters)
-            proc_worker.signals.measurement.connect(testbed.data.windows[proc_preview_window_id].on_measurement)
+            worker.signals.speckle_location.connect(testbed.data.windows[proc_preview_window_id].on_speckle_location)
+            worker.signals.speckle_parameters.connect(testbed.data.windows[proc_preview_window_id].on_speckle_parameters)
+            worker.signals.measurement.connect(testbed.data.windows[proc_preview_window_id].on_measurement)
 
-        testbed.data.workers[proc_worker_id] = proc_worker
-        testbed.data.threadpool.start(proc_worker)
+        testbed.data.workers[worker_id] = worker
+        testbed.data.threadpool.start(worker)
 
-    def open_proc_preview_window(self):
+    def open_preview_window(self):
 
-        proc_preview_window_id = f"{_PROCESS_}_proc_preview_window"
+        proc_preview_window_id = f"{_PROCESS_}_preview_window"
 
         @Slot()
         def close_window():
@@ -585,8 +585,8 @@ class SpeckleNullProcWindow(Window):
             proc_preview_window.activateWindow()
             testbed.data.windows[proc_preview_window_id] = proc_preview_window
 
-    def open_proc_contrast_window(self):
-        proc_contrast_window_id = f"{_PROCESS_}_proc_contrast_window"
+    def open_contrast_window(self):
+        proc_contrast_window_id = f"{_PROCESS_}_contrast_window"
 
         @Slot()
         def close_window():
@@ -609,15 +609,15 @@ class SpeckleNullProcWindow(Window):
         self.devices_widget.source_changed.connect(self.on_source_change)
         self.devices_widget.sink_changed.connect(self.on_sink_change)
 
-        self.settings_widget = SpeckleNullProcSettingsWidget(self)
+        self.settings_widget = MainSettingsWidget(self)
         self.settings_widget.calibration_changed.connect(self.on_calibration_change)
 
         self.controls_widget = TaskControlsWidget(self)
         self.controls_widget.play_pause_button.setEnabled(False)
         self.controls_widget.play_pause_button.clicked.connect(self.on_start_stop)
         self.controls_widget.task_preview_button.setEnabled(False)
-        self.controls_widget.task_preview_button.clicked.connect(self.open_proc_preview_window)
-        self.controls_widget.contrast_preview_button.clicked.connect(self.open_proc_contrast_window)
+        self.controls_widget.task_preview_button.clicked.connect(self.open_preview_window)
+        self.controls_widget.contrast_preview_button.clicked.connect(self.open_contrast_window)
 
         layout.addWidget(self.devices_widget)
         layout.addWidget(self.settings_widget)
@@ -628,14 +628,14 @@ class SpeckleNullProcWindow(Window):
 
     def closeEvent(self, event):
         if self.source is not None:
-            source_preview_window_id = self.source.name + "_preview"
+            source_preview_window_id = f"{self.source.name}_preview"
             if source_preview_window_id in testbed.data.windows:
                 logger.info("Cannot close main window until preview windows are closed.")
                 event.ignore()
                 return
 
         if self.sink is not None:
-            sink_preview_window_id = self.sink.name + "_preview"
+            sink_preview_window_id = f"{self.sink.name}_preview"
             if sink_preview_window_id in testbed.data.windows:
                 logger.info("Cannot close main window until preview windows are closed.")
                 event.ignore()

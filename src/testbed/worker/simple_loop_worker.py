@@ -5,23 +5,26 @@ from PySide6.QtCore import Slot, Signal
 from pykato.function import text
 from pykato.log import setup_logger
 
+import testbed
 from ..device import SourceSample, SinkSample
 from ..device.camera import Camera
 from ..device.modulator import Modulator
-from ..worker import Worker, WorkerSignals
+from . import Worker, WorkerSignals
 
-logger = setup_logger("simple_proc_worker", terminator="\n")
+_PROCESS_ = testbed.SIMPLE_LOOP
+
+logger = setup_logger(f"{_PROCESS_}_worker", terminator="\n")
 
 
-class SimpleProcWorkerSignals(WorkerSignals):
+class MainWorkerSignals(WorkerSignals):
     new_source_sample = Signal(SourceSample)
     new_sink_sample = Signal(SinkSample)
 
 
-class SimpleProcWorker(Worker):
+class MainWorker(Worker):
     def __init__(self, _source: Camera, _sink: Modulator, n_steps: int | None = None):
         super().__init__()
-        self.signals = SimpleProcWorkerSignals()
+        self.signals = MainWorkerSignals()
         self._source = _source
         self._sink = _sink
         self._n_steps = n_steps
@@ -44,7 +47,7 @@ class SimpleProcWorker(Worker):
         self.signals.progress.emit(i_step, time.time() - t_start)
         # ---- blank --------------------------------------------------------------------------------------------------
 
-        logger.info("%s and %s SimpleProcWorker.run : step %s of %s", self._source.name, self._sink.name, i_step, self._n_steps)
+        logger.info("%s and %s MainWorker.run : step %s of %s", self._source.name, self._sink.name, i_step, self._n_steps)
 
         while ((self._n_steps is None) or (self._n_steps > i_step)) and self._running:
             command = self._sink.pxmax * np.clip(text(self._sink.shape, f"{i_step:02d}", font_size=150), 0, 1)
@@ -58,7 +61,7 @@ class SimpleProcWorker(Worker):
             i_step = i_step + 1
             self.signals.progress.emit(i_step, time.time() - t_start)
 
-            logger.info("%s and %s SimpleProcWorker.run : step %s of %s", self._source.name, self._sink.name, i_step, self._n_steps)
+            logger.info("%s and %s MainWorker.run : step %s of %s", self._source.name, self._sink.name, i_step, self._n_steps)
 
         self.signals.finished.emit()
 

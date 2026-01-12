@@ -1,5 +1,7 @@
+import numpy as np
+import pickle
 from PySide6.QtGui import QIcon
-from PySide6.QtWidgets import QVBoxLayout, QWidget, QLabel, QSpinBox, QHBoxLayout, QCheckBox, QDoubleSpinBox, QGridLayout
+from PySide6.QtWidgets import QVBoxLayout, QWidget, QLabel, QGridLayout, QDoubleSpinBox
 from PySide6.QtCore import Slot, Qt
 
 from pykato.log import setup_logger
@@ -12,126 +14,106 @@ from .camera_window import PreviewWindow as CameraPreviewWindow, InfoWindow as C
 from ..device.modulator import Modulator
 from .modulator_window import PreviewWindow as ModulatorPreviewWindow, InfoWindow as ModulatorInfoWindow, SettingsWindow as ModulatorSettingsWindow
 
-from ..worker.simple_proc_worker import SimpleProcWorker
+from ..worker.speckle_calibration_worker import MainWorker
 from ..worker.storage_worker import SinkStorageWorker, SourceStorageWorker
 
-from ..widget import DevicesSetupWidget, TaskControlsWidget, Window
-from ..widget.resource import ICON_RUN, ICON_PAUSE
+from . import DevicesSetupWidget, TaskControlsWidget, Window
+from .resource import ICON_RUN, ICON_PAUSE
+from . import LinspaceWidget
 
-_PROCESS_ = testbed.SIMPLE
+_PROCESS_ = testbed.SPECKLE_CALIBRATION
 
-logger = setup_logger(f"{_PROCESS_}_proc_window", terminator="\n")
+logger = setup_logger(f"{_PROCESS_}_window", terminator="\n")
 
 
-class SimpleProcSettingsWidget(QWidget):
+class MainSettingsWidget(QWidget):
     """
-    Simple Process Settings
+    Speckle Calibration Process Settings
     """
 
     def __init__(self, parent=None):
         super().__init__(parent)
 
-        n_steps_label = QLabel("Steps", self)
-        n_steps_label.setFixedWidth(100)
+        ampl_label = QLabel("Amplitude", self)
+        ampl_label.setFixedWidth(100)
 
-        self._n_steps_spinbox = QSpinBox(self)
-        self._n_steps_spinbox.setRange(0, 9999)
-        self._n_steps_spinbox.setSingleStep(1)
-        self._n_steps_spinbox.setValue(9)
-        self._n_steps_spinbox.setToolTip("Number of steps")
+        self._ampl_spinbox = QDoubleSpinBox(self)
+        self._ampl_spinbox.setRange(0, 0.5)
+        self._ampl_spinbox.setValue(0.25)
 
-        self._continuous_checkbox = QCheckBox("continuous", self)
-        self._continuous_checkbox.setToolTip("Run till stop/pause button is clicked")
-        self._continuous_checkbox.setMaximumWidth(100)
+        angle_label = QLabel("Angle Steps", self)
+        angle_label.setFixedWidth(100)
 
-        @Slot(bool)
-        def on_continuous_checkbox_toggle(checked: bool):
-            if checked:
-                self._n_steps_spinbox.setEnabled(False)
-            else:
-                self._n_steps_spinbox.setEnabled(True)
+        self._angle_steps = LinspaceWidget(0, 170, 18, self)
 
-        self._continuous_checkbox.toggled.connect(on_continuous_checkbox_toggle)
+        freq_label = QLabel("Frequency Steps", self)
+        freq_label.setFixedWidth(100)
 
-        n_steps_layout = QHBoxLayout()
-        n_steps_layout.addWidget(self._n_steps_spinbox)
-        n_steps_layout.addWidget(self._continuous_checkbox)
+        self._freq_steps = LinspaceWidget(0.06, 0.01, 11, self)
 
-        sleep_label = QLabel("Sleep", self)
-        sleep_label.setFixedWidth(100)
+        phase_label = QLabel("Phase Steps", self)
+        phase_label.setFixedWidth(100)
 
-        self._sleep_s_spinbox = QDoubleSpinBox(self)
-        self._sleep_s_spinbox.setMinimum(0)
-        self._sleep_s_spinbox.setSingleStep(0.0001)
-        self._sleep_s_spinbox.setDecimals(4)
-        self._sleep_s_spinbox.setValue(0.1)
-        self._sleep_s_spinbox.setSuffix(" s")
-
-        record_label = QLabel("Record", self)
-        record_label.setFixedWidth(100)
-
-        self._source_checkbox = QCheckBox("Source", self)
-        self._source_checkbox.setToolTip("Source data")
-
-        self._sink_checkbox = QCheckBox("Sink", self)
-        self._sink_checkbox.setToolTip("Sink data")
-
-        record_layout = QHBoxLayout()
-        record_layout.addWidget(self._source_checkbox)
-        record_layout.addWidget(self._sink_checkbox)
+        self._phase_steps = LinspaceWidget(0, 180, 2, self)
 
         widget_layout = QGridLayout()
 
         row = 0
         col = 0
-        widget_layout.addWidget(n_steps_label, row, col)
+        widget_layout.addWidget(ampl_label, row, col)
         col += 1
-        widget_layout.addLayout(n_steps_layout, row, col, 1, 3)
+        widget_layout.addWidget(self._ampl_spinbox, row, col)
 
         row += 1
         col = 0
-        widget_layout.addWidget(sleep_label, row, col)
+        widget_layout.addWidget(angle_label, row, col)
         col += 1
-        widget_layout.addWidget(self._sleep_s_spinbox, row, col, 1, 3)
+        widget_layout.addWidget(self._angle_steps, row, col)
 
         row += 1
         col = 0
-        widget_layout.addWidget(record_label, row, col)
+        widget_layout.addWidget(freq_label, row, col)
         col += 1
-        widget_layout.addLayout(record_layout, row, col, 1, 3)
+        widget_layout.addWidget(self._freq_steps, row, col)
+
+        row += 1
+        col = 0
+        widget_layout.addWidget(phase_label, row, col)
+        col += 1
+        widget_layout.addWidget(self._phase_steps, row, col)
 
         self.setLayout(widget_layout)
 
     @property
-    def continuous(self) -> bool:
-        return self._continuous_checkbox.isChecked()
+    def amplitude(self) -> float:
+        return self._ampl_spinbox.value()
 
     @property
-    def n_steps(self) -> int | None:
-        return None if self.continuous else self._n_steps_spinbox.value()
+    def angles_array(self) -> np.ndarray:
+        return self._angle_steps.value()
 
     @property
-    def record_source(self) -> bool:
-        return self._source_checkbox.isChecked()
+    def freqs_array(self) -> np.ndarray:
+        return self._freq_steps.value()
 
     @property
-    def record_sink(self) -> bool:
-        return self._sink_checkbox.isChecked()
+    def phases_array(self) -> np.ndarray:
+        return self._phase_steps.value()
 
     @property
-    def sleep_s(self) -> float:
-        return self._sleep_s_spinbox.value()
+    def n_steps(self) -> int:
+        return self.angles_array.size * self.freqs_array.size * self.phases_array.size + 1  # include blank
 
 
-class SimpleProcWindow(Window):
+class MainWindow(Window):
     """
-    Simple Process Window
+    Speckle Calibration Process Window
     """
 
     def __init__(self, parent=None):
         super().__init__(parent, Qt.WindowType.Dialog)
         self.setWindowModality(Qt.WindowModality.WindowModal)
-        self.setWindowTitle("Simple Process")
+        self.setWindowTitle("Speckle Calibration")
         self._sink = None
         self._source = None
 
@@ -248,39 +230,40 @@ class SimpleProcWindow(Window):
 
     @Slot()
     def on_finish(self):
-        proc_worker_id = f"{_PROCESS_}_proc_worker"
+        worker_id = f"{_PROCESS_}_worker"
         self.controls_widget.progressbar.reset()
         self.controls_widget.progressbar.updateProgress()
-        if proc_worker_id in testbed.data.workers:  # an update worker is in progress
-            current_proc_worker = testbed.data.workers.pop(proc_worker_id)
-            current_proc_worker.stop()
+        if worker_id in testbed.data.workers:  # an update worker is in progress
+            current_worker = testbed.data.workers.pop(worker_id)
+            current_worker.stop()
             self.controls_widget.play_pause_button.setIcon(QIcon(ICON_RUN))
 
     @Slot()
     def on_source_storage_finish(self):
-        source_storage_worker_id = f"{_PROCESS_}_proc_source_storage_worker"
+        source_storage_worker_id = f"{_PROCESS_}_source_storage_worker"
         if source_storage_worker_id in testbed.data.workers:
             source_storage_worker = testbed.data.workers.pop(source_storage_worker_id)
             source_storage_worker.stop()
 
     @Slot()
     def on_sink_storage_finish(self):
-        sink_storage_worker_id = f"{_PROCESS_}_proc_sink_storage_worker"
+        sink_storage_worker_id = f"{_PROCESS_}_sink_storage_worker"
         if sink_storage_worker_id in testbed.data.workers:
             sink_storage_worker = testbed.data.workers.pop(sink_storage_worker_id)
             sink_storage_worker.stop()
 
     @Slot()
     def on_start_stop(self):
-        proc_worker_id = f"{_PROCESS_}_proc_worker"
-        source_storage_worker_id = f"{_PROCESS_}_proc_source_storage_worker"
-        sink_storage_worker_id = f"{_PROCESS_}_proc_sink_storage_worker"
+        worker_id = f"{_PROCESS_}_worker"
+        source_storage_worker_id = f"{_PROCESS_}_source_storage_worker"
+        sink_storage_worker_id = f"{_PROCESS_}_sink_storage_worker"
         source_preview_window_id = f"{self.source.name}_preview"
         sink_preview_window_id = f"{self.sink.name}_preview"
 
-        if proc_worker_id in testbed.data.workers:  # an update worker is in progress
-            current_proc_worker = testbed.data.workers.pop(proc_worker_id)
-            current_proc_worker.stop()
+        if worker_id in testbed.data.workers:  # an update worker is in progress
+            logger.info("stopping running process")
+            current_worker = testbed.data.workers.pop(worker_id)
+            current_worker.stop()
             self.controls_widget.play_pause_button.setIcon(QIcon(ICON_RUN))
             self.devices_widget.sink_settings_button.setEnabled(True)
             self.devices_widget.source_settings_button.setEnabled(True)
@@ -295,42 +278,41 @@ class SimpleProcWindow(Window):
                 current_sink_storage_worker.stop()
             return
 
-        if self.settings_widget.continuous:
-            self.controls_widget.progressbar.setMaximum(0)
-        else:
-            self.controls_widget.progressbar.setMaximum(self.settings_widget.n_steps)
+        self.controls_widget.progressbar.setMaximum(self.settings_widget.n_steps)
 
-        proc_worker = SimpleProcWorker(self.source, self.sink, self.settings_widget.n_steps)
-        proc_worker.signals.progress.connect(self.on_progress)
-        proc_worker.signals.finished.connect(self.on_finish)
+        worker = MainWorker(self.source, self.sink, self.settings_widget.amplitude, self.settings_widget.freqs_array, self.settings_widget.angles_array, self.settings_widget.phases_array)
+        worker.signals.progress.connect(self.on_progress)
+        worker.signals.finished.connect(self.on_finish)
 
         timestamp = timestamp_string(frmt="%Y%m%d.%H%M%S", ms=None)
 
-        if self.settings_widget.record_source:
-            source_storage_worker = SourceStorageWorker(f"data/output/{timestamp}_simple_proc_source.raw", self.settings_widget.n_steps)
-            proc_worker.signals.new_source_sample.connect(source_storage_worker.on_sample)
-            source_storage_worker.signals.finished.connect(self.on_source_storage_finish)
-            testbed.data.workers[source_storage_worker_id] = source_storage_worker
-            testbed.data.threadpool.start(source_storage_worker)
+        source_storage_worker = SourceStorageWorker(f"data/output/{timestamp}_{_PROCESS_}_source.raw", self.settings_widget.n_steps)
+        worker.signals.new_source_sample.connect(source_storage_worker.on_sample)
+        source_storage_worker.signals.finished.connect(self.on_source_storage_finish)
+        testbed.data.workers[source_storage_worker_id] = source_storage_worker
+        testbed.data.threadpool.start(source_storage_worker)
 
-        if self.settings_widget.record_sink:
-            sink_storage_worker = SinkStorageWorker(f"data/output/{timestamp}_simple_proc_sink.raw", self.settings_widget.n_steps)
-            proc_worker.signals.new_sink_sample.connect(sink_storage_worker.on_sample)
-            sink_storage_worker.signals.finished.connect(self.on_sink_storage_finish)
-            testbed.data.workers[sink_storage_worker_id] = sink_storage_worker
-            testbed.data.threadpool.start(sink_storage_worker)
+        sink_storage_worker = SinkStorageWorker(f"data/output/{timestamp}_{_PROCESS_}_sink.raw", self.settings_widget.n_steps)
+        worker.signals.new_sink_sample.connect(sink_storage_worker.on_sample)
+        sink_storage_worker.signals.finished.connect(self.on_sink_storage_finish)
+        testbed.data.workers[sink_storage_worker_id] = sink_storage_worker
+        testbed.data.threadpool.start(sink_storage_worker)
+
+        with open(f"data/output/{timestamp}_{_PROCESS_}_parameters.pkl", "wb") as _file:
+            parameters_dict = {"amplitudes": self.settings_widget.amplitude, "frequencies": self.settings_widget.freqs_array, "angles": self.settings_widget.angles_array, "phases": self.settings_widget.phases_array}
+            pickle.dump(parameters_dict, _file, protocol=pickle.HIGHEST_PROTOCOL)
 
         self.controls_widget.play_pause_button.setIcon(QIcon(ICON_PAUSE))
         self.devices_widget.sink_settings_button.setEnabled(False)
         self.devices_widget.source_settings_button.setEnabled(False)
 
         if source_preview_window_id in testbed.data.windows:
-            proc_worker.signals.new_source_sample.connect(testbed.data.windows[source_preview_window_id].on_new_sample)
+            worker.signals.new_source_sample.connect(testbed.data.windows[source_preview_window_id].on_new_sample)
         if sink_preview_window_id in testbed.data.windows:
-            proc_worker.signals.new_sink_sample.connect(testbed.data.windows[sink_preview_window_id].on_new_sample)
+            worker.signals.new_sink_sample.connect(testbed.data.windows[sink_preview_window_id].on_new_sample)
 
-        testbed.data.workers[proc_worker_id] = proc_worker
-        testbed.data.threadpool.start(proc_worker)
+        testbed.data.workers[worker_id] = worker
+        testbed.data.threadpool.start(worker)
 
     def setup_main_widget(self) -> QWidget:
         widget = QWidget(self)
@@ -341,12 +323,13 @@ class SimpleProcWindow(Window):
         self.devices_widget.source_changed.connect(self.on_source_change)
         self.devices_widget.sink_changed.connect(self.on_sink_change)
 
-        self.settings_widget = SimpleProcSettingsWidget(self)
+        self.settings_widget = MainSettingsWidget(self)
 
         self.controls_widget = TaskControlsWidget(self)
         self.controls_widget.play_pause_button.setEnabled(False)
         self.controls_widget.play_pause_button.clicked.connect(self.on_start_stop)
         self.controls_widget.task_preview_button.hide()
+        self.controls_widget.contrast_preview_button.hide()
 
         layout.addWidget(self.devices_widget)
         layout.addWidget(self.settings_widget)

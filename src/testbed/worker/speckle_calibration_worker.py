@@ -5,23 +5,26 @@ from PySide6.QtCore import Slot, Signal
 from pykato.function import sinusoid
 from pykato.log import setup_logger
 
+import testbed
 from ..device import SourceSample, SinkSample
 from ..device.camera import Camera
 from ..device.modulator import Modulator
 from . import Worker, WorkerSignals
 
-logger = setup_logger("speckle_cal_proc_worker", terminator="\n")
+_PROCESS_ = testbed.SPECKLE_CALIBRATION
+
+logger = setup_logger(f"{_PROCESS_}_worker", terminator="\n")
 
 
-class SpeckleCalProcWorkerSignals(WorkerSignals):
+class MainWorkerSignals(WorkerSignals):
     new_source_sample = Signal(SourceSample)
     new_sink_sample = Signal(SinkSample)
 
 
-class SpeckleCalProcWorker(Worker):
+class MainWorker(Worker):
     def __init__(self, _source: Camera, _sink: Modulator, _ampl: float, _freqs: np.ndarray, _angles: np.ndarray, _phases: np.ndarray):
         super().__init__()
-        self.signals = SpeckleCalProcWorkerSignals()
+        self.signals = MainWorkerSignals()
         self._source = _source
         self._sink = _sink
         self._ampl = _ampl
@@ -48,7 +51,7 @@ class SpeckleCalProcWorker(Worker):
         self.signals.progress.emit(i_step, time.time() - t_start)
         # ---- blank --------------------------------------------------------------------------------------------------
 
-        logger.info("%s and %s SpeckleCalProcWorker.run : step %s of %s", self._source.name, self._sink.name, i_step, self._n_steps)
+        logger.info("%s and %s MainWorker.run : step %s of %s", self._source.name, self._sink.name, i_step, self._n_steps)
 
         i_freq = 0
         while (self._freqs.size > i_freq) and self._running:
@@ -68,7 +71,7 @@ class SpeckleCalProcWorker(Worker):
                     i_step = i_step + 1
                     self.signals.progress.emit(i_step, time.time() - t_start)
 
-                    logger.info("%s and %s SpeckleCalProcWorker.run : step %s of %s", self._source.name, self._sink.name, i_step, self._n_steps)
+                    logger.info("%s and %s MainWorker.run : step %s of %s", self._source.name, self._sink.name, i_step, self._n_steps)
 
                     i_phase = i_phase + 1
 

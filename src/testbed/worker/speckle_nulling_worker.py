@@ -5,16 +5,19 @@ from PySide6.QtCore import Slot, Signal
 from pykato.function import sinusoid, least_squares_fit
 from pykato.log import setup_logger
 
+import testbed
 from ..device import SourceSample, SinkSample
 from ..device.camera import Camera
 from ..device.modulator import Modulator
 from . import Worker, WorkerSignals
 from ..function import find_speckles, speckle_parameters, constrained_sin_fit_fn, quadratic_fit_fn
 
-logger = setup_logger("speckle_null_proc_worker", terminator="\n")
+_PROCESS_ = testbed.SPECKLE_NULLING
+
+logger = setup_logger(f"{_PROCESS_}_worker", terminator="\n")
 
 
-class SpeckleNullProcWorkerSignals(WorkerSignals):
+class MainWorkerSignals(WorkerSignals):
     new_source_sample = Signal(SourceSample)
     new_sink_sample = Signal(SinkSample)
     speckle_location = Signal(float, float)
@@ -22,10 +25,10 @@ class SpeckleNullProcWorkerSignals(WorkerSignals):
     measurement = Signal(np.ndarray)
 
 
-class SpeckleNullProcWorker(Worker):
+class MainWorker(Worker):
     def __init__(self, _source: Camera, _sink: Modulator, _dh_mask: np.ndarray, _speck_calibration: tuple[tuple[float, float], tuple[float, float]], _phases: np.ndarray, _amplitudes: np.ndarray, _n_iterations: int | None = None):
         super().__init__()
-        self.signals = SpeckleNullProcWorkerSignals()
+        self.signals = MainWorkerSignals()
         self._source = _source
         self._sink = _sink
         self._dh_mask = _dh_mask
@@ -146,7 +149,7 @@ class SpeckleNullProcWorker(Worker):
         self.signals.progress.emit(i_iteration, time.time() - t_start)
         # ---- blank --------------------------------------------------------------------------------------------------
 
-        logger.info("%s and %s SpeckleNullProcWorker.run : iteration %s of %s", self._source.name, self._sink.name, i_iteration, self._n_iterations)
+        logger.info("%s and %s MainWorker.run : iteration %s of %s", self._source.name, self._sink.name, i_iteration, self._n_iterations)
 
         center = (self._source.shape[0] / 2, self._source.shape[1] / 2)
         while ((self._n_iterations is None) or (self._n_iterations > i_iteration)) and self._running:
