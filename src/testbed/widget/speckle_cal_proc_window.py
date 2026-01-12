@@ -21,7 +21,9 @@ from . import DevicesSetupWidget, TaskControlsWidget, Window
 from .resource import ICON_RUN, ICON_PAUSE
 from . import LinspaceWidget
 
-logger = setup_logger("speckle_cal_proc_window", terminator="\n")
+_PROCESS_ = testbed.SPECKLE_CALIBRATION
+
+logger = setup_logger(f"{_PROCESS_}_proc_window", terminator="\n")
 
 
 class SpeckleCalProcSettingsWidget(QWidget):
@@ -138,7 +140,8 @@ class SpeckleCalProcWindow(Window):
         self.devices_widget.source_settings_button.clicked.connect(lambda _, _device=_device: self.open_device_settings_window(_device))
         self.devices_widget.source_preview_button.clicked.connect(lambda _, _device=_device: self.open_device_preview_window(_device))
         if self._source is not None and self._sink is not None:
-            self.controls_widget.preview_button.setEnabled(True)
+            self.controls_widget.task_preview_button.setEnabled(True)
+            self.controls_widget.play_pause_button.setEnabled(True)
 
     def on_sink_change(self, _device: Modulator):
         self.devices_widget.sink_info_button.setEnabled(True)
@@ -150,11 +153,12 @@ class SpeckleCalProcWindow(Window):
         self.devices_widget.sink_settings_button.clicked.connect(lambda _, _device=_device: self.open_device_settings_window(_device))
         self.devices_widget.sink_preview_button.clicked.connect(lambda _, _device=_device: self.open_device_preview_window(_device))
         if self._source is not None and self._sink is not None:
-            self.controls_widget.preview_button.setEnabled(True)
+            self.controls_widget.task_preview_button.setEnabled(True)
+            self.controls_widget.play_pause_button.setEnabled(True)
 
     def open_device_info_window(self, _device: Camera | Modulator):
 
-        info_window_id = _device.name + "_info"
+        info_window_id = f"{_device.name}_info"
 
         @Slot()
         def close_window():
@@ -176,7 +180,7 @@ class SpeckleCalProcWindow(Window):
 
     def open_device_settings_window(self, _device: Camera | Modulator):
 
-        settings_window_id = _device.name + "_settings"
+        settings_window_id = f"{_device.name}_settings"
 
         @Slot()
         def close_window():
@@ -198,7 +202,7 @@ class SpeckleCalProcWindow(Window):
 
     def open_device_preview_window(self, _device: Camera | Modulator):
 
-        preview_window_id = _device.name + "_preview"
+        preview_window_id = f"{_device.name}_preview"
 
         @Slot()
         def close_window():
@@ -226,7 +230,7 @@ class SpeckleCalProcWindow(Window):
 
     @Slot()
     def on_finish(self):
-        proc_worker_id = "speckle_cal_proc_worker"
+        proc_worker_id = f"{_PROCESS_}_proc_worker"
         self.controls_widget.progressbar.reset()
         self.controls_widget.progressbar.updateProgress()
         if proc_worker_id in testbed.data.workers:  # an update worker is in progress
@@ -236,25 +240,25 @@ class SpeckleCalProcWindow(Window):
 
     @Slot()
     def on_source_storage_finish(self):
-        source_storage_worker_id = "speckle_cal_proc_source_storage_worker"
+        source_storage_worker_id = f"{_PROCESS_}_proc_source_storage_worker"
         if source_storage_worker_id in testbed.data.workers:
             source_storage_worker = testbed.data.workers.pop(source_storage_worker_id)
             source_storage_worker.stop()
 
     @Slot()
     def on_sink_storage_finish(self):
-        sink_storage_worker_id = "speckle_cal_proc_sink_storage_worker"
+        sink_storage_worker_id = f"{_PROCESS_}_proc_sink_storage_worker"
         if sink_storage_worker_id in testbed.data.workers:
             sink_storage_worker = testbed.data.workers.pop(sink_storage_worker_id)
             sink_storage_worker.stop()
 
     @Slot()
     def on_start_stop(self):
-        proc_worker_id = "speckle_cal_proc_worker"
-        source_storage_worker_id = "speckle_cal_proc_source_storage_worker"
-        sink_storage_worker_id = "speckle_cal_proc_sink_storage_worker"
-        source_preview_window_id = self.source.name + "_preview"
-        sink_preview_window_id = self.sink.name + "_preview"
+        proc_worker_id = f"{_PROCESS_}_proc_worker"
+        source_storage_worker_id = f"{_PROCESS_}_proc_source_storage_worker"
+        sink_storage_worker_id = f"{_PROCESS_}_proc_sink_storage_worker"
+        source_preview_window_id = f"{self.source.name}_preview"
+        sink_preview_window_id = f"{self.sink.name}_preview"
 
         if proc_worker_id in testbed.data.workers:  # an update worker is in progress
             logger.info("stopping running process")
@@ -325,6 +329,7 @@ class SpeckleCalProcWindow(Window):
         self.controls_widget.play_pause_button.setEnabled(False)
         self.controls_widget.play_pause_button.clicked.connect(self.on_start_stop)
         self.controls_widget.task_preview_button.hide()
+        self.controls_widget.contrast_preview_button.hide()
 
         layout.addWidget(self.devices_widget)
         layout.addWidget(self.settings_widget)
@@ -335,14 +340,14 @@ class SpeckleCalProcWindow(Window):
 
     def closeEvent(self, event):
         if self.source is not None:
-            source_preview_window_id = self.source.name + "_preview"
+            source_preview_window_id = f"{self.source.name}_preview"
             if source_preview_window_id in testbed.data.windows:
                 logger.info("Cannot close main window until preview windows are closed.")
                 event.ignore()
                 return
 
         if self.sink is not None:
-            sink_preview_window_id = self.sink.name + "_preview"
+            sink_preview_window_id =  f"{self.sink.name}_preview"
             if sink_preview_window_id in testbed.data.windows:
                 logger.info("Cannot close main window until preview windows are closed.")
                 event.ignore()

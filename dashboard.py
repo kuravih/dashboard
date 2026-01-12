@@ -74,8 +74,8 @@ class MainWindow(QMainWindow):
 
     def open_device_preview_window(self, _device: Camera | Modulator):
 
-        preview_window_id = _device.name + "_preview"
-        device_update_worker_id = _device.name + "_worker"
+        preview_window_id =  f"{_device.name}_preview"
+        device_update_worker_id = f"{_device.name}_worker"
 
         @Slot()
         def close_window():
@@ -101,8 +101,8 @@ class MainWindow(QMainWindow):
 
     def open_device_info_window(self, _device: Camera | Modulator):
 
-        info_window_id = _device.name + "_info"
-        device_update_worker_id = _device.name + "_worker"
+        info_window_id = f"{_device.name}_info"
+        device_update_worker_id = f"{_device.name}_worker"
 
         @Slot()
         def close_window():
@@ -127,8 +127,8 @@ class MainWindow(QMainWindow):
 
     def open_device_settings_window(self, _device: Camera | Modulator):
 
-        settings_window_id = _device.name + "_settings"
-        device_update_worker_id = _device.name + "_worker"
+        settings_window_id = f"{_device.name}_settings"
+        device_update_worker_id = f"{_device.name}_worker"
 
         @Slot()
         def close_window():
@@ -153,10 +153,10 @@ class MainWindow(QMainWindow):
 
     def on_start_stop(self, _device: Camera | Modulator, _button: QPushButton):
 
-        preview_window_id = _device.name + "_preview"
-        info_window_id = _device.name + "_info"
-        settings_window_id = _device.name + "_settings"
-        device_update_worker_id = _device.name + "_worker"
+        preview_window_id = f"{_device.name}_preview"
+        info_window_id = f"{_device.name}_info"
+        settings_window_id = f"{_device.name}_settings"
+        device_update_worker_id = f"{_device.name}_worker"
 
         if device_update_worker_id in testbed.data.workers:  # an update worker is in progress
             current_device_update_worker = testbed.data.workers.pop(device_update_worker_id)
@@ -266,7 +266,7 @@ class MainWindow(QMainWindow):
     @Slot()
     def open_simple_proc_window(self):
 
-        simple_proc_window_id = "simple_proc_window"
+        simple_proc_window_id = f"{testbed.SIMPLE}_proc_window"
 
         @Slot()
         def close_window():
@@ -283,7 +283,7 @@ class MainWindow(QMainWindow):
     @Slot()
     def open_speckle_cal_proc_window(self):
 
-        speckle_cal_proc_window_id = "speckle_cal_proc_window"
+        speckle_cal_proc_window_id = f"{testbed.SPECKLE_CALIBRATION}_proc_window"
 
         @Slot()
         def close_window():
@@ -300,7 +300,7 @@ class MainWindow(QMainWindow):
     @Slot()
     def open_speckle_null_proc_window(self):
 
-        speckle_null_proc_window_id = "speckle_null_proc_window"
+        speckle_null_proc_window_id = f"{testbed.SPECKLE_NULLING}_null_proc_window"
 
         @Slot()
         def close_window():
