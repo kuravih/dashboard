@@ -16,15 +16,15 @@ _PROCESS_ = testbed.SPECKLE_CALIBRATION
 logger = setup_logger(f"{_PROCESS_}_worker", terminator="\n")
 
 
-class MainWorkerSignals(WorkerSignals):
+class ProcessWorkerSignals(WorkerSignals):
     new_source_sample = Signal(SourceSample)
     new_sink_sample = Signal(SinkSample)
 
 
-class MainWorker(Worker):
+class ProcessWorker(Worker):
     def __init__(self, _source: Camera, _sink: Modulator, _ampl: float, _freqs: np.ndarray, _angles: np.ndarray, _phases: np.ndarray):
         super().__init__()
-        self.signals = MainWorkerSignals()
+        self.signals = ProcessWorkerSignals()
         self._source = _source
         self._sink = _sink
         self._ampl = _ampl
@@ -51,7 +51,7 @@ class MainWorker(Worker):
         self.signals.progress.emit(i_step, time.time() - t_start)
         # ---- blank --------------------------------------------------------------------------------------------------
 
-        logger.info("%s and %s MainWorker.run : step %s of %s", self._source.name, self._sink.name, i_step, self._n_steps)
+        logger.info("%s and %s ProcessWorker.run : step %s of %s", self._source.name, self._sink.name, i_step, self._n_steps)
 
         i_freq = 0
         while (self._freqs.size > i_freq) and self._running:
@@ -71,7 +71,7 @@ class MainWorker(Worker):
                     i_step = i_step + 1
                     self.signals.progress.emit(i_step, time.time() - t_start)
 
-                    logger.info("%s and %s MainWorker.run : step %s of %s", self._source.name, self._sink.name, i_step, self._n_steps)
+                    logger.info("%s and %s ProcessWorker.run : step %s of %s", self._source.name, self._sink.name, i_step, self._n_steps)
 
                     i_phase = i_phase + 1
 

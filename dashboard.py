@@ -15,9 +15,9 @@ from testbed.device.modulator import Modulator
 from testbed.widget.modulator_window import PreviewWindow as ModulatorPreviewWindow, InfoWindow as ModulatorInfoWindow, SettingsWindow as ModulatorSettingsWindow
 from testbed.worker.modulator_worker import UpdateWorker as ModulatorUpdateWorker
 
-from testbed.widget.simple_loop_window import MainWindow as SimpleLoopWindow
-from testbed.widget.speckle_calibration_window import MainWindow as SpeckleCalibrationWindow
-from testbed.widget.speckle_nulling_window import MainWindow as SpeckleNullingWindow
+from testbed.widget.simple_loop_window import ProcessWindow as SimpleLoopWindow
+from testbed.widget.speckle_calibration_window import ProcessWindow as SpeckleCalibrationWindow
+from testbed.widget.speckle_nulling_window import ProcessWindow as SpeckleNullingWindow
 
 from testbed.widget.dialog import MessageDialog
 from testbed.widget.resource import ICON_EYE, ICON_GEAR, ICON_INFO, ICON_PLAY, ICON_PAUSE

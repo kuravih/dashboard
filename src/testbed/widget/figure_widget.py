@@ -10,7 +10,7 @@ from pykato.log import setup_logger
 from matplotlib.figure import Figure
 from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.backends.backend_qtagg import NavigationToolbar2QT
-from matplotlib.gridspec import GridSpec, GridSpecFromSubplotSpec
+from matplotlib.gridspec import GridSpecFromSubplotSpec
 from matplotlib.axes import Axes
 from matplotlib.image import AxesImage
 from matplotlib.axis import Axis
@@ -248,18 +248,19 @@ class AmpModulationFigureWidget(FigureWidget):
         self.figure.get_axes()[0].set_ylabel("Intensity", size=10)
 
 
-class SpeckleNullFigureWidget(FigureWidget):
+class SpeckleNullingFigureWidget(FigureWidget):
 
-    def __init__(self, source_blank: np.ndarray, sink_blank: np.ma.MaskedArray, phs_array: np.ndarray, amp_array: np.ndarray, toolbar: bool = False, parent=None):
+    def __init__(self, capture: np.ndarray, command: np.ndarray, phs_array: np.ndarray, amp_array: np.ndarray, toolbar: bool = False, parent=None):
 
-        figure = plt.figure()
-
-        gs1 = GridSpec(nrows=3, ncols=1, height_ratios=(1, 0.2, 0.2), hspace=0.5, figure=figure)
+        super().__init__(GridSpec_Layout(nrows=3, ncols=1, height_ratios=(1, 0.2, 0.2), hspace=0.5), toolbar, parent)
 
         cmap_snk = plt.cm.viridis.copy()
         cmap_snk.set_bad(color="black")
 
-        self._plot_ax_phs = figure.add_subplot(gs1[1])
+        _image_axes, self._plot_ax_phs, self._plot_ax_amp = self.figure.get_axes()
+        _image_axes.remove()
+
+        # self._plot_ax_phs = self.figure.add_subplot(gs1[1])
         self._plot_ax_phs.set_title("Phase modulation", size=10)
         self._plot_ax_phs.set_xlabel("Phase", size=10)
         self._plot_ax_phs.set_ylabel("Intensity", size=10)
@@ -270,7 +271,7 @@ class SpeckleNullFigureWidget(FigureWidget):
         (self._phs_fit_plot,) = self._plot_ax_phs.plot(self.phs_fit_x_data, self.phs_fit_x_data * np.nan, color="red")
         self._speck_phs = self._plot_ax_phs.axvline(np.nan, color="red")
 
-        self._plot_ax_amp = figure.add_subplot(gs1[2])
+        # self._plot_ax_amp = self.figure.add_subplot(gs1[2])
         self._plot_ax_amp.set_title("Amplitude modulation", size=10)
         self._plot_ax_amp.set_xlabel("Amplitude", size=10)
         self._plot_ax_amp.set_ylabel("Intensity", size=10)
@@ -281,76 +282,69 @@ class SpeckleNullFigureWidget(FigureWidget):
         (self._amp_fit_plot,) = self._plot_ax_amp.plot(self.amp_fit_x_data, self.amp_fit_x_data * np.nan, color="red")
         self._speck_amp = self._plot_ax_amp.axvline(np.nan, color="red")
 
+        gs1 = self.figure.get_gridspec()
         gs2 = GridSpecFromSubplotSpec(nrows=1, ncols=2, subplot_spec=gs1[0])
 
         cmap_snk = plt.cm.viridis.copy()
         cmap_snk.set_bad(color="black")
 
-        imshow_ax_sink = figure.add_subplot(gs2[0])
-        imshow_ax_sink.axhline(sink_blank.shape[0] / 2 - 0.5, alpha=0.25, linewidth=0.5, color="white")
-        imshow_ax_sink.axvline(sink_blank.shape[1] / 2 - 0.5, alpha=0.25, linewidth=0.5, color="white")
-        self._imshow_image_sink = imshow_ax_sink.imshow(sink_blank, cmap=cmap_snk)
+        imshow_ax_sink = self.figure.add_subplot(gs2[0])
+        imshow_ax_sink.axhline(command.shape[0] / 2 - 0.5, alpha=0.25, linewidth=0.5, color="white")
+        imshow_ax_sink.axvline(command.shape[1] / 2 - 0.5, alpha=0.25, linewidth=0.5, color="white")
+        self._imshow_image_sink = imshow_ax_sink.imshow(command, cmap=cmap_snk)
         self._imshow_image_sink.set_clim(0, 2**16 - 1)
         imshow_ax_sink.invert_yaxis()
 
         divider_sink = make_axes_locatable(imshow_ax_sink)
 
         self._colorbar_ax_sink = divider_sink.append_axes("right", size="5%", pad=0.1)
-        figure.colorbar(self._imshow_image_sink, cax=self._colorbar_ax_sink)
+        self.figure.colorbar(self._imshow_image_sink, cax=self._colorbar_ax_sink)
 
-        imshow_ax_source = figure.add_subplot(gs2[1])
-        self._imshow_image_source = imshow_ax_source.imshow(source_blank, cmap=cmap_snk)
-        self._imshow_image_source_mask = imshow_ax_source.imshow(source_blank * 0.0, cmap="gray")
+        imshow_ax_source = self.figure.add_subplot(gs2[1])
+        self._imshow_image_source = imshow_ax_source.imshow(capture, cmap=cmap_snk)
+        self._imshow_image_source_mask = imshow_ax_source.imshow(capture * 0.0, cmap="gray")
         self._imshow_image_source.set_clim(0, 2**16 - 1)
         imshow_ax_source.invert_yaxis()
 
         divider_source = make_axes_locatable(imshow_ax_source)
 
         self._colorbar_ax_source = divider_source.append_axes("right", size="5%", pad=0.1)
-        figure.colorbar(self._imshow_image_source, cax=self._colorbar_ax_source)
+        self.figure.colorbar(self._imshow_image_source, cax=self._colorbar_ax_source)
 
         plot_axes = [self._plot_ax_phs, self._plot_ax_amp]
         imshow_axes = [imshow_ax_sink, imshow_ax_source]
         imshow_images = [self._imshow_image_sink, self._imshow_image_source]
         colorbar_axes = [self._colorbar_ax_sink, self._colorbar_ax_source]
 
-        # -----------------------------------------------------------------------------------------------------------------
-        def _get_images() -> List[AxesImage]:
+        self.setMinimumHeight(512)
+
+        # -------------------------------------------------------------------------------------------------------------
+        def _get_images() -> list[AxesImage]:
             return imshow_images
 
-        figure.get_images = _get_images
-        # -----------------------------------------------------------------------------------------------------------------
+        self.figure.get_images = _get_images
+        # -------------------------------------------------------------------------------------------------------------
 
-        # -----------------------------------------------------------------------------------------------------------------
-        def _get_imshow_axes() -> List[Axes]:
+        # -------------------------------------------------------------------------------------------------------------
+        def _get_imshow_axes() -> list[Axes]:
             return imshow_axes
 
-        figure.get_imshow_axes = _get_imshow_axes
-        # -----------------------------------------------------------------------------------------------------------------
+        self.figure.get_imshow_axes = _get_imshow_axes
+        # -------------------------------------------------------------------------------------------------------------
 
-        # -----------------------------------------------------------------------------------------------------------------
-        def _get_plot_axes() -> List[Axes]:
+        # -------------------------------------------------------------------------------------------------------------
+        def _get_plot_axes() -> list[Axes]:
             return plot_axes
 
-        figure.get_plot_axes = _get_plot_axes
-        # -----------------------------------------------------------------------------------------------------------------
+        self.figure.get_plot_axes = _get_plot_axes
+        # -------------------------------------------------------------------------------------------------------------
 
-        # -----------------------------------------------------------------------------------------------------------------
-        def _get_cbar_axes() -> List[Axis]:
+        # -------------------------------------------------------------------------------------------------------------
+        def _get_cbar_axes() -> list[Axis]:
             return colorbar_axes
 
-        figure.get_cbar_axes = _get_cbar_axes
-        # -----------------------------------------------------------------------------------------------------------------
-
-        # -----------------------------------------------------------------------------------------------------------------
-        def _close():
-            plt.close(figure)
-
-        figure.close = _close
-        # -----------------------------------------------------------------------------------------------------------------
-
-        super().__init__(figure, toolbar, parent)
-        self.setMinimumHeight(512)
+        self.figure.get_cbar_axes = _get_cbar_axes
+        # -------------------------------------------------------------------------------------------------------------
 
     @property
     def snk_image(self):

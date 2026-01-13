@@ -9,7 +9,7 @@ from PySide6.QtGui import QIcon, QCursor
 from ..device import Device, Stream
 from ..device.camera import Camera
 from ..device.modulator import Modulator
-from ..widget.figure_widget import FigureWidget, SourceFigureWidget, WavefrontFigureWidget, ModulatorFigureWidget, PhaseModulationFigureWidget, AmpModulationFigureWidget, SpeckleNullFigureWidget
+from ..widget.figure_widget import FigureWidget, SourceFigureWidget, WavefrontFigureWidget, ModulatorFigureWidget, PhaseModulationFigureWidget, AmpModulationFigureWidget, SpeckleNullingFigureWidget
 from ..widget.resource import ICON_RUN, ICON_STEP_FORWARD, ICON_PAUSE, ICON_UNPAUSE, ICON_DISK, ICON_STOP, ICON_PRINT, ICON_EYE, ICON_UP_ARROW, ICON_DOWN_ARROW, ICON_LEFT_ARROW, ICON_RIGHT_ARROW, ICON_INFO, ICON_GEAR, ICON_SUN
 from ..function import Rotation, Flip
 
@@ -773,20 +773,20 @@ class TaskControlsWidget(QWidget):
 
         self.progressbar = ProgressBar(self)
 
-        self.preview_button = QPushButton(QIcon(ICON_SUN), "", parent=self)
+        self.preview_button = QPushButton(QIcon(ICON_EYE), "", parent=self)
         self.preview_button.setFixedWidth(self.preview_button.sizeHint().height())
         self.preview_button.setToolTip("Preview")
         self.preview_button.setEnabled(False)
 
-        self.result_button = QPushButton(QIcon(ICON_EYE), "", parent=self)
-        self.result_button.setFixedWidth(self.play_pause_button.sizeHint().height())
-        self.result_button.setToolTip("Result")
-        self.result_button.setEnabled(False)
+        self.info_button = QPushButton(QIcon(ICON_INFO), "", parent=self)
+        self.info_button.setFixedWidth(self.play_pause_button.sizeHint().height())
+        self.info_button.setToolTip("Result")
+        self.info_button.setEnabled(False)
 
         layout = QHBoxLayout()
         layout.addWidget(self.play_pause_button)
         layout.addWidget(self.progressbar, stretch=1)
-        layout.addWidget(self.result_button)
+        layout.addWidget(self.info_button)
         layout.addWidget(self.preview_button)
         layout.addStretch()
 

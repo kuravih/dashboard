@@ -1,36 +1,37 @@
-import numpy as np
 import pickle
-from PySide6.QtGui import QIcon
-from PySide6.QtWidgets import QFileDialog, QMessageBox, QVBoxLayout, QWidget, QLabel, QSpinBox, QHBoxLayout, QCheckBox, QGridLayout, QLineEdit, QPushButton
-from PySide6.QtCore import Slot, Qt, QFileInfo, QTimer, Signal
 
+import numpy as np
+from pykato.function import chord, timestamp_string
 from pykato.log import setup_logger
-from pykato.function import timestamp_string, chord
+from PySide6.QtCore import QFileInfo, Qt, QTimer, Signal, Slot
+from PySide6.QtGui import QIcon
+from PySide6.QtWidgets import QCheckBox, QFileDialog, QGridLayout, QHBoxLayout, QLabel, QLineEdit, QMessageBox, QPushButton, QSpinBox, QVBoxLayout, QWidget
 
 import testbed
-from ..device.camera import Camera
-from .camera_window import PreviewWindow as CameraPreviewWindow, InfoWindow as CameraInfoWindow, SettingsWindow as CameraSettingsWindow
+from testbed.device import SinkSample
 
-from ..device.modulator import Modulator
-from .modulator_window import PreviewWindow as ModulatorPreviewWindow, InfoWindow as ModulatorInfoWindow, SettingsWindow as ModulatorSettingsWindow
-
-from ..worker.speckle_nulling_worker import MainWorker
-from ..worker.storage_worker import SinkStorageWorker, SourceStorageWorker
-
-from . import DevicesSetupWidget, TaskControlsWidget, Window
-from .resource import ICON_RUN, ICON_PAUSE, ICON_FOLDER, ICON_BACKSPACE
-from . import LinspaceWidget
-from .dialog import MessageDialog
-from .figure_widget import ContrastFigureWidget, SpeckleNullFigureWidget
-
+from ..device.camera import Camera, SourceSample
+from ..device.modulator import Modulator, SinkSample
 from ..function import is_speckle_calibration_file_valid
+from ..worker.speckle_nulling_worker import ProcessWorker
+from ..worker.storage_worker import SinkStorageWorker, SourceStorageWorker
+from . import DevicesSetupWidget, LinspaceWidget, TaskControlsWidget, Window
+from .camera_window import InfoWindow as CameraInfoWindow
+from .camera_window import PreviewWindow as CameraPreviewWindow
+from .camera_window import SettingsWindow as CameraSettingsWindow
+from .dialog import MessageDialog
+from .figure_widget import ContrastFigureWidget, SpeckleNullingFigureWidget
+from .modulator_window import InfoWindow as ModulatorInfoWindow
+from .modulator_window import PreviewWindow as ModulatorPreviewWindow
+from .modulator_window import SettingsWindow as ModulatorSettingsWindow
+from .resource import ICON_BACKSPACE, ICON_FOLDER, ICON_PAUSE, ICON_RUN
 
 _PROCESS_ = testbed.SPECKLE_NULLING
 
 logger = setup_logger(f"{_PROCESS_}_window", terminator="\n")
 
 
-class MainSettingsWidget(QWidget):
+class ProcessSettingsWidget(QWidget):
     """
     Speckle Nulling Process Settings
     """
@@ -207,20 +208,80 @@ class MainSettingsWidget(QWidget):
         return self._amp_steps.value()
 
 
-class ResultWindow(Window):
+class InfoWindow(Window):
     """
     Speckle Nulling Contrast Window
     """
 
-    def __init__(self, source: Camera, sink: Modulator, mask: np.ndarray, parent: QWidget | None = None):
+    def __init__(self, source_sample: SourceSample, sink_sample: SinkSample, phs_array: np.ndarray, amp_array: np.ndarray, mask: np.ndarray | None = None, parent: QWidget | None = None):
         super().__init__(parent, Qt.WindowType.Dialog)
-        self._source = source
-        self._sink = sink
+        self.source_sample = source_sample
+        self.sink_sample = sink_sample
+        self.phs_array = phs_array
+        self.amp_array = amp_array
+        self.mask = mask
 
+        self.setWindowTitle("Speckle Nulling")
+
+        layout = QVBoxLayout()
+        layout.setContentsMargins(2, 2, 2, 2)
+        layout.addWidget(self.setup_preview_widget())
+        self.setLayout(layout)
+
+        self.update_timer = QTimer(self)
+        self.update_timer.timeout.connect(self.on_update_window)
+        self.update_timer.start(100)  # Update window every 100 ms
+
+    @Slot(SourceSample, SinkSample)
+    def on_new_samples(self, source_sample: SourceSample, sink_sample: SinkSample):
+        self.source_sample = source_sample
+        self.sink_sample = sink_sample
+
+    # @Slot(float, float)
+    # def on_speckle_location(self, speckle_location_x: float, speckle_location_y: float):
+    #     self.preview_figure_widget.figure.get_imshow_ax().axvline(speckle_location_x, alpha=0.5, linewidth=0.5, color="red")
+    #     self.preview_figure_widget.figure.get_imshow_ax().axhline(speckle_location_y, alpha=0.5, linewidth=0.5, color="red")
+
+    # @Slot(float, float)
+    # def on_speckle_parameters(self, frequency: float, angle: float):
+    #     logger.info("frequency = %f, angle = %f", frequency, np.rad2deg(angle))
+
+    def setup_preview_widget(self) -> QWidget:
+        widget = QWidget(self)
+        layout = QVBoxLayout(widget)
+        layout.setContentsMargins(2, 2, 2, 2)
+        widget.setLayout(layout)
+
+        self.preview_figure_widget = SpeckleNullingFigureWidget(self.source_sample.capture, self.sink_sample.command, self.phs_array, self.amp_array, True, self)
+
+        layout.addWidget(self.preview_figure_widget)
+
+        return widget
+
+    @Slot()
+    def on_update_window(self):
+        # self.preview_figure_widget.figure.get_image().set_data(self.measurement)
+        self.preview_figure_widget.figure.canvas.draw_idle()
+
+    def closeEvent(self, event):
+        if self.update_timer.isActive():
+            self.update_timer.stop()
+        self.deleteLater()
+        event.accept()
+
+
+class PreviewWindow(Window):
+    """
+    Speckle Nulling Preview Window
+    """
+
+    def __init__(self, mask: np.ndarray, n_iterations: int, parent: QWidget | None = None):
+        super().__init__(parent, Qt.WindowType.Dialog)
         self._measurement = np.zeros_like(mask)
+        self._contrast = np.zeros(n_iterations)
         self._mask = mask
 
-        self.setWindowTitle("Speckle Nulling Contrast")
+        self.setWindowTitle("Contrast")
 
         layout = QVBoxLayout()
         layout.setContentsMargins(2, 2, 2, 2)
@@ -262,7 +323,7 @@ class ResultWindow(Window):
 
     @Slot()
     def on_update_window(self):
-        self.preview_figure_widget.figure.get_image().set_data(self.measurement)
+        # self.preview_figure_widget.figure.get_image().set_data(self.measurement)
         self.preview_figure_widget.figure.canvas.draw_idle()
 
     def closeEvent(self, event):
@@ -272,72 +333,7 @@ class ResultWindow(Window):
         event.accept()
 
 
-class MainPreviewWindow(Window):
-    """
-    Speckle Nulling Preview Window
-    """
-
-    def __init__(self, source: Camera, sink: Modulator, mask: np.ndarray, parent: QWidget | None = None):
-        super().__init__(parent, Qt.WindowType.Dialog)
-        self._source = source
-        self._sink = sink
-
-        self._measurement = np.zeros_like(mask)
-        self._mask = mask
-
-        self.setWindowTitle("Speckle Nulling Preview")
-
-        layout = QVBoxLayout()
-        layout.setContentsMargins(2, 2, 2, 2)
-        layout.addWidget(self.setup_preview_widget())
-        self.setLayout(layout)
-
-        self.update_timer = QTimer(self)
-        self.update_timer.timeout.connect(self.on_update_window)
-        self.update_timer.start(100)  # Update window every 100 ms
-
-    @Slot(np.ndarray)
-    def on_measurement(self, _measurement: np.ndarray):
-        self._measurement = _measurement
-
-    @Slot(float, float)
-    def on_speckle_location(self, speckle_location_x: float, speckle_location_y: float):
-        self.preview_figure_widget.figure.get_imshow_ax().axvline(speckle_location_x, alpha=0.5, linewidth=0.5, color="red")
-        self.preview_figure_widget.figure.get_imshow_ax().axhline(speckle_location_y, alpha=0.5, linewidth=0.5, color="red")
-
-    @Slot(float, float)
-    def on_speckle_parameters(self, frequency: float, angle: float):
-        logger.info("frequency = %f, angle = %f", frequency, np.rad2deg(angle))
-
-    @property
-    def measurement(self) -> np.ndarray:
-        return self._measurement
-
-    def setup_preview_widget(self) -> QWidget:
-        widget = QWidget(self)
-        layout = QVBoxLayout(widget)
-        layout.setContentsMargins(2, 2, 2, 2)
-        widget.setLayout(layout)
-        
-        self.preview_figure_widget = SpeckleNullFigureWidget(source_blank: np.ndarray, sink_blank: np.ma.MaskedArray, phs_array: np.ndarray, amp_array: np.ndarray, toolbar: bool = False, parent=None):
-
-        layout.addWidget(self.preview_figure_widget)
-
-        return widget
-
-    @Slot()
-    def on_update_window(self):
-        self.preview_figure_widget.figure.get_image().set_data(self.measurement)
-        self.preview_figure_widget.figure.canvas.draw_idle()
-
-    def closeEvent(self, event):
-        if self.update_timer.isActive():
-            self.update_timer.stop()
-        self.deleteLater()
-        event.accept()
-
-
-class MainWindow(Window):
+class ProcessWindow(Window):
     """
     Speckle Nulling Process Window
     """
@@ -375,13 +371,16 @@ class MainWindow(Window):
         self.devices_widget.source_settings_button.setEnabled(True)
         self.devices_widget.source_preview_button.setEnabled(True)
         self._source = _device
+        preview_window_id = f"{_device.name}_preview_window"
+        if preview_window_id in testbed.data.windows:
+            testbed.data.windows.pop(preview_window_id).close()
         self.open_device_preview_window(_device)
         self.devices_widget.source_info_button.clicked.connect(lambda _, _device=_device: self.open_device_info_window(_device))
         self.devices_widget.source_settings_button.clicked.connect(lambda _, _device=_device: self.open_device_settings_window(_device))
         self.devices_widget.source_preview_button.clicked.connect(lambda _, _device=_device: self.open_device_preview_window(_device))
         if self._source is not None and self._sink is not None:
             self.controls_widget.preview_button.setEnabled(True)
-            self.controls_widget.result_button.setEnabled(True)
+            self.controls_widget.info_button.setEnabled(True)
             self.settings_widget.dark_hole_mask = chord(self._source.shape, self._source.shape[0] * 7 / 16, 0.65)
             if self.settings_widget.speckle_calibration is not None:
                 self.controls_widget.play_pause_button.setEnabled(True)
@@ -392,18 +391,20 @@ class MainWindow(Window):
         self.devices_widget.sink_settings_button.setEnabled(True)
         self.devices_widget.sink_preview_button.setEnabled(True)
         self._sink = _device
+        preview_window_id = f"{_device.name}_preview_window"
+        if preview_window_id in testbed.data.windows:
+            testbed.data.windows.pop(preview_window_id).close()
         self.open_device_preview_window(_device)
         self.devices_widget.sink_info_button.clicked.connect(lambda _, _device=_device: self.open_device_info_window(_device))
         self.devices_widget.sink_settings_button.clicked.connect(lambda _, _device=_device: self.open_device_settings_window(_device))
         self.devices_widget.sink_preview_button.clicked.connect(lambda _, _device=_device: self.open_device_preview_window(_device))
         if self._source is not None and self._sink is not None:
             self.controls_widget.preview_button.setEnabled(True)
-            self.controls_widget.result_button.setEnabled(True)
+            self.controls_widget.info_button.setEnabled(True)
             if self.settings_widget.speck_calibration is not None:
                 self.controls_widget.play_pause_button.setEnabled(True)
 
     def open_device_info_window(self, _device: Camera | Modulator):
-
         info_window_id = f"{_device.name}_info_window"
 
         @Slot()
@@ -425,7 +426,6 @@ class MainWindow(Window):
             testbed.data.windows[info_window_id] = info_window
 
     def open_device_settings_window(self, _device: Camera | Modulator):
-
         settings_window_id = f"{_device.name}_settings_window"
 
         @Slot()
@@ -447,7 +447,6 @@ class MainWindow(Window):
             testbed.data.windows[settings_window_id] = settings_window
 
     def open_device_preview_window(self, _device: Camera | Modulator):
-
         preview_window_id = f"{_device.name}_preview_window"
 
         def close_window():
@@ -504,7 +503,7 @@ class MainWindow(Window):
         sink_storage_worker_id = f"{_PROCESS_}_sink_storage_worker"
         source_preview_window_id = f"{self.source.name}_preview_window"
         sink_preview_window_id = f"{self.sink.name}_preview_window"
-        main_preview_window_id = f"{_PROCESS_}_preview_window"
+        process_preview_window_id = f"{_PROCESS_}_preview_window"
         contrast_window_id = f"{_PROCESS_}_contrast_window"
 
         if worker_id in testbed.data.workers:  # an update worker is in progress
@@ -529,7 +528,7 @@ class MainWindow(Window):
         else:
             self.controls_widget.progressbar.setMaximum(self.settings_widget.n_iterations)
 
-        worker = MainWorker(self.source, self.sink, self.settings_widget.dark_hole_mask, self.settings_widget.speckle_calibration, self.settings_widget.phs_array, self.settings_widget.amp_array, self.settings_widget.n_iterations)
+        worker = ProcessWorker(self.source, self.sink, self.settings_widget.dark_hole_mask, self.settings_widget.speckle_calibration, self.settings_widget.phs_array, self.settings_widget.amp_array, self.settings_widget.n_iterations)
         worker.signals.progress.connect(self.on_progress)
         worker.signals.finished.connect(self.on_finish)
 
@@ -557,44 +556,43 @@ class MainWindow(Window):
             worker.signals.new_source_sample.connect(testbed.data.windows[source_preview_window_id].on_new_sample)
         if sink_preview_window_id in testbed.data.windows:
             worker.signals.new_sink_sample.connect(testbed.data.windows[sink_preview_window_id].on_new_sample)
-        if main_preview_window_id in testbed.data.windows:
-            worker.signals.speckle_location.connect(testbed.data.windows[main_preview_window_id].on_speckle_location)
-            worker.signals.speckle_parameters.connect(testbed.data.windows[main_preview_window_id].on_speckle_parameters)
-            worker.signals.measurement.connect(testbed.data.windows[main_preview_window_id].on_measurement)
+        if process_preview_window_id in testbed.data.windows:
+            worker.signals.speckle_location.connect(testbed.data.windows[process_preview_window_id].on_speckle_location)
+            worker.signals.speckle_parameters.connect(testbed.data.windows[process_preview_window_id].on_speckle_parameters)
+            worker.signals.measurement.connect(testbed.data.windows[process_preview_window_id].on_measurement)
 
         testbed.data.workers[worker_id] = worker
         testbed.data.threadpool.start(worker)
 
-    def open_preview_window(self):
-
-        main_preview_window_id = f"{_PROCESS_}_preview_window"
+    def open_process_preview_window(self):
+        process_preview_window_id = f"{_PROCESS_}_preview_window"
 
         @Slot()
         def close_window():
-            testbed.data.windows.pop(main_preview_window_id, None)
+            testbed.data.windows.pop(process_preview_window_id, None)
 
-        if main_preview_window_id not in testbed.data.windows and self._source is not None and self._sink is not None:
-            main_preview_window = MainPreviewWindow(self._source, self._sink, self.settings_widget.dark_hole_mask, parent=self)
+        if process_preview_window_id not in testbed.data.windows and self._source is not None and self._sink is not None:
+            main_preview_window = PreviewWindow(self.settings_widget.dark_hole_mask, self.settings_widget.n_iterations, parent=self)
             main_preview_window.destroyed.connect(close_window)
             main_preview_window.show()
             main_preview_window.raise_()
             main_preview_window.activateWindow()
-            testbed.data.windows[main_preview_window_id] = main_preview_window
+            testbed.data.windows[process_preview_window_id] = main_preview_window
 
-    def open_contrast_window(self):
-        proc_contrast_window_id = f"{_PROCESS_}_contrast_window"
+    def open_info_window(self):
+        info_window_id = f"{_PROCESS_}_contrast_window"
 
         @Slot()
         def close_window():
-            testbed.data.windows.pop(proc_contrast_window_id, None)
+            testbed.data.windows.pop(info_window_id, None)
 
-        if proc_contrast_window_id not in testbed.data.windows and self._source is not None and self._sink is not None:
-            proc_contrast_window = ResultWindow(self._source, self._sink, self.settings_widget.dark_hole_mask, parent=self)
+        if info_window_id not in testbed.data.windows and self._source is not None and self._sink is not None:
+            proc_contrast_window = InfoWindow(self._source.sample, self._sink.sample, self.settings_widget.phs_array, self.settings_widget.amp_array, self.settings_widget.dark_hole_mask, parent=self)
             proc_contrast_window.destroyed.connect(close_window)
             proc_contrast_window.show()
             proc_contrast_window.raise_()
             proc_contrast_window.activateWindow()
-            testbed.data.windows[proc_contrast_window_id] = proc_contrast_window
+            testbed.data.windows[info_window_id] = proc_contrast_window
 
     def setup_main_widget(self) -> QWidget:
         widget = QWidget(self)
@@ -605,14 +603,14 @@ class MainWindow(Window):
         self.devices_widget.source_changed.connect(self.on_source_change)
         self.devices_widget.sink_changed.connect(self.on_sink_change)
 
-        self.settings_widget = MainSettingsWidget(self)
+        self.settings_widget = ProcessSettingsWidget(self)
         self.settings_widget.calibration_changed.connect(self.on_calibration_change)
 
         self.controls_widget = TaskControlsWidget(self)
         self.controls_widget.play_pause_button.setEnabled(False)
         self.controls_widget.play_pause_button.clicked.connect(self.on_start_stop)
-        self.controls_widget.preview_button.clicked.connect(self.open_preview_window)
-        self.controls_widget.result_button.clicked.connect(self.open_contrast_window)
+        self.controls_widget.info_button.clicked.connect(self.open_info_window)
+        self.controls_widget.preview_button.clicked.connect(self.open_process_preview_window)
 
         layout.addWidget(self.devices_widget)
         layout.addWidget(self.settings_widget)
@@ -622,19 +620,19 @@ class MainWindow(Window):
         return widget
 
     def closeEvent(self, event):
-        if self.source is not None:
-            source_preview_window_id = f"{self.source.name}_preview_window"
-            if source_preview_window_id in testbed.data.windows:
-                logger.info("Cannot close main window until preview windows are closed.")
-                event.ignore()
-                return
+        # if self.source is not None:
+        #     source_preview_window_id = f"{self.source.name}_preview_window"
+        #     if source_preview_window_id in testbed.data.windows:
+        #         logger.info("Cannot close main window until preview windows are closed.")
+        #         event.ignore()
+        #         return
 
-        if self.sink is not None:
-            sink_preview_window_id = f"{self.sink.name}_preview_window"
-            if sink_preview_window_id in testbed.data.windows:
-                logger.info("Cannot close main window until preview windows are closed.")
-                event.ignore()
-                return
+        # if self.sink is not None:
+        #     sink_preview_window_id = f"{self.sink.name}_preview_window"
+        #     if sink_preview_window_id in testbed.data.windows:
+        #         logger.info("Cannot close main window until preview windows are closed.")
+        #         event.ignore()
+        #         return
 
         while testbed.data.workers:
             key, worker = testbed.data.workers.popitem()

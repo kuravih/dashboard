@@ -16,15 +16,15 @@ _PROCESS_ = testbed.SIMPLE_LOOP
 logger = setup_logger(f"{_PROCESS_}_worker", terminator="\n")
 
 
-class MainWorkerSignals(WorkerSignals):
+class ProcessWorkerSignals(WorkerSignals):
     new_source_sample = Signal(SourceSample)
     new_sink_sample = Signal(SinkSample)
 
 
-class MainWorker(Worker):
+class ProcessWorker(Worker):
     def __init__(self, _source: Camera, _sink: Modulator, n_steps: int | None = None):
         super().__init__()
-        self.signals = MainWorkerSignals()
+        self.signals = ProcessWorkerSignals()
         self._source = _source
         self._sink = _sink
         self._n_steps = n_steps
@@ -47,7 +47,7 @@ class MainWorker(Worker):
         self.signals.progress.emit(i_step, time.time() - t_start)
         # ---- blank --------------------------------------------------------------------------------------------------
 
-        logger.info("%s and %s MainWorker.run : step %s of %s", self._source.name, self._sink.name, i_step, self._n_steps)
+        logger.info("%s and %s ProcessWorker.run : step %s of %s", self._source.name, self._sink.name, i_step, self._n_steps)
 
         while ((self._n_steps is None) or (self._n_steps > i_step)) and self._running:
             command = self._sink.pxmax * np.clip(text(self._sink.shape, f"{i_step:02d}", font_size=150), 0, 1)
@@ -61,7 +61,7 @@ class MainWorker(Worker):
             i_step = i_step + 1
             self.signals.progress.emit(i_step, time.time() - t_start)
 
-            logger.info("%s and %s MainWorker.run : step %s of %s", self._source.name, self._sink.name, i_step, self._n_steps)
+            logger.info("%s and %s ProcessWorker.run : step %s of %s", self._source.name, self._sink.name, i_step, self._n_steps)
 
         self.signals.finished.emit()
 

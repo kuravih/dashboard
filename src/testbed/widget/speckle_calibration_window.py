@@ -1,32 +1,33 @@
-import numpy as np
 import pickle
-from PySide6.QtGui import QIcon
-from PySide6.QtWidgets import QVBoxLayout, QWidget, QLabel, QGridLayout, QDoubleSpinBox
-from PySide6.QtCore import Slot, Qt
 
-from pykato.log import setup_logger
+import numpy as np
 from pykato.function import timestamp_string
+from pykato.log import setup_logger
+from PySide6.QtCore import Qt, Slot
+from PySide6.QtGui import QIcon
+from PySide6.QtWidgets import QDoubleSpinBox, QGridLayout, QLabel, QVBoxLayout, QWidget
 
 import testbed
+
 from ..device.camera import Camera
-from .camera_window import PreviewWindow as CameraPreviewWindow, InfoWindow as CameraInfoWindow, SettingsWindow as CameraSettingsWindow
-
 from ..device.modulator import Modulator
-from .modulator_window import PreviewWindow as ModulatorPreviewWindow, InfoWindow as ModulatorInfoWindow, SettingsWindow as ModulatorSettingsWindow
-
-from ..worker.speckle_calibration_worker import MainWorker
+from ..worker.speckle_calibration_worker import ProcessWorker
 from ..worker.storage_worker import SinkStorageWorker, SourceStorageWorker
-
-from . import DevicesSetupWidget, TaskControlsWidget, Window
-from .resource import ICON_RUN, ICON_PAUSE
-from . import LinspaceWidget
+from . import DevicesSetupWidget, LinspaceWidget, TaskControlsWidget, Window
+from .camera_window import InfoWindow as CameraInfoWindow
+from .camera_window import PreviewWindow as CameraPreviewWindow
+from .camera_window import SettingsWindow as CameraSettingsWindow
+from .modulator_window import InfoWindow as ModulatorInfoWindow
+from .modulator_window import PreviewWindow as ModulatorPreviewWindow
+from .modulator_window import SettingsWindow as ModulatorSettingsWindow
+from .resource import ICON_PAUSE, ICON_RUN
 
 _PROCESS_ = testbed.SPECKLE_CALIBRATION
 
 logger = setup_logger(f"{_PROCESS_}_window", terminator="\n")
 
 
-class MainSettingsWidget(QWidget):
+class ProcessSettingsWidget(QWidget):
     """
     Speckle Calibration Process Settings
     """
@@ -105,7 +106,7 @@ class MainSettingsWidget(QWidget):
         return self.angles_array.size * self.freqs_array.size * self.phases_array.size + 1  # include blank
 
 
-class MainWindow(Window):
+class ProcessWindow(Window):
     """
     Speckle Calibration Process Window
     """
@@ -135,6 +136,9 @@ class MainWindow(Window):
         self.devices_widget.source_settings_button.setEnabled(True)
         self.devices_widget.source_preview_button.setEnabled(True)
         self._source = _device
+        preview_window_id = f"{_device.name}_preview_window"
+        if preview_window_id in testbed.data.windows:
+            testbed.data.windows.pop(preview_window_id).close()
         self.open_device_preview_window(_device)
         self.devices_widget.source_info_button.clicked.connect(lambda _, _device=_device: self.open_device_info_window(_device))
         self.devices_widget.source_settings_button.clicked.connect(lambda _, _device=_device: self.open_device_settings_window(_device))
@@ -148,6 +152,9 @@ class MainWindow(Window):
         self.devices_widget.sink_settings_button.setEnabled(True)
         self.devices_widget.sink_preview_button.setEnabled(True)
         self._sink = _device
+        preview_window_id = f"{_device.name}_preview_window"
+        if preview_window_id in testbed.data.windows:
+            testbed.data.windows.pop(preview_window_id).close()
         self.open_device_preview_window(_device)
         self.devices_widget.sink_info_button.clicked.connect(lambda _, _device=_device: self.open_device_info_window(_device))
         self.devices_widget.sink_settings_button.clicked.connect(lambda _, _device=_device: self.open_device_settings_window(_device))
@@ -157,7 +164,6 @@ class MainWindow(Window):
             self.controls_widget.play_pause_button.setEnabled(True)
 
     def open_device_info_window(self, _device: Camera | Modulator):
-
         info_window_id = f"{_device.name}_info_window"
 
         @Slot()
@@ -179,7 +185,6 @@ class MainWindow(Window):
             testbed.data.windows[info_window_id] = info_window
 
     def open_device_settings_window(self, _device: Camera | Modulator):
-
         settings_window_id = f"{_device.name}_settings_window"
 
         @Slot()
@@ -201,7 +206,6 @@ class MainWindow(Window):
             testbed.data.windows[settings_window_id] = settings_window
 
     def open_device_preview_window(self, _device: Camera | Modulator):
-
         preview_window_id = f"{_device.name}_preview_window"
 
         @Slot()
@@ -280,7 +284,7 @@ class MainWindow(Window):
 
         self.controls_widget.progressbar.setMaximum(self.settings_widget.n_steps)
 
-        worker = MainWorker(self.source, self.sink, self.settings_widget.amplitude, self.settings_widget.freqs_array, self.settings_widget.angles_array, self.settings_widget.phases_array)
+        worker = ProcessWorker(self.source, self.sink, self.settings_widget.amplitude, self.settings_widget.freqs_array, self.settings_widget.angles_array, self.settings_widget.phases_array)
         worker.signals.progress.connect(self.on_progress)
         worker.signals.finished.connect(self.on_finish)
 
@@ -323,13 +327,13 @@ class MainWindow(Window):
         self.devices_widget.source_changed.connect(self.on_source_change)
         self.devices_widget.sink_changed.connect(self.on_sink_change)
 
-        self.settings_widget = MainSettingsWidget(self)
+        self.settings_widget = ProcessSettingsWidget(self)
 
         self.controls_widget = TaskControlsWidget(self)
         self.controls_widget.play_pause_button.setEnabled(False)
         self.controls_widget.play_pause_button.clicked.connect(self.on_start_stop)
         self.controls_widget.preview_button.hide()
-        self.controls_widget.result_button.hide()
+        self.controls_widget.info_button.hide()
 
         layout.addWidget(self.devices_widget)
         layout.addWidget(self.settings_widget)
