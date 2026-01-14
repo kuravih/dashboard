@@ -1,6 +1,8 @@
-from PySide6.QtWidgets import QWidget, QVBoxLayout, QLabel, QRadioButton, QSpacerItem, QButtonGroup, QSizePolicy, QGridLayout, QHBoxLayout, QPushButton
+from PySide6.QtWidgets import QWidget, QVBoxLayout, QLabel, QRadioButton, QSpacerItem, QButtonGroup, QSizePolicy, QGridLayout, QHBoxLayout, QPushButton, QCheckBox, QComboBox
 from PySide6.QtCore import Slot, QTimer, Qt
 from PySide6.QtGui import QIcon
+from matplotlib import colormaps
+from matplotlib.colors import LogNorm, Normalize
 
 from pykato.log import setup_logger
 from pykato.plotfunction.preset import Histogram_Colorbar_Preset
@@ -13,6 +15,48 @@ from ..widget.resource import ICON_CAMERA
 from ..widget.figure_widget import FigureWidget, SourceFigureWidget
 
 logger = setup_logger("camera_window", terminator="\n")
+
+# ==== PreviewSettingsWindow ==========================================================================================
+class PreviewSettingsWindow(Window):
+    """
+    Preview Settings Window
+    """
+
+    def __init__(self, parent=None):
+        super().__init__(parent, Qt.WindowType.Dialog)
+        self.setWindowModality(Qt.WindowModality.WindowModal)
+        self.setWindowTitle("Preview Settings")
+        layout = QVBoxLayout()
+        layout.setContentsMargins(2, 2, 2, 2)
+        layout.addWidget(self.setup_settings_widget())
+        self.setLayout(layout)
+
+    def setup_settings_widget(self) -> QWidget:
+        widget = QWidget(self)
+        layout = QGridLayout(widget)
+        widget.setLayout(layout)
+
+        scale_label = QLabel("Scale", self)
+        self.log_checkbox = QCheckBox("Log", self)
+        self.log_checkbox.setToolTip("Log Scale")
+
+        cmap_label = QLabel("Colormap", self)
+        self.cmap_combobox = QComboBox(self)
+        self.cmap_combobox.addItems(list(colormaps))
+
+        row = 0
+        col = 0
+        layout.addWidget(scale_label, row, col)
+        col += 1
+        layout.addWidget(self.log_checkbox, row, col)
+
+        row += 1
+        col = 0
+        layout.addWidget(cmap_label, row, col)
+        col += 1
+        layout.addWidget(self.cmap_combobox, row, col)
+
+        return widget
 
 
 # ==== PreviewWindow ==================================================================================================
@@ -34,7 +78,7 @@ class PreviewWindow(Window):
         self.setLayout(layout)
 
         self.update_timer = QTimer(self)
-        self.update_timer.timeout.connect(self.on_update_window)
+        self.update_timer.timeout.connect(self.on_update_timer_tick)
         self.update_timer.start(100)  # Update window every 100 ms
 
     @property
@@ -46,7 +90,7 @@ class PreviewWindow(Window):
         return self._sample
 
     @Slot(SourceSample)
-    def on_new_sample(self, _sample: SourceSample):
+    def on_sampled(self, _sample: SourceSample):
         self._sample = _sample
 
     def setup_preview_widget(self) -> QWidget:
@@ -57,13 +101,34 @@ class PreviewWindow(Window):
 
         self._sample = self.camera.sample
         self.preview_figure_widget = SourceFigureWidget(self.camera.blank, self.camera.pxmax, True, self)
+        self.preview_figure_widget.toolbar.settingsClicked.connect(self.on_preview_settings_clicked)
 
         layout.addWidget(self.preview_figure_widget)
 
         return widget
 
     @Slot()
-    def on_update_window(self):
+    def on_preview_settings_clicked(self):
+        preview_settings_window = PreviewSettingsWindow(self)
+        preview_settings_window.show()
+        preview_settings_window.raise_()
+        preview_settings_window.activateWindow()
+        preview_settings_window.log_checkbox.checkStateChanged.connect(self.on_log_changed)
+        preview_settings_window.cmap_combobox.currentTextChanged.connect(self.on_cmap_changed)
+
+    @Slot(str)
+    def on_cmap_changed(self, colormap: str):
+        self.preview_figure_widget.figure.get_image().set_cmap(colormap)
+
+    @Slot(bool)
+    def on_log_changed(self, checked: bool):
+        if checked:
+            self.preview_figure_widget.figure.get_image().set_norm(LogNorm(vmin=1, vmax=self._camera.pxmax))
+        else:
+            self.preview_figure_widget.figure.get_image().set_norm(Normalize(vmin=1, vmax=self._camera.pxmax))
+
+    @Slot()
+    def on_update_timer_tick(self):
         # self.preview_figure_widget.figure.get_image().set_data(flip_rotate(self.sample.capture, self.camera.flip, self.camera.rotation))
         self.preview_figure_widget.figure.get_image().set_data(self.sample.capture)
         self.preview_figure_widget.figure.canvas.draw_idle()
@@ -94,7 +159,7 @@ class InfoWindow(Window):
         self.setLayout(layout)
 
         self.update_timer = QTimer(self)
-        self.update_timer.timeout.connect(self.on_update_window)
+        self.update_timer.timeout.connect(self.on_update_timer_tick)
         self.update_timer.start(100)  # Update window every 100 ms
 
     @property
@@ -106,7 +171,7 @@ class InfoWindow(Window):
         return self._sample
 
     @Slot(SourceSample)
-    def on_new_sample(self, _sample: SourceSample):
+    def on_sampled(self, _sample: SourceSample):
         self._sample = _sample
 
     def setup_info_widget(self):
@@ -291,8 +356,8 @@ class InfoWindow(Window):
         return widget
 
     @Slot()
-    def on_update_window(self):
-        # logger.info("InfoWindow.on_update_window")
+    def on_update_timer_tick(self):
+        # logger.info("InfoWindow.on_update_timer_tick")
         self.info_last_access_time_value_label.setText(f"{self.sample.last_access_time:%Y-%m-%d %H:%M:%S}.{self.sample.last_access_time:%f}"[:-2])
         self.info_exposure_time_value_label.setText(f"{self.sample.exposure_time_us}")
         self.info_gain_value_label.setText(f"{self.sample.gain}")
@@ -333,7 +398,7 @@ class SettingsWindow(Window):
         return self._sample
 
     @Slot(SourceSample)
-    def on_new_sample(self, _sample: SourceSample):
+    def on_sampled(self, _sample: SourceSample):
         self._sample = _sample
 
     def setup_control_widget(self):
@@ -343,23 +408,23 @@ class SettingsWindow(Window):
 
         # ---- orientation setting ------------------------------------------------------------------------------------
         @Slot(Rotation)
-        def set_camera_rotation(_rotation: Rotation):
+        def on_rotation_changed(_rotation: Rotation):
             self.camera.rotation = _rotation
 
         @Slot(Flip)
-        def set_camera_flip(_flip: Flip):
+        def on_flip_changed(_flip: Flip):
             self.camera.flip = _flip
 
         orientation_label = QLabel("Orientation", self)
         orientation_label.setFixedWidth(100)
         orientation_widget = OrientationWidget(self.camera.rotation, self.camera.flip, self)
-        orientation_widget.rotation_changed.connect(set_camera_rotation)
-        orientation_widget.flip_changed.connect(set_camera_flip)
+        orientation_widget.rotationChanged.connect(on_rotation_changed)
+        orientation_widget.flipChanged.connect(on_flip_changed)
         # ---- orientation setting ------------------------------------------------------------------------------------
 
         # ---- temperature setting ------------------------------------------------------------------------------------
         @Slot(float)
-        def set_temperature(_temperature: float):
+        def on_temperature_set_clicked(_temperature: float):
             reply = self.camera.set_temperature_c(_temperature)
             logger.info("reply = %s", reply)
             temperature_widget.setValue(self.camera.temperature_c)
@@ -372,12 +437,12 @@ class SettingsWindow(Window):
         temperature_widget.spinbox.setDecimals(1)
         temperature_widget.spinbox.setSuffix(" \u00b0C")
         temperature_widget.spinbox.setToolTip("Temperature (\u00b0C)")
-        temperature_widget.value_set.connect(set_temperature)
+        temperature_widget.valueSetClicked.connect(on_temperature_set_clicked)
         # ---- temperature setting ------------------------------------------------------------------------------------
 
         # ---- exposure time setting ----------------------------------------------------------------------------------
         @Slot(int)
-        def set_exposure_time(_expTime: int):
+        def on_exposure_time_set_clicked(_expTime: int):
             reply = self.camera.set_exposure_time_us(_expTime)
             logger.info("reply = %s", reply)
             expTime_widget.setValue(self.camera.exposure_time_us)
@@ -388,12 +453,12 @@ class SettingsWindow(Window):
         expTime_widget.spinbox.setRange(20, 30000000)
         expTime_widget.spinbox.setSuffix(" us")
         expTime_widget.spinbox.setToolTip("Exposure time (us)")
-        expTime_widget.value_set.connect(set_exposure_time)
+        expTime_widget.valueSetClicked.connect(on_exposure_time_set_clicked)
         # ---- exposure time setting ----------------------------------------------------------------------------------
 
         # ---- gain setting -------------------------------------------------------------------------------------------
         @Slot(int)
-        def set_gain(_gain: float):
+        def on_gain_set_clicked(_gain: float):
             reply = self.camera.set_gain(_gain)
             logger.info("reply = %s", reply)
             gain_widget.setValue(self.camera.gain)
@@ -403,12 +468,12 @@ class SettingsWindow(Window):
         gain_widget = DoubleValueSetWidget(self.camera.gain, self)
         gain_widget.spinbox.setRange(20, 30000000)
         gain_widget.spinbox.setToolTip("gain")
-        gain_widget.value_set.connect(set_gain)
+        gain_widget.valueSetClicked.connect(on_gain_set_clicked)
         # ---- gain setting -------------------------------------------------------------------------------------------
 
         # ---- roi setting --------------------------------------------------------------------------------------------
         @Slot(int, int)
-        def move_roi(x: int, y: int):
+        def on_roi_move_clicked(x: int, y: int):
             reply = self.camera.move_roi(x, y)
             logger.info("reply = %s", reply)
             roi_widget.set_roi(self.camera.roi)
@@ -416,7 +481,7 @@ class SettingsWindow(Window):
         roi_label = QLabel("Move ROI", self)
         roi_label.setFixedWidth(100)
         roi_widget = ROIWidget(self.camera.roi, step=8, parent=self)
-        roi_widget.roi_move.connect(move_roi)
+        roi_widget.roiMoveClicked.connect(on_roi_move_clicked)
         # ---- roi setting --------------------------------------------------------------------------------------------
 
         # ---- capture ------------------------------------------------------------------------------------------------
@@ -428,14 +493,14 @@ class SettingsWindow(Window):
         capture_pushbutton.setToolTip("Capture")
 
         @Slot()
-        def capture_callback():
+        def on_capture_clicked():
             timestamp = timestamp_string(frmt="%Y%m%d.%H%M%S", ms=None)
             filename = f"data/output/{timestamp}_capture_source.raw"
             with open(filename, "wb", buffering=0) as _file:
                 write_source_sample_header(_file, self.sample)
                 write_source_sample_data(_file, self.sample)
 
-        capture_pushbutton.clicked.connect(capture_callback)
+        capture_pushbutton.clicked.connect(on_capture_clicked)
         # ---- capture ------------------------------------------------------------------------------------------------
 
         row = 0

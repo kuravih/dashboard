@@ -11,7 +11,7 @@ logger = setup_logger("camera_worker", terminator="\n")
 
 
 class UpdateWorkerSignals(WorkerSignals):
-    new_sample = Signal(SourceSample)
+    sampled = Signal(SourceSample)
 
 
 class UpdateWorker(Worker):
@@ -26,5 +26,5 @@ class UpdateWorker(Worker):
         while self._running:
             time.sleep(0.1)
             # logger.info("%s UpdateWorker.run", self._camera.name)
-            self.signals.new_sample.emit(self._camera.pull_capture())
+            self.signals.sampled.emit(self._camera.pull_capture())
         self.signals.finished.emit()

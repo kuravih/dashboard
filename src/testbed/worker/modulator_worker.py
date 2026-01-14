@@ -1,8 +1,6 @@
 import time
-import numpy as np
 from PySide6.QtCore import Signal, Slot
 
-from pykato.function import preroll
 from pykato.log import setup_logger
 
 from ..device import SinkSample
@@ -13,7 +11,7 @@ logger = setup_logger("modulator_worker", terminator="\n")
 
 
 class UpdateWorkerSignals(WorkerSignals):
-    new_sample = Signal(SinkSample)
+    sampled = Signal(SinkSample)
 
 
 class UpdateWorker(Worker):
@@ -27,4 +25,4 @@ class UpdateWorker(Worker):
         super().run()
         while self._running:
             time.sleep(0.1)
-            self.signals.new_sample.emit(self._modulator.sample)
+            self.signals.sampled.emit(self._modulator.sample)

@@ -44,19 +44,19 @@ class MainWindow(QMainWindow):
         self.table.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
 
         add_device_button = QPushButton("Add Device")
-        add_device_button.clicked.connect(self.add_device_callback)
+        add_device_button.clicked.connect(self.on_add_device_clicked)
 
         remove_device_button = QPushButton("Remove Device")
-        remove_device_button.clicked.connect(self.remove_device_callback)
+        remove_device_button.clicked.connect(self.on_remove_device_clicked)
 
         simple_loop_button = QPushButton("Simple Process")
-        simple_loop_button.clicked.connect(self.open_simple_loop_window)
+        simple_loop_button.clicked.connect(self.on_simple_loop_clicked)
 
         speckle_calibration_button = QPushButton("Speckle Calibration Process")
-        speckle_calibration_button.clicked.connect(self.open_speckle_calibration_window)
+        speckle_calibration_button.clicked.connect(self.open_speckle_calibration_clicked)
 
         speckle_nulling_button = QPushButton("Speckle Nulling Process")
-        speckle_nulling_button.clicked.connect(self.open_speckle_nulling_window)
+        speckle_nulling_button.clicked.connect(self.open_speckle_nulling_clicked)
 
         device_button_layout = QHBoxLayout()
         device_button_layout.addWidget(add_device_button)
@@ -78,7 +78,7 @@ class MainWindow(QMainWindow):
         device_update_worker_id = f"{_device.name}_update_worker"
 
         @Slot()
-        def close_window():
+        def on_window_closed():
             testbed.data.windows.pop(preview_window_id, None)
 
         if preview_window_id not in testbed.data.windows:
@@ -90,14 +90,14 @@ class MainWindow(QMainWindow):
             else:
                 raise ValueError("Invalid device")
 
-            preview_window.destroyed.connect(close_window)
+            preview_window.destroyed.connect(on_window_closed)
             preview_window.show()
             preview_window.raise_()
             preview_window.activateWindow()
             testbed.data.windows[preview_window_id] = preview_window
 
             if device_update_worker_id in testbed.data.workers:
-                testbed.data.workers[device_update_worker_id].signals.new_sample.connect(testbed.data.windows[preview_window_id].on_new_sample)
+                testbed.data.workers[device_update_worker_id].signals.sampled.connect(testbed.data.windows[preview_window_id].on_sampled)
 
     def open_device_info_window(self, _device: Camera | Modulator):
 
@@ -105,7 +105,7 @@ class MainWindow(QMainWindow):
         device_update_worker_id = f"{_device.name}_update_worker"
 
         @Slot()
-        def close_window():
+        def on_window_closed():
             testbed.data.windows.pop(info_window_id, None)
 
         if info_window_id not in testbed.data.windows:
@@ -116,14 +116,14 @@ class MainWindow(QMainWindow):
                 info_window = ModulatorInfoWindow(_device, parent=self)
             else:
                 raise ValueError("Invalid device")
-            info_window.destroyed.connect(close_window)
+            info_window.destroyed.connect(on_window_closed)
             info_window.show()
             info_window.raise_()
             info_window.activateWindow()
             testbed.data.windows[info_window_id] = info_window
 
             if device_update_worker_id in testbed.data.workers:
-                testbed.data.workers[device_update_worker_id].signals.new_sample.connect(testbed.data.windows[info_window_id].on_new_sample)
+                testbed.data.workers[device_update_worker_id].signals.sampled.connect(testbed.data.windows[info_window_id].on_sampled)
 
     def open_device_settings_window(self, _device: Camera | Modulator):
 
@@ -131,7 +131,7 @@ class MainWindow(QMainWindow):
         device_update_worker_id = f"{_device.name}_update_worker"
 
         @Slot()
-        def close_window():
+        def on_window_closed():
             testbed.data.windows.pop(settings_window_id, None)
 
         if settings_window_id not in testbed.data.windows:
@@ -142,14 +142,14 @@ class MainWindow(QMainWindow):
                 settings_window = ModulatorSettingsWindow(_device, parent=self)
             else:
                 raise ValueError("Invalid device")
-            settings_window.destroyed.connect(close_window)
+            settings_window.destroyed.connect(on_window_closed)
             settings_window.show()
             settings_window.raise_()
             settings_window.activateWindow()
             testbed.data.windows[settings_window_id] = settings_window
 
             if device_update_worker_id in testbed.data.workers:
-                testbed.data.workers[device_update_worker_id].signals.new_sample.connect(testbed.data.windows[settings_window_id].on_new_sample)
+                testbed.data.workers[device_update_worker_id].signals.sampled.connect(testbed.data.windows[settings_window_id].sampled)
 
     def on_start_stop(self, _device: Camera | Modulator, _button: QPushButton):
 
@@ -174,11 +174,11 @@ class MainWindow(QMainWindow):
             raise ValueError("Invalid device")
 
         if preview_window_id in testbed.data.windows:
-            device_update_worker.signals.new_sample.connect(testbed.data.windows[preview_window_id].on_new_sample)
+            device_update_worker.signals.sampled.connect(testbed.data.windows[preview_window_id].on_sampled)
         if info_window_id in testbed.data.windows:
-            device_update_worker.signals.new_sample.connect(testbed.data.windows[info_window_id].on_new_sample)
+            device_update_worker.signals.sampled.connect(testbed.data.windows[info_window_id].on_sampled)
         if settings_window_id in testbed.data.windows:
-            device_update_worker.signals.new_sample.connect(testbed.data.windows[settings_window_id].on_new_sample)
+            device_update_worker.signals.sampled.connect(testbed.data.windows[settings_window_id].on_sampled)
 
         testbed.data.workers[device_update_worker_id] = device_update_worker
 
@@ -187,7 +187,7 @@ class MainWindow(QMainWindow):
         _button.setToolTip("Start")
 
     @Slot()
-    def add_device_callback(self):
+    def on_add_device_clicked(self):
         dialog_filenames, _ = QFileDialog.getOpenFileNames(self, "Open Device Streams", "/dev/shm", "Streams (*.shm)", options=QFileDialog.Option.DontUseNativeDialog)
         for dialog_filename in dialog_filenames:
             stream_id = QFileInfo(dialog_filename).completeBaseName()
@@ -256,59 +256,59 @@ class MainWindow(QMainWindow):
                 message_dialog.exec()
 
     @Slot()
-    def remove_device_callback(self):
-        logger.info("remove_device_callback")
+    def on_remove_device_clicked(self):
+        logger.info("on_remove_device_clicked")
         for index in sorted(set(i.row() for i in self.table.selectedIndexes()), reverse=True):
             _key = self.table.item(index, 0).text()
             testbed.data.devices.pop(_key, None)
             self.table.removeRow(index)
 
     @Slot()
-    def open_simple_loop_window(self):
+    def on_simple_loop_clicked(self):
 
         simple_loop_window_id = f"{testbed.SIMPLE_LOOP}_window"
 
         @Slot()
-        def close_window():
+        def on_window_closed():
             testbed.data.windows.pop(simple_loop_window_id, None)
 
         if simple_loop_window_id not in testbed.data.windows:
             simple_loop_window = SimpleLoopWindow(self)
-            simple_loop_window.destroyed.connect(close_window)
+            simple_loop_window.destroyed.connect(on_window_closed)
             simple_loop_window.show()
             simple_loop_window.raise_()
             simple_loop_window.activateWindow()
             testbed.data.windows[simple_loop_window_id] = simple_loop_window
 
     @Slot()
-    def open_speckle_calibration_window(self):
+    def open_speckle_calibration_clicked(self):
 
         speckle_calibration_window_id = f"{testbed.SPECKLE_CALIBRATION}_window"
 
         @Slot()
-        def close_window():
+        def on_window_closed():
             testbed.data.windows.pop(speckle_calibration_window_id, None)
 
         if speckle_calibration_window_id not in testbed.data.windows:
             speckle_calibration_window = SpeckleCalibrationWindow(self)
-            speckle_calibration_window.destroyed.connect(close_window)
+            speckle_calibration_window.destroyed.connect(on_window_closed)
             speckle_calibration_window.show()
             speckle_calibration_window.raise_()
             speckle_calibration_window.activateWindow()
             testbed.data.windows[speckle_calibration_window_id] = speckle_calibration_window
 
     @Slot()
-    def open_speckle_nulling_window(self):
+    def open_speckle_nulling_clicked(self):
 
         speckle_nulling_window_id = f"{testbed.SPECKLE_NULLING}_window"
 
         @Slot()
-        def close_window():
+        def on_window_closed():
             testbed.data.windows.pop(speckle_nulling_window_id, None)
 
         if speckle_nulling_window_id not in testbed.data.windows:
             speckle_nulling_window = SpeckleNullingWindow(self)
-            speckle_nulling_window.destroyed.connect(close_window)
+            speckle_nulling_window.destroyed.connect(on_window_closed)
             speckle_nulling_window.show()
             speckle_nulling_window.raise_()
             speckle_nulling_window.activateWindow()

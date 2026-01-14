@@ -1,5 +1,6 @@
 import numpy as np
 
+from PySide6.QtCore import Signal
 from PySide6.QtWidgets import QWidget, QVBoxLayout
 from PySide6.QtGui import QAction, QIcon
 
@@ -18,7 +19,7 @@ import matplotlib.pyplot as plt
 import matplotlib.patches as patches
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 
-from .resource import ICON_HOUSE, ICON_MOVE, ICON_MAGNIFY, ICON_DISK
+from .resource import ICON_HOUSE, ICON_MOVE, ICON_MAGNIFY, ICON_DISK, ICON_GEAR
 
 
 logger = setup_logger("figure_widget", terminator="\n")
@@ -29,14 +30,14 @@ class NavigationToolbar(NavigationToolbar2QT):
     Navigation toolbar with only the buttons we need
     """
 
+    settingsClicked = Signal()
+
     toolitems = [t for t in NavigationToolbar2QT.toolitems if t[0] in ("Home", "Pan", "Zoom", "Save")]
-    # toolitems.append(("Flip", "Flip", "flip", "flip_button_callback"))
-    # toolitems.append(("Rotate", "Rotate", "rotate", "rotate_button_callback"))
+    toolitems.append(("Settings", "Settings", "settings", "settings_button_callback"))
 
     def __init__(self, canvas, parent=None):
         super().__init__(canvas, parent)
 
-        # Find the Home button and change its icon
         for action in self.findChildren(QAction):
             if action.text() == "Home":
                 action.setIcon(QIcon(ICON_HOUSE))
@@ -46,22 +47,13 @@ class NavigationToolbar(NavigationToolbar2QT):
                 action.setIcon(QIcon(ICON_MAGNIFY))
             elif action.text() == "Save":
                 action.setIcon(QIcon(ICON_DISK))
-            # elif action.text() == "Flip":
-            #     action.setIcon(QIcon(ICON_TURN_DOWN))
-            # elif action.text() == "Rotate":
-            #     action.setIcon(QIcon(ICON_SWITCH))
+            elif action.text() == "Settings":
+                action.setIcon(QIcon(ICON_GEAR))
             else:
                 pass
 
-    #     # Add play Button
-    #     self.play_action = QAction(QIcon(ICON_MAGNIFY), "play", self)
-    #     self.play_action.triggered.connect(self.play_button_callback)
-    #     self.addAction(self.play_action)
-
-    # def play_button_callback(self):
-    #     """Function to handle play button action"""
-    #     print("play button clicked!")
-    #     # Perform your playing action here (e.g., playing an image or a plot)
+    def settings_button_callback(self):
+        self.settingsClicked.emit()
 
 
 class FigureWidget(QWidget):
@@ -75,10 +67,16 @@ class FigureWidget(QWidget):
         if figure is None:
             figure = plt.figure()
         self.figure_canvas = FigureCanvas(figure)
+        self._toolbar = None
         if show_toolbar:
-            layout.addWidget(NavigationToolbar(self.figure_canvas, self))
+            self._toolbar = NavigationToolbar(self.figure_canvas, self)
+            layout.addWidget(self._toolbar)
         layout.addWidget(self.figure_canvas)
         self.setLayout(layout)
+
+    @property
+    def toolbar(self) -> NavigationToolbar | None:
+        return self._toolbar
 
     @property
     def figure(self) -> Figure:
@@ -254,29 +252,27 @@ class SpeckleNullingFigureWidget(FigureWidget):
 
         super().__init__(GridSpec_Layout(nrows=3, ncols=1, height_ratios=(1, 0.2, 0.2), hspace=0.5), toolbar, parent)
 
-        cmap_snk = plt.cm.viridis.copy()
-        cmap_snk.set_bad(color="black")
+        # cmap_snk = plt.cm.viridis.copy()
+        # cmap_snk.set_bad(color="black")
 
         _image_axes, self._plot_ax_phs, self._plot_ax_amp = self.figure.get_axes()
         _image_axes.remove()
 
-        # self._plot_ax_phs = self.figure.add_subplot(gs1[1])
         self._plot_ax_phs.set_title("Phase modulation", size=10)
         self._plot_ax_phs.set_xlabel("Phase", size=10)
         self._plot_ax_phs.set_ylabel("Intensity", size=10)
         self._plot_ax_phs.set_xlim((0, 360))
-        self._plot_ax_phs.set_ylim((0, 2**16 - 1))
+        # self._plot_ax_phs.set_ylim((0, 2**12 - 1))
         (self._phs_data_plot,) = self._plot_ax_phs.plot(phs_array, phs_array * np.nan, marker="+", linestyle="None")
         self.phs_fit_x_data = np.linspace(0, 360, 101)
         (self._phs_fit_plot,) = self._plot_ax_phs.plot(self.phs_fit_x_data, self.phs_fit_x_data * np.nan, color="red")
         self._speck_phs = self._plot_ax_phs.axvline(np.nan, color="red")
 
-        # self._plot_ax_amp = self.figure.add_subplot(gs1[2])
         self._plot_ax_amp.set_title("Amplitude modulation", size=10)
         self._plot_ax_amp.set_xlabel("Amplitude", size=10)
         self._plot_ax_amp.set_ylabel("Intensity", size=10)
         self._plot_ax_amp.set_xlim((amp_array[0], amp_array[-1]))
-        self._plot_ax_amp.set_ylim((0, 2**16 - 1))
+        # self._plot_ax_amp.set_ylim((0, 2**12 - 1))
         (self._amp_data_plot,) = self._plot_ax_amp.plot(amp_array, amp_array * np.nan, marker="+", linestyle="None")
         self.amp_fit_x_data = np.linspace(0, amp_array[-1], 101)
         (self._amp_fit_plot,) = self._plot_ax_amp.plot(self.amp_fit_x_data, self.amp_fit_x_data * np.nan, color="red")
@@ -285,13 +281,19 @@ class SpeckleNullingFigureWidget(FigureWidget):
         gs1 = self.figure.get_gridspec()
         gs2 = GridSpecFromSubplotSpec(nrows=1, ncols=2, subplot_spec=gs1[0])
 
-        cmap_snk = plt.cm.viridis.copy()
-        cmap_snk.set_bad(color="black")
+        # cmap_snk = plt.cm.viridis.copy()
+        # cmap_snk.set_bad(color="black")
 
         imshow_ax_sink = self.figure.add_subplot(gs2[0])
+        imshow_ax_sink.set_title("SLM", size=10)
+        imshow_ax_sink.set_xlabel("px", size=10)
+        imshow_ax_sink.set_ylabel("px", size=10)
         imshow_ax_sink.axhline(command.shape[0] / 2 - 0.5, alpha=0.25, linewidth=0.5, color="white")
         imshow_ax_sink.axvline(command.shape[1] / 2 - 0.5, alpha=0.25, linewidth=0.5, color="white")
-        self._imshow_image_sink = imshow_ax_sink.imshow(command, cmap=cmap_snk)
+        imshow_ax_sink.add_patch(patches.Circle((command.shape[0] / 2 - 0.5, command.shape[1] / 2 - 0.5), radius=command.shape[1] / 2, fill=False, alpha=0.25, linewidth=0.5, color="white", transform=imshow_ax_sink.transData))
+        # self.figure.get_image().set_clim(0, _pxmax)
+        # self._imshow_image_sink = imshow_ax_sink.imshow(command, cmap=cmap_snk)
+        self._imshow_image_sink = imshow_ax_sink.imshow(command)
         self._imshow_image_sink.set_clim(0, 2**16 - 1)
         imshow_ax_sink.invert_yaxis()
 
@@ -299,17 +301,28 @@ class SpeckleNullingFigureWidget(FigureWidget):
 
         self._colorbar_ax_sink = divider_sink.append_axes("right", size="5%", pad=0.1)
         self.figure.colorbar(self._imshow_image_sink, cax=self._colorbar_ax_sink)
+        self._colorbar_ax_sink.set_title("adu", size=10)
 
         imshow_ax_source = self.figure.add_subplot(gs2[1])
-        self._imshow_image_source = imshow_ax_source.imshow(capture, cmap=cmap_snk)
-        self._imshow_image_source_mask = imshow_ax_source.imshow(capture * 0.0, cmap="gray")
-        self._imshow_image_source.set_clim(0, 2**16 - 1)
+        imshow_ax_source.set_title("Source", size=10)
+        imshow_ax_source.set_xlabel("px", size=10)
+        imshow_ax_source.set_ylabel("px", size=10)
+        imshow_ax_source.axhline(capture.shape[0] / 2, alpha=0.25, linewidth=0.5, color="white")
+        imshow_ax_source.axvline(capture.shape[1] / 2, alpha=0.25, linewidth=0.5, color="white")
+        self.speckle_location_x_line = imshow_ax_source.axvline(np.nan, alpha=0.5, linewidth=0.5, color="red")
+        self.speckle_location_y_line = imshow_ax_source.axhline(np.nan, alpha=0.5, linewidth=0.5, color="red")
+        imshow_ax_source.add_patch(patches.Circle((capture.shape[0] / 2, capture.shape[1] / 2), radius=225, fill=False, alpha=0.25, linewidth=0.5, color="white", transform=imshow_ax_source.transData))
+        # self._imshow_image_source = imshow_ax_source.imshow(capture, cmap=cmap_snk)
+        # self._imshow_image_source_mask = imshow_ax_source.imshow(capture * 0.0, cmap="gray")
+        self._imshow_image_source = imshow_ax_source.imshow(capture)
+        self._imshow_image_source.set_clim(0, 2**12 - 1)
         imshow_ax_source.invert_yaxis()
 
         divider_source = make_axes_locatable(imshow_ax_source)
 
         self._colorbar_ax_source = divider_source.append_axes("right", size="5%", pad=0.1)
         self.figure.colorbar(self._imshow_image_source, cax=self._colorbar_ax_source)
+        self._colorbar_ax_source.set_title("adu", size=10)
 
         plot_axes = [self._plot_ax_phs, self._plot_ax_amp]
         imshow_axes = [imshow_ax_sink, imshow_ax_source]
@@ -346,60 +359,84 @@ class SpeckleNullingFigureWidget(FigureWidget):
         self.figure.get_cbar_axes = _get_cbar_axes
         # -------------------------------------------------------------------------------------------------------------
 
+    def set_speckle(self, xy: list[float]):
+        self.speckle_location_x_line.set_xdata([xy[0], xy[0]])
+        self.speckle_location_y_line.set_ydata([xy[1], xy[1]])
+
+    def set_command(self, command: np.ndarray):
+        self._imshow_image_sink.set_data(command)
+
+    def set_capture(self, capture: np.ndarray):
+        self._imshow_image_source.set_data(capture)
+
+    def set_phase_search_data(self, intensity: np.ndarray):
+        self._phs_data_plot.set_ydata(intensity)
+
+    def set_amplitude_search_data(self, intensity: np.ndarray):
+        self._amp_data_plot.set_ydata(intensity)
+
     @property
-    def snk_image(self):
+    def speckle_x(self):
+        return self.speckle_location_x_line
+
+    @property
+    def speckle_y(self):
+        return self.speckle_location_y_line
+
+    @property
+    def sink_image(self):
         return self._imshow_image_sink
 
     @property
-    def snk_colorbar(self):
+    def sink_colorbar(self):
         return self._colorbar_ax_sink
 
     @property
-    def src_image(self):
+    def source_image(self):
         return self._imshow_image_source
 
     @property
-    def src_mask(self):
+    def source_mask(self):
         return self._imshow_image_source_mask
 
     @property
-    def src_colorbar(self):
+    def source_colorbar(self):
         return self._colorbar_ax_source
 
     @property
-    def phs_ax(self):
+    def phase_ax(self):
         return self._plot_ax_phs
 
     @property
-    def amp_ax(self):
+    def amplidtude_ax(self):
         return self._plot_ax_amp
 
     @property
-    def phs_data_plot(self):
+    def phase_data_plot(self):
         return self._phs_data_plot
 
     @property
-    def amp_data_plot(self):
+    def amplitude_data_plot(self):
         return self._amp_data_plot
 
     @property
-    def phs_fit_plot(self):
+    def phase_fit_plot(self):
         return self._phs_fit_plot
 
     @property
-    def amp_fit_plot(self):
+    def amplitude_fit_plot(self):
         return self._amp_fit_plot
 
-    def set_phs_fit_plot(self, amplitude, phase, offset):
+    def set_phase_fit_plot(self, amplitude, phase, offset):
         self._phs_fit_plot.set_ydata(constrained_sin_fit_fn(np.deg2rad(self.phs_fit_x_data), amplitude, phase, offset))
 
-    def set_amp_fit_plot(self, a, b, c):
+    def set_amplitude_fit_plot(self, a, b, c):
         self._amp_fit_plot.set_ydata(quadratic_fit_fn(self.amp_fit_x_data, a, b, c))
 
     @property
-    def phs_line(self):
+    def phase_line(self):
         return self._speck_phs
 
     @property
-    def amp_line(self):
+    def amplitude_line(self):
         return self._speck_amp

@@ -82,13 +82,13 @@ class DOTFProcSettingsWidget(QWidget):
         self._continuous_checkbox.setMaximumWidth(100)
 
         @Slot(bool)
-        def on_continuous_checkbox_toggle(checked: bool):
+        def on_continuous_toggled(checked: bool):
             if checked:
                 self._n_steps_spinbox.setEnabled(False)
             else:
                 self._n_steps_spinbox.setEnabled(True)
 
-        self._continuous_checkbox.toggled.connect(on_continuous_checkbox_toggle)
+        self._continuous_checkbox.toggled.connect(on_continuous_toggled)
 
         n_steps_layout = QHBoxLayout()
         n_steps_layout.addWidget(self._n_steps_spinbox)
@@ -154,12 +154,12 @@ class DOTFProcWindow(QWidget):
     def sink(self) -> Modulator | Mirror:
         return self._sink
 
-    def on_source_change(self, _device: Camera):
+    def on_source_changed(self, _device: Camera):
         self._source = _device
         # self.open_device_preview_window(_device) # TODO: uncomment
         self.devices_widget.source_preview_button.clicked.connect(lambda _, _device=_device: self.open_device_preview_window(_device))
 
-    def on_sink_change(self, _device: Modulator | Mirror):
+    def on_sink_changed(self, _device: Modulator | Mirror):
         self._sink = _device
         # self.open_device_preview_window(_device) # TODO: uncomment
         self.devices_widget.sink_preview_button.clicked.connect(lambda _, _device=_device: self.open_device_preview_window(_device))
@@ -188,7 +188,7 @@ class DOTFProcWindow(QWidget):
             testbed.data.windows[window_name] = window
 
     @Slot(int, float)  # step, elapsed_time
-    def on_progress(self, step: int, t_elapsed: float):
+    def on_progress_tick(self, step: int, t_elapsed: float):
         self.controls_widget.progressbar.setValue(step + 1)
         self.controls_widget.progressbar.setTime(t_elapsed)
         self.controls_widget.progressbar.updateProgress()
@@ -223,16 +223,16 @@ class DOTFProcWindow(QWidget):
             self.controls_widget.progressbar.setMaximum(self.settings_widget.n_steps)
 
         proc_worker = SimpleProcWorker(self.source, self.sink, self.settings_widget.n_steps)
-        proc_worker.signals.progress.connect(self.on_progress)
+        proc_worker.signals.progressTicked.connect(self.on_progress_tick)
         proc_worker.signals.finished.connect(self.on_finish)
 
         testbed.data.threadpool.start(proc_worker)
         self.controls_widget.play_pause_button.setIcon(QIcon(ICON_PAUSE))
 
         if source_preview_window_name in testbed.data.windows:
-            proc_worker.signals.new_source_sample.connect(testbed.data.windows[source_preview_window_name].on_new_sample)
+            proc_worker.signals.new_source_sample.connect(testbed.data.windows[source_preview_window_name].on_sample)
         if sink_preview_window_name in testbed.data.windows:
-            proc_worker.signals.new_sink_sample.connect(testbed.data.windows[sink_preview_window_name].on_new_sample)
+            proc_worker.signals.new_sink_sample.connect(testbed.data.windows[sink_preview_window_name].on_sample)
 
         testbed.data.workers[proc_worker_id] = proc_worker
 
@@ -242,8 +242,8 @@ class DOTFProcWindow(QWidget):
         widget.setLayout(layout)
 
         self.devices_widget = DevicesSetupWidget(testbed.data.devices, parent=self)
-        self.devices_widget.source_changed.connect(self.on_source_change)
-        self.devices_widget.sink_changed.connect(self.on_sink_change)
+        self.devices_widget.sourceChanged.connect(self.on_source_changed)
+        self.devices_widget.sinkChanged.connect(self.on_sink_changed)
 
         self.settings_widget = DOTFProcSettingsWidget(self)
         # self.settings_widget.hide()

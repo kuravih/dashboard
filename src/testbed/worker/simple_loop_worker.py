@@ -17,8 +17,8 @@ logger = setup_logger(f"{_PROCESS_}_worker", terminator="\n")
 
 
 class ProcessWorkerSignals(WorkerSignals):
-    new_source_sample = Signal(SourceSample)
-    new_sink_sample = Signal(SinkSample)
+    sourceSampled = Signal(SourceSample)
+    sinkSampled = Signal(SinkSample)
 
 
 class ProcessWorker(Worker):
@@ -38,13 +38,13 @@ class ProcessWorker(Worker):
         # ---- blank --------------------------------------------------------------------------------------------------
         command = self._sink.pxmax * np.clip(np.zeros(self._sink.shape) + 0.5, 0, 1)
 
-        self.signals.new_sink_sample.emit(self._sink.push_command(command.astype(np.uint16)))
+        self.signals.sinkSampled.emit(self._sink.push_command(command.astype(np.uint16)))
         time.sleep(0.1)
 
-        self.signals.new_source_sample.emit(self._source.pull_capture())
+        self.signals.sourceSampled.emit(self._source.pull_capture())
         time.sleep(0.2)
 
-        self.signals.progress.emit(i_step, time.time() - t_start)
+        self.signals.progressTicked.emit(i_step, time.time() - t_start)
         # ---- blank --------------------------------------------------------------------------------------------------
 
         logger.info("%s and %s ProcessWorker.run : step %s of %s", self._source.name, self._sink.name, i_step, self._n_steps)
@@ -52,14 +52,14 @@ class ProcessWorker(Worker):
         while ((self._n_steps is None) or (self._n_steps > i_step)) and self._running:
             command = self._sink.pxmax * np.clip(text(self._sink.shape, f"{i_step:02d}", font_size=150), 0, 1)
 
-            self.signals.new_sink_sample.emit(self._sink.push_command(command.astype(np.uint16)))
+            self.signals.sinkSampled.emit(self._sink.push_command(command.astype(np.uint16)))
             time.sleep(0.1)
 
-            self.signals.new_source_sample.emit(self._source.pull_capture())
+            self.signals.sourceSampled.emit(self._source.pull_capture())
             time.sleep(0.2)
 
             i_step = i_step + 1
-            self.signals.progress.emit(i_step, time.time() - t_start)
+            self.signals.progressTicked.emit(i_step, time.time() - t_start)
 
             logger.info("%s and %s ProcessWorker.run : step %s of %s", self._source.name, self._sink.name, i_step, self._n_steps)
 

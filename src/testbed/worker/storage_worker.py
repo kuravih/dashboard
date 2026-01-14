@@ -13,7 +13,7 @@ class SourceStorageWorker(Worker):
         self.signals = WorkerSignals()
 
     @Slot(SourceSample)
-    def on_sample(self, _sample: SourceSample):
+    def on_sampled(self, _sample: SourceSample):
         self.queue.put(_sample)
 
     def run(self):
@@ -38,7 +38,7 @@ class SinkStorageWorker(Worker):
         self.signals = WorkerSignals()
 
     @Slot(SinkSample)
-    def on_sample(self, _sample: SinkSample):
+    def on_sampled(self, _sample: SinkSample):
         self.queue.put(_sample)
 
     def run(self):

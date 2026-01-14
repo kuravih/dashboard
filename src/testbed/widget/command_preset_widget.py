@@ -16,7 +16,7 @@ class ConstPresetWidget(QWidget):
             Constant value.
     """
 
-    change = Signal(np.ndarray)
+    changed = Signal(np.ndarray)
 
     def param_change(self, shape: tuple[int, int], const: float) -> np.ndarray:
         return self._range * (np.zeros(shape=shape) + const)
@@ -25,8 +25,8 @@ class ConstPresetWidget(QWidget):
         return self.param_change(self.shape, const_spinbox.value())
 
     @Slot()
-    def emit_param_change(self):
-        self.change.emit(self.widget_change(self.const_spinbox))
+    def on_value_changed(self):
+        self.changed.emit(self.widget_change(self.const_spinbox))
 
     def setup_main_widget(self):
         const_label = QLabel("Constant", self)
@@ -35,7 +35,7 @@ class ConstPresetWidget(QWidget):
         const_spinbox = QDoubleSpinBox(self)
         const_spinbox.setSingleStep(0.01)
         const_spinbox.setRange(0, 1.0)
-        const_spinbox.valueChanged.connect(self.emit_param_change)
+        const_spinbox.valueChanged.connect(self.on_value_changed)
 
         layout = QGridLayout()
 
@@ -74,7 +74,7 @@ class GradientPresetWidget(QWidget):
             Angle of gradient.
     """
 
-    change = Signal(np.ndarray)
+    changed = Signal(np.ndarray)
 
     def param_change(self, shape: tuple[int, int], grad: int, angle: float) -> np.ndarray:
         return self._range * grad * (gradient(shape, angle) / 2 + 0.5)
@@ -83,8 +83,8 @@ class GradientPresetWidget(QWidget):
         return self.param_change(self.shape, grad_spinbox.value(), angle_spinbox.value())
 
     @Slot()
-    def emit_param_change(self):
-        self.change.emit(self.widget_change(self.grad_spinbox, self.angle_spinbox))
+    def on_value_changed(self):
+        self.changed.emit(self.widget_change(self.grad_spinbox, self.angle_spinbox))
 
     def setup_main_widget(self):
         grad_label = QLabel("Gradient", self)
@@ -93,7 +93,7 @@ class GradientPresetWidget(QWidget):
         grad_spinbox = QDoubleSpinBox(self)
         grad_spinbox.setSingleStep(0.01)
         grad_spinbox.setRange(0, 1.0)
-        grad_spinbox.valueChanged.connect(self.emit_param_change)
+        grad_spinbox.valueChanged.connect(self.on_value_changed)
         pv_label = QLabel("PV", self)
 
         angle_label = QLabel("Angle", self)
@@ -103,7 +103,7 @@ class GradientPresetWidget(QWidget):
         angle_spinbox.setRange(0.0, 360.0)
         angle_spinbox.setSingleStep(1.0)
         angle_spinbox.setValue(0.0)
-        angle_spinbox.valueChanged.connect(self.emit_param_change)
+        angle_spinbox.valueChanged.connect(self.on_value_changed)
 
         layout = QGridLayout()
 
@@ -153,7 +153,7 @@ class CheckerPresetWidget(QWidget):
             Origin offset.
     """
 
-    change = Signal(np.ndarray)
+    changed = Signal(np.ndarray)
 
     def param_change(self, shape: tuple[int, int], amplitude: float, size: tuple[int, int], offset: tuple[int, int]) -> np.ndarray:
         return self._range * amplitude * checkers(shape, size, offset)
@@ -166,8 +166,8 @@ class CheckerPresetWidget(QWidget):
         return self.param_change(self.shape, amplitude_spinbox.value(), size, offset_spinboxes.value())
 
     @Slot()
-    def emit_param_change(self):
-        self.change.emit(self.widget_change(self.amplitude_spinbox, self.size_spinboxes, self.offset_spinboxes))
+    def on_value_changed(self):
+        self.changed.emit(self.widget_change(self.amplitude_spinbox, self.size_spinboxes, self.offset_spinboxes))
 
     def setup_main_widget(self, shape: tuple[int, int]):
         amplitude_label = QLabel("Amplitude", self)
@@ -178,7 +178,7 @@ class CheckerPresetWidget(QWidget):
         self.amplitude_spinbox.setRange(0.0, 1.0)
         self.amplitude_spinbox.setSingleStep(0.1)
         self.amplitude_spinbox.setValue(0.5)
-        self.amplitude_spinbox.valueChanged.connect(self.emit_param_change)
+        self.amplitude_spinbox.valueChanged.connect(self.on_value_changed)
 
         size_label = QLabel("Size", self)
 
@@ -188,12 +188,12 @@ class CheckerPresetWidget(QWidget):
         size_x_spinbox.setFixedWidth(75)
         size_x_spinbox.setRange(0, shape[0])
         size_x_spinbox.setValue(shape[0] // 2)
-        size_x_spinbox.valueChanged.connect(self.emit_param_change)
+        size_x_spinbox.valueChanged.connect(self.on_value_changed)
 
         size_y_spinbox.setFixedWidth(75)
         size_y_spinbox.setRange(0, shape[1])
         size_y_spinbox.setValue(shape[1] // 2)
-        size_y_spinbox.valueChanged.connect(self.emit_param_change)
+        size_y_spinbox.valueChanged.connect(self.on_value_changed)
 
         size_spacer = QSpacerItem(10, 10, QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Maximum)
 
@@ -209,12 +209,12 @@ class CheckerPresetWidget(QWidget):
         offset_x_spinbox.setFixedWidth(75)
         offset_x_spinbox.setRange(-size_x_spinbox.value() // 2, size_x_spinbox.value() // 2)
         offset_x_spinbox.setValue(shape[0] // 4)
-        offset_x_spinbox.valueChanged.connect(self.emit_param_change)
+        offset_x_spinbox.valueChanged.connect(self.on_value_changed)
 
         offset_y_spinbox.setFixedWidth(75)
         offset_y_spinbox.setRange(-size_y_spinbox.value() // 2, size_y_spinbox.value() // 2)
         offset_y_spinbox.setValue(shape[1] // 4)
-        offset_y_spinbox.valueChanged.connect(self.emit_param_change)
+        offset_y_spinbox.valueChanged.connect(self.on_value_changed)
 
         offset_spacer = QSpacerItem(10, 10, QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Maximum)
 
@@ -274,7 +274,7 @@ class SinusoidPresetWidget(QWidget):
             Mean of the sinusoid.
     """
 
-    change = Signal(np.ndarray)
+    changed = Signal(np.ndarray)
 
     def param_change(self, shape: tuple[int, int], amplitude: float, mean: float, period: float, phase: float, angle: float) -> np.ndarray:
         return self._range * (amplitude * sinusoid(shape, period, np.deg2rad(phase), np.deg2rad(angle)) + mean)
@@ -283,8 +283,8 @@ class SinusoidPresetWidget(QWidget):
         return self.param_change(self.shape, amplitude_spinbox.value(), mean_spinbox.value(), period_spinbox.value(), phase_spinbox.value(), angle_spinbox.value())
 
     @Slot()
-    def emit_param_change(self):
-        self.change.emit(self.widget_change(self.amplitude_spinbox, self.mean_spinbox, self.period_spinbox, self.phase_spinbox, self.angle_spinbox))
+    def on_value_changed(self):
+        self.changed.emit(self.widget_change(self.amplitude_spinbox, self.mean_spinbox, self.period_spinbox, self.phase_spinbox, self.angle_spinbox))
 
     def setup_main_widget(self, shape: tuple[int, int]):
         amplitude_label = QLabel("Amplitude", self)
@@ -314,7 +314,7 @@ class SinusoidPresetWidget(QWidget):
         self.period_spinbox.setSingleStep(1.0)
         self.period_spinbox.setValue(20)
         self.period_spinbox.setToolTip("Period of the sinusoid")
-        self.period_spinbox.valueChanged.connect(self.emit_param_change)
+        self.period_spinbox.valueChanged.connect(self.on_value_changed)
 
         phase_label = QLabel("Phase", self)
 
@@ -324,7 +324,7 @@ class SinusoidPresetWidget(QWidget):
         self.phase_spinbox.setSingleStep(5.0)
         self.phase_spinbox.setValue(0.0)
         phase_label.setToolTip("Phase of the sinusoid")
-        self.phase_spinbox.valueChanged.connect(self.emit_param_change)
+        self.phase_spinbox.valueChanged.connect(self.on_value_changed)
 
         angle_label = QLabel("Angle", self)
 
@@ -334,12 +334,12 @@ class SinusoidPresetWidget(QWidget):
         self.angle_spinbox.setSingleStep(1.0)
         self.angle_spinbox.setValue(45)
         self.angle_spinbox.setToolTip("Angle of the sinusoid")
-        self.angle_spinbox.valueChanged.connect(self.emit_param_change)
+        self.angle_spinbox.valueChanged.connect(self.on_value_changed)
 
         @Slot(float)
         def amplitude_change(amplitude):
             self.mean_spinbox.setRange(amplitude / 2.0, 1.0 - amplitude / 2.0)
-            return self.emit_param_change()
+            return self.on_value_changed()
 
         self.amplitude_spinbox.valueChanged.connect(amplitude_change)
 
@@ -351,7 +351,7 @@ class SinusoidPresetWidget(QWidget):
                 self.amplitude_spinbox.setMaximum(mean)
             else:
                 self.amplitude_spinbox.setMaximum(0.5)
-            return self.emit_param_change()
+            return self.on_value_changed()
 
         self.mean_spinbox.valueChanged.connect(mean_change)
 
@@ -415,7 +415,7 @@ class VortexPresetWidget(QWidget):
             Charge of the vortex.
     """
 
-    change = Signal(np.ndarray)
+    changed = Signal(np.ndarray)
 
     def param_change(self, shape: tuple[int, int], amplitude: float, charge: int) -> np.ndarray:
         return self._range * amplitude * vortex(shape, charge)
@@ -424,8 +424,8 @@ class VortexPresetWidget(QWidget):
         return self.param_change(self.shape, amplitude_spinbox.value(), charge_spinbox.value())
 
     @Slot()
-    def emit_param_change(self):
-        self.change.emit(self.widget_change(self.amplitude_spinbox, self.charge_spinbox))
+    def on_value_changed(self):
+        self.changed.emit(self.widget_change(self.amplitude_spinbox, self.charge_spinbox))
 
     def setup_main_widget(self):
         amplitude_label = QLabel("Amplitude", self)
@@ -436,14 +436,14 @@ class VortexPresetWidget(QWidget):
         self.amplitude_spinbox.setRange(0.0, 1.0)
         self.amplitude_spinbox.setSingleStep(0.1)
         self.amplitude_spinbox.setValue(0.5)
-        self.amplitude_spinbox.valueChanged.connect(self.emit_param_change)
+        self.amplitude_spinbox.valueChanged.connect(self.on_value_changed)
 
         charge_label = QLabel("Charge", self)
 
         self.charge_spinbox = QSpinBox(self)
         self.charge_spinbox.setMinimum(0)
         self.charge_spinbox.setValue(2)
-        self.charge_spinbox.valueChanged.connect(self.emit_param_change)
+        self.charge_spinbox.valueChanged.connect(self.on_value_changed)
 
         layout = QGridLayout()
 
@@ -490,7 +490,7 @@ class BoxPresetWidget(QWidget):
 
     """
 
-    change = Signal(np.ndarray)
+    changed = Signal(np.ndarray)
 
     def param_change(self, shape: tuple[int, int], amplitude: float, size: tuple[int, int], center: tuple[int, int]) -> np.ndarray:
         return self._range * amplitude * box(shape, size, center)
@@ -503,8 +503,8 @@ class BoxPresetWidget(QWidget):
         return self.param_change(self.shape, amplitude_spinbox.value(), size, (center_x_spinbox.value(), center_y_spinbox.value()))
 
     @Slot()
-    def emit_param_change(self):
-        self.change.emit(self.widget_change(self.amplitude_spinbox, self.size_spinboxes, self.center_spinboxes))
+    def on_value_changed(self):
+        self.changed.emit(self.widget_change(self.amplitude_spinbox, self.size_spinboxes, self.center_spinboxes))
 
     def setup_main_widget(self, shape: tuple[int, int]):
         amplitude_label = QLabel("Amplitude", self)
@@ -516,7 +516,7 @@ class BoxPresetWidget(QWidget):
         self.amplitude_spinbox.setSingleStep(0.001)
         self.amplitude_spinbox.setValue(0.5)
         self.amplitude_spinbox.setDecimals(3)
-        self.amplitude_spinbox.valueChanged.connect(self.emit_param_change)
+        self.amplitude_spinbox.valueChanged.connect(self.on_value_changed)
 
         size_label = QLabel("Size", self)
 
@@ -526,12 +526,12 @@ class BoxPresetWidget(QWidget):
         size_x_spinbox.setFixedWidth(75)
         size_x_spinbox.setRange(0, shape[0])
         size_x_spinbox.setValue(shape[0] // 4)
-        size_x_spinbox.valueChanged.connect(self.emit_param_change)
+        size_x_spinbox.valueChanged.connect(self.on_value_changed)
 
         size_y_spinbox.setFixedWidth(75)
         size_y_spinbox.setRange(0, shape[1])
         size_y_spinbox.setValue(shape[1] // 4)
-        size_y_spinbox.valueChanged.connect(self.emit_param_change)
+        size_y_spinbox.valueChanged.connect(self.on_value_changed)
 
         size_spacer = QSpacerItem(10, 10, QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Maximum)
 
@@ -547,12 +547,12 @@ class BoxPresetWidget(QWidget):
         center_x_spinbox.setFixedWidth(75)
         center_x_spinbox.setRange(-shape[0] // 2 - size_x_spinbox.value(), shape[0] // 2 + size_x_spinbox.value())
         center_x_spinbox.setValue(-shape[0] // 2)
-        center_x_spinbox.valueChanged.connect(self.emit_param_change)
+        center_x_spinbox.valueChanged.connect(self.on_value_changed)
 
         center_y_spinbox.setFixedWidth(75)
         center_y_spinbox.setRange(-shape[1] // 2 - size_y_spinbox.value(), shape[1] // 2 + size_y_spinbox.value())
         center_y_spinbox.setValue(-shape[1] // 2)
-        center_y_spinbox.valueChanged.connect(self.emit_param_change)
+        center_y_spinbox.valueChanged.connect(self.on_value_changed)
 
         center_spacer = QSpacerItem(10, 10, QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Maximum)
 
@@ -610,7 +610,7 @@ class PolkaPresetWidget(QWidget):
             Center.
     """
 
-    change = Signal(np.ndarray)
+    changed = Signal(np.ndarray)
 
     def param_change(self, shape: tuple[int, int], amplitude: float, radius: float, spacing: tuple[int, int], offset: tuple[int, int]) -> np.ndarray:
         return self._range * amplitude * polka(shape, radius, spacing, offset)
@@ -623,8 +623,8 @@ class PolkaPresetWidget(QWidget):
         return self.param_change(self.shape, amplitude_spinbox.value(), radius_spinbox.value(), spacing, (offset_x_spinbox.value(), offset_y_spinbox.value()))
 
     @Slot()
-    def emit_param_change(self):
-        self.change.emit(self.widget_change(self.amplitude_spinbox, self.radius_spinbox, self.spacing_spinboxes, self.offset_spinboxes))
+    def on_value_changed(self):
+        self.changed.emit(self.widget_change(self.amplitude_spinbox, self.radius_spinbox, self.spacing_spinboxes, self.offset_spinboxes))
 
     def setup_main_widget(self, shape: tuple[int, int]):
         amplitude_label = QLabel("Amplitude", self)
@@ -635,14 +635,14 @@ class PolkaPresetWidget(QWidget):
         self.amplitude_spinbox.setRange(0.0, 1.0)
         self.amplitude_spinbox.setSingleStep(0.1)
         self.amplitude_spinbox.setValue(0.5)
-        self.amplitude_spinbox.valueChanged.connect(self.emit_param_change)
+        self.amplitude_spinbox.valueChanged.connect(self.on_value_changed)
 
         radius_label = QLabel("Radius", self)
 
         self.radius_spinbox = QDoubleSpinBox(self)
         self.radius_spinbox.setFixedWidth(75)
         self.radius_spinbox.setValue(4)
-        self.radius_spinbox.valueChanged.connect(self.emit_param_change)
+        self.radius_spinbox.valueChanged.connect(self.on_value_changed)
 
         spacing_label = QLabel("Spacing", self)
 
@@ -652,12 +652,12 @@ class PolkaPresetWidget(QWidget):
         spacing_x_spinbox.setFixedWidth(75)
         spacing_x_spinbox.setRange(0, shape[0])
         spacing_x_spinbox.setValue(shape[0] / 8)
-        spacing_x_spinbox.valueChanged.connect(self.emit_param_change)
+        spacing_x_spinbox.valueChanged.connect(self.on_value_changed)
 
         spacing_y_spinbox.setFixedWidth(75)
         spacing_y_spinbox.setRange(0, shape[1])
         spacing_y_spinbox.setValue(shape[1] / 8)
-        spacing_y_spinbox.valueChanged.connect(self.emit_param_change)
+        spacing_y_spinbox.valueChanged.connect(self.on_value_changed)
 
         spacing_spacer = QSpacerItem(10, 10, QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Maximum)
 
@@ -673,12 +673,12 @@ class PolkaPresetWidget(QWidget):
         offset_x_spinbox.setFixedWidth(75)
         offset_x_spinbox.setRange(-spacing_x_spinbox.value() / 2, spacing_x_spinbox.value() / 2)
         offset_x_spinbox.setValue(-shape[0] / 16)
-        offset_x_spinbox.valueChanged.connect(self.emit_param_change)
+        offset_x_spinbox.valueChanged.connect(self.on_value_changed)
 
         offset_y_spinbox.setFixedWidth(75)
         offset_y_spinbox.setRange(-spacing_y_spinbox.value() / 2, spacing_y_spinbox.value() / 2)
         offset_y_spinbox.setValue(-shape[1] / 16)
-        offset_y_spinbox.valueChanged.connect(self.emit_param_change)
+        offset_y_spinbox.valueChanged.connect(self.on_value_changed)
 
         offset_spacer = QSpacerItem(10, 10, QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Maximum)
 
@@ -744,7 +744,7 @@ class RegisterPresetWidget(QWidget):
             Center.
     """
 
-    change = Signal(np.ndarray)
+    changed = Signal(np.ndarray)
 
     def param_change(self, shape: tuple[int, int], amplitude: float, count: tuple[int, int], radius: float, spacing: tuple[int, int], center: tuple[int, int]) -> np.ndarray:
         return self._range * amplitude * register(shape, count, radius, spacing, center)
@@ -756,8 +756,8 @@ class RegisterPresetWidget(QWidget):
         return self.param_change(self.shape, amplitude_spinbox.value(), count, radius_spinbox.value(), spacing, center)
 
     @Slot()
-    def emit_param_change(self):
-        self.change.emit(self.widget_change(self.amplitude_spinbox, self.count_spinboxes, self.radius_spinbox, self.spacing_spinboxes, self.center_spinboxes))
+    def on_value_changed(self):
+        self.changed.emit(self.widget_change(self.amplitude_spinbox, self.count_spinboxes, self.radius_spinbox, self.spacing_spinboxes, self.center_spinboxes))
 
     def setup_main_widget(self, shape: tuple[int, int]):
         amplitude_label = QLabel("Amplitude", self)
@@ -768,7 +768,7 @@ class RegisterPresetWidget(QWidget):
         self.amplitude_spinbox.setRange(0.0, 1.0)
         self.amplitude_spinbox.setSingleStep(0.1)
         self.amplitude_spinbox.setValue(0.5)
-        self.amplitude_spinbox.valueChanged.connect(self.emit_param_change)
+        self.amplitude_spinbox.valueChanged.connect(self.on_value_changed)
 
         count_label = QLabel("Count", self)
 
@@ -778,12 +778,12 @@ class RegisterPresetWidget(QWidget):
         count_x_spinbox.setFixedWidth(75)
         count_x_spinbox.setRange(1, 20)
         count_x_spinbox.setValue(6)
-        count_x_spinbox.valueChanged.connect(self.emit_param_change)
+        count_x_spinbox.valueChanged.connect(self.on_value_changed)
 
         count_y_spinbox.setFixedWidth(75)
         count_y_spinbox.setRange(1, 20)
         count_y_spinbox.setValue(6)
-        count_y_spinbox.valueChanged.connect(self.emit_param_change)
+        count_y_spinbox.valueChanged.connect(self.on_value_changed)
 
         count_spacer = QSpacerItem(10, 10, QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Maximum)
 
@@ -796,7 +796,7 @@ class RegisterPresetWidget(QWidget):
         self.radius_spinbox = QDoubleSpinBox(self)
         self.radius_spinbox.setFixedWidth(75)
         self.radius_spinbox.setValue(4)
-        self.radius_spinbox.valueChanged.connect(self.emit_param_change)
+        self.radius_spinbox.valueChanged.connect(self.on_value_changed)
 
         spacing_label = QLabel("Spacing", self)
 
@@ -806,12 +806,12 @@ class RegisterPresetWidget(QWidget):
         spacing_x_spinbox.setFixedWidth(75)
         spacing_x_spinbox.setRange(0, shape[0])
         spacing_x_spinbox.setValue(shape[0] / 8)
-        spacing_x_spinbox.valueChanged.connect(self.emit_param_change)
+        spacing_x_spinbox.valueChanged.connect(self.on_value_changed)
 
         spacing_y_spinbox.setFixedWidth(75)
         spacing_y_spinbox.setRange(0, shape[1])
         spacing_y_spinbox.setValue(shape[1] / 8)
-        spacing_y_spinbox.valueChanged.connect(self.emit_param_change)
+        spacing_y_spinbox.valueChanged.connect(self.on_value_changed)
 
         spacing_spacer = QSpacerItem(10, 10, QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Maximum)
 
@@ -827,12 +827,12 @@ class RegisterPresetWidget(QWidget):
         center_x_spinbox.setFixedWidth(75)
         center_x_spinbox.setRange(0, shape[0])
         center_x_spinbox.setValue(shape[0] // 2)
-        center_x_spinbox.valueChanged.connect(self.emit_param_change)
+        center_x_spinbox.valueChanged.connect(self.on_value_changed)
 
         center_y_spinbox.setFixedWidth(75)
         center_y_spinbox.setRange(0, shape[1])
         center_y_spinbox.setValue(shape[1] // 2)
-        center_y_spinbox.valueChanged.connect(self.emit_param_change)
+        center_y_spinbox.valueChanged.connect(self.on_value_changed)
 
         center_spacer = QSpacerItem(10, 10, QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Maximum)
 
@@ -902,7 +902,7 @@ class DOTFPresetWidget(QWidget):
             Direction of the dotf probe.
     """
 
-    change = Signal(np.ndarray)
+    changed = Signal(np.ndarray)
 
     def param_change(self, shape: tuple[int, int], amplitude: float, size: tuple[int, int], direction: DOTFProbeDirection) -> np.ndarray:
         return self._range * amplitude * dotf_probe(shape, size, direction)
@@ -913,8 +913,8 @@ class DOTFPresetWidget(QWidget):
         return self.param_change(self.shape, amplitude_spinbox.value(), size, selected_direction[0])
 
     @Slot()
-    def emit_param_change(self):
-        self.change.emit(self.widget_change(self.amplitude_spinbox, self.size_spinboxes, self.direction_radiobuttons))
+    def on_value_changed(self):
+        self.changed.emit(self.widget_change(self.amplitude_spinbox, self.size_spinboxes, self.direction_radiobuttons))
 
     def setup_main_widget(self, shape: tuple[int, int]):
         amplitude_label = QLabel("Amplitude", self)
@@ -925,7 +925,7 @@ class DOTFPresetWidget(QWidget):
         self.amplitude_spinbox.setRange(0.0, 1.0)
         self.amplitude_spinbox.setSingleStep(0.1)
         self.amplitude_spinbox.setValue(0.5)
-        self.amplitude_spinbox.valueChanged.connect(self.emit_param_change)
+        self.amplitude_spinbox.valueChanged.connect(self.on_value_changed)
 
         size_label = QLabel("Size", self)
 
@@ -935,12 +935,12 @@ class DOTFPresetWidget(QWidget):
         size_l_spinbox.setFixedWidth(75)
         size_l_spinbox.setRange(0, shape[0])
         size_l_spinbox.setValue(11)
-        size_l_spinbox.valueChanged.connect(self.emit_param_change)
+        size_l_spinbox.valueChanged.connect(self.on_value_changed)
 
         size_w_spinbox.setFixedWidth(75)
         size_w_spinbox.setRange(0, shape[1])
         size_w_spinbox.setValue(4)
-        size_w_spinbox.valueChanged.connect(self.emit_param_change)
+        size_w_spinbox.valueChanged.connect(self.on_value_changed)
 
         size_spacer = QSpacerItem(10, 10, QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Maximum)
 
@@ -953,22 +953,22 @@ class DOTFPresetWidget(QWidget):
         direction_right_radiobutton = QRadioButton(DOTFProbeDirection.RIGHT.to_str(), self)
         direction_right_radiobutton.setFixedWidth(75)
         direction_right_radiobutton.setChecked(True)
-        direction_right_radiobutton.clicked.connect(self.emit_param_change)
+        direction_right_radiobutton.clicked.connect(self.on_value_changed)
 
         direction_bottom_radiobutton = QRadioButton(DOTFProbeDirection.BOTTOM.to_str(), self)
         direction_bottom_radiobutton.setFixedWidth(75)
         direction_bottom_radiobutton.setChecked(False)
-        direction_bottom_radiobutton.clicked.connect(self.emit_param_change)
+        direction_bottom_radiobutton.clicked.connect(self.on_value_changed)
 
         direction_left_radiobutton = QRadioButton(DOTFProbeDirection.LEFT.to_str(), self)
         direction_left_radiobutton.setFixedWidth(75)
         direction_left_radiobutton.setChecked(False)
-        direction_left_radiobutton.clicked.connect(self.emit_param_change)
+        direction_left_radiobutton.clicked.connect(self.on_value_changed)
 
         direction_top_radiobutton = QRadioButton(DOTFProbeDirection.TOP.to_str(), self)
         direction_top_radiobutton.setFixedWidth(75)
         direction_top_radiobutton.setChecked(False)
-        direction_top_radiobutton.clicked.connect(self.emit_param_change)
+        direction_top_radiobutton.clicked.connect(self.on_value_changed)
 
         direction_spacer = QSpacerItem(10, 10, QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Maximum)
 
@@ -1023,7 +1023,7 @@ class FilePresetWidget(QWidget):  # TODO: fix this, closing the stream window ca
     Command file preset widget
     """
 
-    change = Signal(np.ndarray)
+    changed = Signal(np.ndarray)
 
     def param_change(self) -> np.ndarray:
         return self._range * self._command
@@ -1032,8 +1032,8 @@ class FilePresetWidget(QWidget):  # TODO: fix this, closing the stream window ca
         return self.param_change()
 
     @Slot()
-    def emit_param_change(self):
-        self.change.emit(self.widget_change())
+    def on_value_changed(self):
+        self.changed.emit(self.widget_change())
 
     def setup_main_widget(self):
         command_file_label = QLabel("File", self)
@@ -1142,40 +1142,40 @@ class FilePresetWidget(QWidget):  # TODO: fix this, closing the stream window ca
                         self._command = np.nan_to_num(hdul[0].data / np.pi)
                     elif hdul[0].header["UNIT"] == "voltage":
                         self._command = hdul[0].data
-                self.emit_param_change()
+                self.on_value_changed()
 
         @Slot()
         def flip_cmd_lr():
             self._command = np.fliplr(self._command)
-            self.emit_param_change()
+            self.on_value_changed()
 
         flip_lr_button.clicked.connect(flip_cmd_lr)
 
         @Slot()
         def flip_cmd_ud():
             self._command = np.flipud(self._command)
-            self.emit_param_change()
+            self.on_value_changed()
 
         flip_ud_button.clicked.connect(flip_cmd_ud)
 
         @Slot()
         def rotate_cmd_ccw():
             self._command = np.rot90(self._command, k=-1)
-            self.emit_param_change()
+            self.on_value_changed()
 
         rotate_ccw_button.clicked.connect(rotate_cmd_ccw)
 
         @Slot()
         def rotate_cmd_cw():
             self._command = np.rot90(self._command, k=-1)
-            self.emit_param_change()
+            self.on_value_changed()
 
         rotate_cw_button.clicked.connect(rotate_cmd_cw)
 
         @Slot()
         def flip_cmd_sign():
             self._command = -self._command
-            self.emit_param_change()
+            self.on_value_changed()
 
         flip_sign_button.clicked.connect(flip_cmd_sign)
 
@@ -1197,7 +1197,7 @@ class EFCPresetWidget(QWidget):
     EFC probe pattern command preset widget
     """
 
-    change = Signal(np.ndarray)
+    changed = Signal(np.ndarray)
 
     def param_change(self, shape: tuple[int, int], amplitude: float, dξ: float, dη: float, ξc: float, θ: float, direction: EFCProbeDirection) -> np.ndarray:  # pylint: disable=invalid-name,non-ascii-name
         return self._range * amplitude * efc_probe(shape, dξ, dη, ξc, θ, direction)
@@ -1211,11 +1211,11 @@ class EFCPresetWidget(QWidget):
 
     @Slot()
     def emit_parameter_change(self):
-        self.change.emit(self.widget_change(self.amplitude_spinbox, self.dξ_spinbox, self.dη_spinbox, self.ξc_spinbox, self.θ_spinbox, self.direction_radiobuttons))
+        self.changed.emit(self.widget_change(self.amplitude_spinbox, self.dξ_spinbox, self.dη_spinbox, self.ξc_spinbox, self.θ_spinbox, self.direction_radiobuttons))
 
     @Slot()
     def emit_direction_change(self):
-        self.change.emit(self.direction_widget_change(self.amplitude_spinbox, self.dξ_spinbox, self.dη_spinbox, self.ξc_spinbox, self.θ_spinbox, self.direction_radiobuttons))
+        self.changed.emit(self.direction_widget_change(self.amplitude_spinbox, self.dξ_spinbox, self.dη_spinbox, self.ξc_spinbox, self.θ_spinbox, self.direction_radiobuttons))
 
     def setup_main_widget(self, shape: tuple[int, int]):
         amplitude_label = QLabel("Amplitude", self)
@@ -1360,7 +1360,7 @@ class TextPresetWidget(QWidget):
             Text size.
     """
 
-    change = Signal(np.ndarray)
+    changed = Signal(np.ndarray)
 
     def param_change(self, shape: tuple[int, int], amplitude: float, string: str, position: tuple[int, int], font_size: int) -> np.ndarray:
         return self._range * amplitude * text(shape, string, position, font_size)
@@ -1373,8 +1373,8 @@ class TextPresetWidget(QWidget):
         return self.param_change(self.shape, amplitude_spinbox.value(), string_textbox.text(), position_spinboxes.value(), size)
 
     @Slot()
-    def emit_param_change(self):
-        self.change.emit(self.widget_change(self.amplitude_spinbox, self.string_textbox, self.position_spinboxes, self.size_spinbox))
+    def on_value_changed(self):
+        self.changed.emit(self.widget_change(self.amplitude_spinbox, self.string_textbox, self.position_spinboxes, self.size_spinbox))
 
     def setup_main_widget(self, shape: tuple[int, int]):
         amplitude_label = QLabel("Amplitude", self)
@@ -1385,7 +1385,7 @@ class TextPresetWidget(QWidget):
         self.amplitude_spinbox.setRange(0.0, 1.0)
         self.amplitude_spinbox.setSingleStep(0.1)
         self.amplitude_spinbox.setValue(0.5)
-        self.amplitude_spinbox.valueChanged.connect(self.emit_param_change)
+        self.amplitude_spinbox.valueChanged.connect(self.on_value_changed)
 
         size_label = QLabel("Size", self)
 
@@ -1393,7 +1393,7 @@ class TextPresetWidget(QWidget):
         self.size_spinbox.setFixedWidth(75)
         self.size_spinbox.setRange(0, shape[0])
         self.size_spinbox.setValue(shape[0])
-        self.size_spinbox.valueChanged.connect(self.emit_param_change)
+        self.size_spinbox.valueChanged.connect(self.on_value_changed)
 
         size_spacer = QSpacerItem(10, 10, QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Maximum)
 
@@ -1409,18 +1409,18 @@ class TextPresetWidget(QWidget):
         position_x_spinbox.setFixedWidth(75)
         position_x_spinbox.setRange(-self.size_spinbox.value() // 2, self.size_spinbox.value() // 2)
         position_x_spinbox.setValue(shape[0] // 2)
-        position_x_spinbox.valueChanged.connect(self.emit_param_change)
+        position_x_spinbox.valueChanged.connect(self.on_value_changed)
 
         position_y_spinbox.setFixedWidth(75)
         position_y_spinbox.setRange(-self.size_spinbox.value() // 2, self.size_spinbox.value() // 2)
         position_y_spinbox.setValue(shape[1] // 2)
-        position_y_spinbox.valueChanged.connect(self.emit_param_change)
+        position_y_spinbox.valueChanged.connect(self.on_value_changed)
 
         string_label = QLabel("Text", self)
 
         self.string_textbox = QLineEdit(self)
         self.string_textbox.setText("F")
-        self.string_textbox.textChanged.connect(self.emit_param_change)
+        self.string_textbox.textChanged.connect(self.on_value_changed)
 
         position_spacer = QSpacerItem(10, 10, QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Maximum)
 
@@ -1476,7 +1476,7 @@ class FilePresetWidget2(QWidget):  # TODO: fix this, closing the stream window c
     Command file preset widget
     """
 
-    change = Signal(np.ndarray)
+    changed = Signal(np.ndarray)
 
     def param_change(self) -> np.ndarray:
         return self._command
@@ -1485,8 +1485,8 @@ class FilePresetWidget2(QWidget):  # TODO: fix this, closing the stream window c
         return self.param_change()
 
     @Slot()
-    def emit_param_change(self):
-        self.change.emit(self.widget_change())
+    def on_value_changed(self):
+        self.changed.emit(self.widget_change())
 
     def setup_main_widget(self):
         command_file_label = QLabel("File", self)
@@ -1526,7 +1526,7 @@ class FilePresetWidget2(QWidget):  # TODO: fix this, closing the stream window c
                 self.command_file_lineedit.setText(cmd_filename)
                 with fits.open(cmd_filename) as hdul:
                     self._command = hdul[0].data
-                self.emit_param_change()
+                self.on_value_changed()
 
         browse_command_file_button.clicked.connect(browse_cmd_file)
 

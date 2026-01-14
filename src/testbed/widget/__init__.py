@@ -69,15 +69,15 @@ class DevicesSetupWidget(QWidget):
             Show the source settings button?
 
     Signals:
-        sink_changed: Signal()
+        sinkChanged: Signal()
             Signal changing the sink.
 
-        source_changed: Signal()
+        sourceChanged: Signal()
             Signal changing the source.
     """
 
-    sink_changed = Signal(Device)
-    source_changed = Signal(Device)
+    sinkChanged = Signal(Device)
+    sourceChanged = Signal(Device)
 
     def __init__(self, devices: dict[str, Camera | Modulator], setup_sink: bool = True, setup_source: bool = True, parent=None):
         super().__init__(parent)
@@ -95,7 +95,7 @@ class DevicesSetupWidget(QWidget):
 
         @Slot(str)
         def on_sink_device_select(key: str):
-            self.sink_changed.emit(self._devices[key])
+            self.sinkChanged.emit(self._devices[key])
 
         sink_device_combobox.currentTextChanged.connect(on_sink_device_select)
 
@@ -124,7 +124,7 @@ class DevicesSetupWidget(QWidget):
 
         @Slot(str)
         def on_source_device_select(key: str):
-            self.source_changed.emit(self._devices[key])
+            self.sourceChanged.emit(self._devices[key])
 
         source_device_combobox.currentTextChanged.connect(on_source_device_select)
 
@@ -344,8 +344,8 @@ class NSpinBoxesWidget(QWidget):
 
 class OrientationWidget(QWidget):
 
-    rotation_changed = Signal(Rotation)
-    flip_changed = Signal(Flip)
+    rotationChanged = Signal(Rotation)
+    flipChanged = Signal(Flip)
 
     def __init__(self, rotation: Rotation = Rotation.UP, flip: Flip = Flip.NEG, parent=None):
         super().__init__(parent)
@@ -409,7 +409,7 @@ class OrientationWidget(QWidget):
 
 
 class SquareROIWidget(QWidget):
-    roi_move = Signal(int, int)  # (dx, dy)
+    roiMoveClicked = Signal(int, int)  # (dx, dy)
 
     def __init__(self, roi: dict[str, tuple[int, int]], parent=None):
         super().__init__(parent)
@@ -467,7 +467,7 @@ class SquareROIWidget(QWidget):
         right_button.clicked.connect(lambda: self._emit_moved(Δ_spinbox.value(), 0))
 
     def _emit_moved(self, dx: int, dy: int):
-        self.roi_move.emit(dx, dy)
+        self.roiMoveClicked.emit(dx, dy)
 
     def set_roi(self, roi):
         br, tl = roi["br"], roi["tl"]
@@ -475,7 +475,7 @@ class SquareROIWidget(QWidget):
 
 
 class ROIWidget(QWidget):
-    roi_move = Signal(int, int)  # (dx, dy)
+    roiMoveClicked = Signal(int, int)  # (dx, dy)
 
     def __init__(self, _roi: dict[str, tuple[int, int]], step:int=8, parent=None):
         super().__init__(parent)
@@ -533,7 +533,7 @@ class ROIWidget(QWidget):
         right_button.clicked.connect(lambda: self._emit_moved(Δ_spinbox.value(), 0))
 
     def _emit_moved(self, _dx: int, _dy: int):
-        self.roi_move.emit(_dx, _dy)
+        self.roiMoveClicked.emit(_dx, _dy)
 
     def set_roi(self, _roi: dict[str, tuple[int, int]]):
         br, tl = _roi["br"], _roi["tl"]
@@ -541,7 +541,7 @@ class ROIWidget(QWidget):
 
 
 class CenterWidget(QWidget):
-    center_move = Signal(int, int)  # (dx, dy)
+    centerMoveClicked = Signal(int, int)  # (dx, dy)
 
     def __init__(self, _center: tuple[int, int], step:int=8, parent=None):
         super().__init__(parent)
@@ -599,14 +599,14 @@ class CenterWidget(QWidget):
         right_button.clicked.connect(lambda: self._emit_moved(Δ_spinbox.value(), 0))
 
     def _emit_moved(self, dx: int, dy: int):
-        self.center_move.emit(dx, dy)
+        self.centerMoveClicked.emit(dx, dy)
 
     def set_center(self, _center: tuple[int, int]):
         self.value_label.setText(f"({_center[0]}, {_center[1]})")
 
 
 class ValueSetWidget(QWidget):
-    value_set = Signal(int)
+    valueSetClicked = Signal(int)
 
     def __init__(self, _value: int, parent=None):
         super().__init__(parent)
@@ -631,14 +631,14 @@ class ValueSetWidget(QWidget):
         self.pushbutton.clicked.connect(lambda: self._emit_clicked(self.spinbox.value()))
 
     def _emit_clicked(self, _value: int):
-        self.value_set.emit(_value)
+        self.valueSetClicked.emit(_value)
 
     def setValue(self, _value: int):
         self.label.setText(f"{_value}")
 
 
 class DoubleValueSetWidget(QWidget):
-    value_set = Signal(float)
+    valueSetClicked = Signal(float)
 
     def __init__(self, _value: float, parent=None):
         super().__init__(parent)
@@ -663,7 +663,7 @@ class DoubleValueSetWidget(QWidget):
         self.pushbutton.clicked.connect(lambda: self._emit_clicked(self.spinbox.value()))
 
     def _emit_clicked(self, _value: float):
-        self.value_set.emit(_value)
+        self.valueSetClicked.emit(_value)
 
     def setValue(self, _value: float):
         self.label.setText(f"{_value}")

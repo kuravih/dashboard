@@ -14,7 +14,7 @@ from .widget.speckle_calibration_window import ProcessWindow as SpeckleCalibrati
 from .worker.speckle_calibration_worker import ProcessWorker as SpeckleCalibrationWorker
 
 SPECKLE_NULLING = "speckle_nulling"
-from .widget.speckle_nulling_window import ProcessWindow as SpeckleNullingWindow, PreviewWindow as SpeckleNullingPreviewWindow, InfoWindow as SpeckleNullingInfoWindow
+from .widget.speckle_nulling_window import ProcessWindow as SpeckleNullingWindow, ProcessPreviewWindow as SpeckleNullingPreviewWindow, ProcessInfoWindow as SpeckleNullingInfoWindow
 from .worker.speckle_nulling_worker import ProcessWorker as SpeckleNullingWorker
 
 from .worker.camera_worker import UpdateWorker as CameraUpdateWorker

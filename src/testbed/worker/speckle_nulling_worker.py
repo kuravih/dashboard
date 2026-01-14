@@ -18,12 +18,11 @@ logger = setup_logger(f"{_PROCESS_}_worker", terminator="\n")
 
 
 class ProcessWorkerSignals(WorkerSignals):
-    new_source_sample = Signal(SourceSample)
-    new_sink_sample = Signal(SinkSample)
-    speckle_location = Signal(float, float)
-    speckle_parameters = Signal(float, float)
-    measurement = Signal(np.ndarray)
-
+    sourceSampled = Signal(SourceSample)
+    sinkSampled = Signal(SinkSample)
+    phaseSwept = Signal(np.ndarray)
+    amplitudeSwept = Signal(np.ndarray)
+    speckleLocated = Signal(float, float, float, float)
 
 class ProcessWorker(Worker):
     def __init__(self, _source: Camera, _sink: Modulator, _dh_mask: np.ndarray, _speck_calibration: tuple[tuple[float, float], tuple[float, float]], _phases: np.ndarray, _amplitudes: np.ndarray, _n_iterations: int | None = None):
@@ -39,27 +38,25 @@ class ProcessWorker(Worker):
 
     def speckle_phase_search(self, current_cmd: np.ndarray, speck_freq: float, phases: np.ndarray, speck_angle: float, speck_stencil: np.ndarray):
         speck_intensity = np.zeros_like(phases) * np.nan
-        amplitude = 0.025
+        amplitude = 0.5
         i_phs = 0
         while i_phs < phases.size:
-            probe_command = amplitude * self._sink.pxmax * 0.5 * (sinusoid(self._sink.shape, 1.0 / speck_freq, np.deg2rad(phases[i_phs]), speck_angle) / 2 + 0.5)
-
+            probe_command = amplitude * self._sink.pxmax * sinusoid(self._sink.shape, 1.0 / speck_freq, np.deg2rad(phases[i_phs]), speck_angle) / 2
             command = current_cmd + probe_command
             command = np.clip(command, 0, self._sink.pxmax)
 
             _current_sink_sample = self._sink.push_command(command.astype(np.uint16))
-            self.signals.new_sink_sample.emit(_current_sink_sample)
+            self.signals.sinkSampled.emit(_current_sink_sample)
             time.sleep(0.1)
 
             _current_source_sample = self._source.pull_capture()
-            self.signals.new_source_sample.emit(_current_source_sample)
+            self.signals.sourceSampled.emit(_current_source_sample)
             time.sleep(0.2)
-
-            measurement = np.log10(_current_source_sample.capture / (2**12 - 1))
-            self.signals.measurement.emit(measurement)
 
             speck_intensity[i_phs] = np.mean(_current_source_sample.capture[speck_stencil])
             i_phs = i_phs + 1
+
+            self.signals.phaseSwept.emit(speck_intensity)
 
         try:
             guess_offset = np.mean(speck_intensity)
@@ -89,18 +86,20 @@ class ProcessWorker(Worker):
             command = np.clip(command, 0, self._sink.pxmax)
 
             _current_sink_sample = self._sink.push_command(command.astype(np.uint16))
-            self.signals.new_sink_sample.emit(_current_sink_sample)
+            self.signals.sinkSampled.emit(_current_sink_sample)
             time.sleep(0.1)
 
             _current_source_sample = self._source.pull_capture()
-            self.signals.new_source_sample.emit(_current_source_sample)
+            self.signals.sourceSampled.emit(_current_source_sample)
             time.sleep(0.2)
 
-            measurement = np.log10(_current_source_sample.capture / (2**12 - 1))
-            self.signals.measurement.emit(measurement)
+            # measurement = np.log10(_current_source_sample.capture / (2**12 - 1))
+            # self.signals.measurement.emit(measurement)
 
             speck_intensity[i_amp] = np.mean(_current_source_sample.capture[speck_stencil])
             i_amp = i_amp + 1
+
+            self.signals.amplitudeSwept.emit(speck_intensity)
 
         min_index = np.argmin(speck_intensity)
 
@@ -130,23 +129,22 @@ class ProcessWorker(Worker):
         t_start = time.time()
 
         # ---- blank --------------------------------------------------------------------------------------------------
-        command = self._sink.pxmax * (np.zeros(self._sink.shape) + 0.5)
-        command = command + self._sink.pxmax * 0.5 * (sinusoid(self._sink.shape, 1.0 / 0.035, 0, np.pi / 6) / 2 + 0.5)
+        current_cmd = self._sink.pxmax * (np.zeros(self._sink.shape) + 0.5)
+
+        #  Inject test speckle
+        test_command = 0.5 * self._sink.pxmax * sinusoid(self._sink.shape, 1.0 / 0.035, 0, np.pi / 6) / 2
+        command = current_cmd + test_command
+        command = np.clip(command, 0, self._sink.pxmax)
 
         _current_sink_sample = self._sink.push_command(command.astype(np.uint16))
-        self.signals.new_sink_sample.emit(_current_sink_sample)
+        self.signals.sinkSampled.emit(_current_sink_sample)
         time.sleep(0.1)
 
         _current_source_sample = self._source.pull_capture()
-        self.signals.new_source_sample.emit(_current_source_sample)
+        self.signals.sourceSampled.emit(_current_source_sample)
         time.sleep(0.2)
 
-        # capture = flip_rotate(_current_source_sample.capture, self._source.flip, self._source.rotation)
-        capture = _current_source_sample.capture
-        measurement = np.log10(capture / (2**12 - 1))
-        self.signals.measurement.emit(measurement)
-
-        self.signals.progress.emit(i_iteration, time.time() - t_start)
+        self.signals.progressTicked.emit(i_iteration, time.time() - t_start)
         # ---- blank --------------------------------------------------------------------------------------------------
 
         logger.info("%s and %s ProcessWorker.run : iteration %s of %s", self._source.name, self._sink.name, i_iteration, self._n_iterations)
@@ -155,13 +153,12 @@ class ProcessWorker(Worker):
         while ((self._n_iterations is None) or (self._n_iterations > i_iteration)) and self._running:
             # ---- stage 0: find speckle ------------------------------------------------------------------------------
             specks, speck_stencil = find_speckles((_current_source_sample.capture * self._dh_mask).astype(float), 1, 5)
-            self.signals.speckle_location.emit(*specks[0])
             # ---- stage 0: speckle found -----------------------------------------------------------------------------
 
             # ---- stage 1: calculate speckle period and angle --------------------------------------------------------
             speck_freq, speck_angle = speckle_parameters(center, specks[0], self._speck_calibration)
             speck_angle = np.pi - speck_angle
-            self.signals.speckle_parameters.emit(speck_freq, speck_angle)
+            self.signals.speckleLocated.emit(*specks[0], speck_freq, speck_angle)
             # ---- stage 1: speckle period and angle calculated -------------------------------------------------------
 
             # ---- stage 2: find speckle phase ------------------------------------------------------------------------
@@ -186,18 +183,18 @@ class ProcessWorker(Worker):
             # ---- stage 4: apply correction --------------------------------------------------------------------------
 
             # # current_cap = self._source.acquire_image(self._sink.send_command_image(current_cmd))
-            # # progress_data.emit(i_iteration, current_cmd, current_cap)
+            # # progressTicked_data.emit(i_iteration, current_cmd, current_cap)
             # time.sleep(0.1)
-            # # self.signals.progress.emit(i_iteration, time.time() - t_start)
+            # # self.signals.progressTicked.emit(i_iteration, time.time() - t_start)
             # i_iteration = i_iteration + 1
 
             # self._sink.push_command(command.astype(np.uint16))
-            # self.signals.new_sink_sample.emit(self._sink.pull_sample())
+            # self.signals.sinkSampled.emit(self._sink.pull_sample())
             # time.sleep(0.1)
-            # self.signals.new_source_sample.emit(self._source.pull_sample())
+            # self.signals.sourceSampled.emit(self._source.pull_sample())
             # time.sleep(0.1)
 
             i_iteration = i_iteration + 1
-            self.signals.progress.emit(i_iteration, time.time() - t_start)
+            self.signals.progressTicked.emit(i_iteration, time.time() - t_start)
 
         self.signals.finished.emit()
