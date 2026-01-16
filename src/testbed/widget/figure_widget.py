@@ -1,4 +1,3 @@
-from matplotlib import cm
 import numpy as np
 
 from PySide6.QtCore import Signal
@@ -9,6 +8,8 @@ from pykato.plotfunction.preset import Imshow_Colorbar_Preset, Complex_Imshow_Tw
 from pykato.plotfunction.gridspec_layout import GridSpec_Layout
 from pykato.log import setup_logger
 
+import matplotlib as mpl
+from matplotlib.colors import Colormap
 from matplotlib.figure import Figure
 from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.backends.backend_qtagg import NavigationToolbar2QT
@@ -16,7 +17,7 @@ from matplotlib.gridspec import GridSpecFromSubplotSpec
 from matplotlib.axes import Axes
 from matplotlib.image import AxesImage
 from matplotlib.axis import Axis
-from matplotlib.colors import LogNorm
+from matplotlib.colors import LogNorm, Normalize
 from matplotlib.ticker import MaxNLocator
 import matplotlib.pyplot as plt
 import matplotlib.patches as patches
@@ -95,8 +96,8 @@ class SinkFigureWidget(FigureWidget):
     Sink Figure widget
     """
 
-    def __init__(self, _frame: np.ndarray, _pxmax: float, toolbar: bool = False, parent=None):
-        super().__init__(Imshow_Colorbar_Preset(_frame), toolbar, parent)
+    def __init__(self, _frame: np.ndarray, _pxmax: float, show_toolbar: bool = False, parent=None):
+        super().__init__(Imshow_Colorbar_Preset(_frame), show_toolbar, parent)
         self.figure.get_image().set_clim(0, _pxmax)
         self.figure.get_imshow_ax().set_title("Sink", size=10)
         self.setMinimumSize(100, 100)
@@ -107,8 +108,8 @@ class MirrorFigureWidget(SinkFigureWidget):
     Mirror Figure widget
     """
 
-    def __init__(self, _frame: np.ndarray, _pxmax: float, toolbar: bool = False, parent=None):
-        super().__init__(_frame, _pxmax, toolbar, parent)
+    def __init__(self, _frame: np.ndarray, _pxmax: float, show_toolbar: bool = False, parent=None):
+        super().__init__(_frame, _pxmax, show_toolbar, parent)
         self.figure.get_imshow_ax().set_title("DM")
         self.figure.get_imshow_ax().set_xlabel("act", size=10)
         self.figure.get_imshow_ax().set_ylabel("act", size=10)
@@ -132,8 +133,8 @@ class ModulatorFigureWidget(SinkFigureWidget):
     Modulator Figure widget
     """
 
-    def __init__(self, _frame: np.ndarray, _pxmax: float, toolbar: bool = False, parent=None):
-        super().__init__(_frame, _pxmax, toolbar, parent)
+    def __init__(self, _frame: np.ndarray, _pxmax: float, show_toolbar: bool = False, parent=None):
+        super().__init__(_frame, _pxmax, show_toolbar, parent)
         self.figure.get_imshow_ax().set_title("SLM", size=10)
         self.figure.get_imshow_ax().set_xlabel("px", size=10)
         self.figure.get_imshow_ax().set_ylabel("px", size=10)
@@ -167,23 +168,54 @@ class ContrastFigureWidget(FigureWidget):
     Contrast Figure widget
     """
 
-    def __init__(self, frame: np.ndarray, mask: np.ndarray, show_toolbar: bool = False, parent=None):
-        super().__init__(Imshow_Colorbar_Preset(frame), show_toolbar, parent)
-        self.figure.get_image().set_cmap("jet")
-        self.figure.get_image().set_norm(LogNorm(vmax=1, vmin=1e-5))
-        # self.figure.get_image().set_clim(-5, 0)
-        self.figure.get_image().set_alpha(np.where(mask, 1.0, 0.9))
-        # self.figure.get_image().set_clim(0, 2**12 - 1)
-        self.figure.get_imshow_ax().set_title("Speckle field", size=10)
-        self.figure.get_imshow_ax().set_xlabel("px", size=10)
-        self.figure.get_imshow_ax().set_ylabel("px", size=10)
-        self.figure.get_cbar_ax().set_title("Contrast", size=10)
-        self.figure.get_imshow_ax().axhline(frame.shape[0] / 2, alpha=0.25, linewidth=0.5, color="white")
-        self.figure.get_imshow_ax().axvline(frame.shape[1] / 2, alpha=0.25, linewidth=0.5, color="white")
-        self.figure.get_imshow_ax().add_patch(patches.Circle((frame.shape[0] / 2, frame.shape[1] / 2), radius=225, fill=False, alpha=0.25, linewidth=0.5, color="white", transform=self.figure.get_imshow_ax().transData))
-        self.figure.get_imshow_ax().imshow(np.zeros_like(frame), cmap="gray", vmin=0, vmax=1, zorder=-1)
-        self.figure.get_imshow_ax().invert_yaxis()
-        self.setMinimumSize(100, 100)
+    def __init__(self, frame: np.ndarray, mask: np.ndarray, n_iteration: int, cmap: str = "jet", show_toolbar: bool = False, parent=None):
+        super().__init__(GridSpec_Layout(1, 1, aspect_ratios=(8,)), show_toolbar=show_toolbar, parent=parent)
+        self.cmap_name = cmap
+
+        (self._image_ax,) = self.figure.get_axes()
+
+        self._image_ax.set_title("Speckles", size=10)
+        self._image_ax.set_xlabel("px", size=10)
+        self._image_ax.set_ylabel("px", size=10)
+        self._image_ax.axhline(frame.shape[0] / 2 - 0.5, alpha=0.25, linewidth=0.5, color="white")
+        self._image_ax.axvline(frame.shape[1] / 2 - 0.5, alpha=0.25, linewidth=0.5, color="white")
+        self._image_ax.add_patch(patches.Circle((frame.shape[0] / 2 - 0.5, frame.shape[1] / 2 - 0.5), radius=frame.shape[1] / 2, fill=False, alpha=0.25, linewidth=0.5, color="white", transform=self._image_ax.transData))
+        self._imshow_image_contrast = self._image_ax.imshow(frame, cmap=self._cmap, norm=LogNorm(vmin=1e-5, vmax=1))
+        self._imshow_image_contrast.set_alpha(np.where(mask, 1.0, 0.9))
+        self._image_ax.invert_yaxis()
+        self._image_ax.set_xlabel("px", size=10)
+        self._image_ax.set_ylabel("px", size=10)
+
+        divider = make_axes_locatable(self._image_ax)
+
+        self._colorbar_ax = divider.append_axes("right", size="5%", pad=0.1)
+        self.figure.colorbar(self._imshow_image_contrast, cax=self._colorbar_ax)
+        self._colorbar_ax.set_title("Contrast", size=10)
+
+        self._plot_ax_contrast = divider.append_axes("right", size="200%", pad=0.5)
+        self._plot_ax_contrast.set_title("Evolution", size=10)
+        self._plot_ax_contrast.set_xlabel("Iteration", size=10)
+        self._plot_ax_contrast.set_ylabel("", size=10)
+        self._plot_ax_contrast.set_xlim((0, n_iteration))
+        self._plot_ax_contrast.set_yscale("log")
+        self._plot_ax_contrast.set_ylim(1e-5, 1)
+        self._plot_ax_contrast.set_yticklabels([])
+        (self._contrast_data_plot,) = self._plot_ax_contrast.plot([], [], marker="+", linestyle="None")
+
+        self.setMinimumHeight(512)
+
+    def set_contrast(self, contrast: np.ndarray):
+        self._imshow_image_contrast.set_data(contrast)
+
+    @property
+    def cmap_name(self) -> str:
+        return self._cmap_name
+
+    @cmap_name.setter
+    def cmap_name(self, cmap_name: str):
+        self._cmap_name = cmap_name
+        self._cmap = mpl.colormaps[cmap_name].copy()
+        self._cmap.set_bad(color="black")
 
 
 class WavefrontFigureWidget(FigureWidget):
@@ -191,8 +223,8 @@ class WavefrontFigureWidget(FigureWidget):
     Wavefront Figure widget
     """
 
-    def __init__(self, shape: tuple[int, int], toolbar: bool = False, parent=None):
-        super().__init__(Complex_Imshow_TwoColorbars_Preset(np.zeros(shape, dtype=np.complex64)), toolbar, parent)
+    def __init__(self, shape: tuple[int, int], show_toolbar: bool = False, parent=None):
+        super().__init__(Complex_Imshow_TwoColorbars_Preset(np.zeros(shape, dtype=np.complex64)), show_toolbar, parent)
         self.figure.get_imshow_ax().set_title("Wavefront", size=10)
         self.figure.get_imshow_ax().set_xlabel("px", size=10)
         self.figure.get_imshow_ax().set_ylabel("px", size=10)
@@ -225,8 +257,8 @@ class PhaseModulationFigureWidget(FigureWidget):
     Phase modulation figure widget
     """
 
-    def __init__(self, toolbar: bool = False, parent=None):
-        super().__init__(GridSpec_Layout(1, 1, aspect_ratios=(12,)), toolbar, parent)
+    def __init__(self, show_toolbar: bool = False, parent=None):
+        super().__init__(GridSpec_Layout(1, 1, aspect_ratios=(12,)), show_toolbar, parent)
         self.figure.get_axes()[0].set_title("Phase modulation", size=10)
         self.figure.get_axes()[0].set_xlabel("Phase", size=10)
         self.figure.get_axes()[0].set_ylabel("Intensity", size=10)
@@ -244,8 +276,8 @@ class AmpModulationFigureWidget(FigureWidget):
     Amplitude modulation figure widget
     """
 
-    def __init__(self, toolbar: bool = False, parent=None):
-        super().__init__(GridSpec_Layout(1, 1, aspect_ratios=(12,)), toolbar, parent)
+    def __init__(self, show_toolbar: bool = False, parent=None):
+        super().__init__(GridSpec_Layout(1, 1, aspect_ratios=(12,)), show_toolbar, parent)
         self.figure.get_axes()[0].set_title("Phase modulation", size=10)
         self.figure.get_axes()[0].set_xlabel("Phase", size=10)
         self.figure.get_axes()[0].set_ylabel("Intensity", size=10)
@@ -253,9 +285,14 @@ class AmpModulationFigureWidget(FigureWidget):
 
 class SpeckleNullingFigureWidget(FigureWidget):
 
-    def __init__(self, capture: np.ndarray, command: np.ndarray, phs_lim: list[float], amp_lim: list[float], toolbar: bool = False, parent=None):
+    def __init__(self, capture: np.ndarray, command: np.ndarray, phs_lim: list[float], amp_lim: list[float], mask: np.ndarray | None = None, src_cmap: str = "hot", src_cmap_log: bool = True, src_mask: bool = True, snk_cmap: str = "bwr", show_toolbar: bool = False, parent=None):
+        super().__init__(GridSpec_Layout(nrows=3, ncols=1, height_ratios=(1, 0.2, 0.2), hspace=0.5), show_toolbar, parent)
 
-        super().__init__(GridSpec_Layout(nrows=3, ncols=1, height_ratios=(1, 0.2, 0.2), hspace=0.5), toolbar, parent)
+        self.mask = mask
+        self.src_cmap_name = src_cmap
+        self.snk_cmap_name = snk_cmap
+        self.src_cmap_log = src_cmap_log
+        self.src_mask = src_mask
 
         _image_axes, self._plot_ax_phs, self._plot_ax_amp = self.figure.get_axes()
         _image_axes.remove()
@@ -287,9 +324,7 @@ class SpeckleNullingFigureWidget(FigureWidget):
         imshow_ax_sink.axhline(command.shape[0] / 2 - 0.5, alpha=0.25, linewidth=0.5, color="white")
         imshow_ax_sink.axvline(command.shape[1] / 2 - 0.5, alpha=0.25, linewidth=0.5, color="white")
         imshow_ax_sink.add_patch(patches.Circle((command.shape[0] / 2 - 0.5, command.shape[1] / 2 - 0.5), radius=command.shape[1] / 2, fill=False, alpha=0.25, linewidth=0.5, color="white", transform=imshow_ax_sink.transData))
-        cmap_snk = plt.cm.bwr.copy()
-        cmap_snk.set_bad(color="black")
-        self._imshow_image_sink = imshow_ax_sink.imshow(command, cmap=cmap_snk)
+        self._imshow_image_sink = imshow_ax_sink.imshow(command)
         self._imshow_image_sink.set_clim(0, 2**16 - 1)
         imshow_ax_sink.invert_yaxis()
 
@@ -308,8 +343,7 @@ class SpeckleNullingFigureWidget(FigureWidget):
         self.speckle_x_line = imshow_ax_source.axvline(np.nan, alpha=0.5, linewidth=0.5, color="red")
         self.speckle_y_line = imshow_ax_source.axhline(np.nan, alpha=0.5, linewidth=0.5, color="red")
         imshow_ax_source.add_patch(patches.Circle((capture.shape[0] / 2, capture.shape[1] / 2), radius=225, fill=False, alpha=0.25, linewidth=0.5, color="white", transform=imshow_ax_source.transData))
-        self._imshow_image_source = imshow_ax_source.imshow(capture, cmap='hot', norm=LogNorm(vmin=1, vmax=2**12 - 1))
-        self._imshow_image_source.set_clim(1, 2**12 - 1)
+        self._imshow_image_source = imshow_ax_source.imshow(capture)
         imshow_ax_source.invert_yaxis()
 
         divider_source = make_axes_locatable(imshow_ax_source)
@@ -318,43 +352,73 @@ class SpeckleNullingFigureWidget(FigureWidget):
         self.figure.colorbar(self._imshow_image_source, cax=self._colorbar_ax_source)
         self._colorbar_ax_source.set_title("adu", size=10)
 
-        plot_axes = [self._plot_ax_phs, self._plot_ax_amp]
-        imshow_axes = [imshow_ax_sink, imshow_ax_source]
-        imshow_images = [self._imshow_image_sink, self._imshow_image_source]
-        colorbar_axes = [self._colorbar_ax_sink, self._colorbar_ax_source]
+        self.set_src_cmap(self.src_cmap_name)
+        self.set_src_cmap_norm(self.src_cmap_log)
+        self.set_src_mask(self.src_mask)
+        self.set_snk_cmap(self.snk_cmap_name)
 
         self.setMinimumHeight(512)
 
-        # -------------------------------------------------------------------------------------------------------------
-        def _get_images() -> list[AxesImage]:
-            return imshow_images
-
-        self.figure.get_images = _get_images
-        # -------------------------------------------------------------------------------------------------------------
-
-        # -------------------------------------------------------------------------------------------------------------
-        def _get_imshow_axes() -> list[Axes]:
-            return imshow_axes
-
-        self.figure.get_imshow_axes = _get_imshow_axes
-        # -------------------------------------------------------------------------------------------------------------
-
-        # -------------------------------------------------------------------------------------------------------------
-        def _get_plot_axes() -> list[Axes]:
-            return plot_axes
-
-        self.figure.get_plot_axes = _get_plot_axes
-        # -------------------------------------------------------------------------------------------------------------
-
-        # -------------------------------------------------------------------------------------------------------------
-        def _get_cbar_axes() -> list[Axis]:
-            return colorbar_axes
-
-        self.figure.get_cbar_axes = _get_cbar_axes
-        # -------------------------------------------------------------------------------------------------------------
-
     def set_command(self, command: np.ndarray):
         self._imshow_image_sink.set_data(command)
+
+    @property
+    def src_cmap_name(self) -> str:
+        return self._src_cmap_name
+
+    @src_cmap_name.setter
+    def src_cmap_name(self, value: str):
+        self._src_cmap_name = value
+        self._src_cmap = mpl.colormaps[value].copy()
+        self._src_cmap.set_bad(color="black")
+
+    def set_src_cmap(self, cmap_name: str):
+        self.src_cmap_name = cmap_name
+        self._imshow_image_source.set_cmap(self._src_cmap)
+
+    @property
+    def src_cmap_log(self) -> bool:
+        return self._src_cmap_log
+
+    @src_cmap_log.setter
+    def src_cmap_log(self, value: bool):
+        self._src_cmap_log = value
+
+    def set_src_cmap_norm(self, checked: bool):
+        self.src_cmap_log = checked
+        if self.src_cmap_log:
+            self._imshow_image_source.set_norm(LogNorm(vmin=1, vmax=2**12 - 1))
+        else:
+            self._imshow_image_source.set_norm(Normalize(vmin=1, vmax=2**12 - 1))
+
+    @property
+    def src_mask(self) -> bool:
+        return self._src_mask
+
+    @src_mask.setter
+    def src_mask(self, value: bool):
+        self._src_mask = value
+
+    def set_src_mask(self, checked: bool):
+        self.src_mask = checked
+        if self.src_mask:
+            self._imshow_image_source._alpha = np.where(self.mask, 1.0, 0.9)
+        else:
+            self._imshow_image_source._alpha = None
+
+    @property
+    def snk_cmap_name(self) -> str:
+        return self._snk_cmap_name
+
+    @snk_cmap_name.setter
+    def snk_cmap_name(self, value: str):
+        self._snk_cmap_name = value
+        self._snk_cmap = mpl.colormaps[value].copy()
+        self._snk_cmap.set_bad(color="black")
+
+    def set_snk_cmap(self, cmap_name: str):
+        self.snk_cmap_name = cmap_name
+        self._imshow_image_sink.set_cmap(self._snk_cmap)
 
     def set_capture(self, capture: np.ndarray):
         self._imshow_image_source.set_data(capture)
@@ -363,67 +427,27 @@ class SpeckleNullingFigureWidget(FigureWidget):
         self.speckle_x_line.set_xdata([xy[0], xy[0]])
         self.speckle_y_line.set_ydata([xy[1], xy[1]])
 
-    def set_phs_data_plot(self, phs_array:np.ndarray, phs_intensity_data_array:np.ndarray):
+    def set_phs_data_plot(self, phs_array: np.ndarray, phs_intensity_data_array: np.ndarray):
         self._phs_data_plot.set_xdata(phs_array)
         self._phs_data_plot.set_ydata(phs_intensity_data_array)
 
-    def set_phs_fit_plot(self, phs_intensity_fit_x_data:np.ndarray, phs_intensity_fit_y_data:np.ndarray):
+    def set_phs_fit_plot(self, phs_intensity_fit_x_data: np.ndarray, phs_intensity_fit_y_data: np.ndarray):
         self._phs_fit_plot.set_xdata(phs_intensity_fit_x_data)
         self._phs_fit_plot.set_ydata(phs_intensity_fit_y_data)
 
-    def set_amp_data_plot(self, amp_array:np.ndarray, amp_intensity_data_array:np.ndarray):
+    def set_amp_data_plot(self, amp_array: np.ndarray, amp_intensity_data_array: np.ndarray):
         self._amp_data_plot.set_xdata(amp_array)
         self._amp_data_plot.set_ydata(amp_intensity_data_array)
 
-    def set_amp_fit_plot(self, amp_intensity_fit_x_data:np.ndarray, amp_intensity_fit_y_data:np.ndarray):
+    def set_amp_fit_plot(self, amp_intensity_fit_x_data: np.ndarray, amp_intensity_fit_y_data: np.ndarray):
         self._amp_fit_plot.set_xdata(amp_intensity_fit_x_data)
         self._amp_fit_plot.set_ydata(amp_intensity_fit_y_data)
 
-    def set_phs_solve(self, solve:float):
+    def set_phs_solve(self, solve: float):
         return self._phs_solve_line.set_xdata([solve, solve])
-    
-    def set_amp_solve(self, solve:float):
+
+    def set_amp_solve(self, solve: float):
         return self._amp_solve_line.set_xdata([solve, solve])
-
-
-
-
-
-
-
-    # def set_phase_search_data(self, intensity: np.ndarray):
-    #     self._phs_data_plot.set_ydata(intensity)
-
-    # def set_amplitude_search_data(self, intensity: np.ndarray):
-    #     self._amp_data_plot.set_ydata(intensity)
-
-    # @property
-    # def speckle_x(self):
-    #     return self.speckle_x_line
-
-    # @property
-    # def speckle_y(self):
-    #     return self.speckle_y_line
-
-    # @property
-    # def sink_image(self):
-    #     return self._imshow_image_sink
-
-    # @property
-    # def sink_colorbar(self):
-    #     return self._colorbar_ax_sink
-
-    # @property
-    # def source_image(self):
-    #     return self._imshow_image_source
-
-    # @property
-    # def source_mask(self):
-    #     return self._imshow_image_source_mask
-
-    # @property
-    # def source_colorbar(self):
-    #     return self._colorbar_ax_source
 
     @property
     def phs_ax(self):
@@ -432,28 +456,3 @@ class SpeckleNullingFigureWidget(FigureWidget):
     @property
     def amp_ax(self):
         return self._plot_ax_amp
-
-    # @property
-    # def phs_data_plot(self):
-    #     return self._phs_data_plot
-
-    # @property
-    # def amp_data_plot(self):
-    #     return self._amp_data_plot
-
-    # @property
-    # def phs_fit_plot(self):
-    #     return self._phs_fit_plot
-
-    # @property
-    # def amp_fit_plot(self):
-    #     return self._amp_fit_plot
-
-    # def set_phase_fit_plot(self, amplitude, phase, offset):
-    #     self._phs_fit_plot.set_ydata(constrained_sin_fit_fn(np.deg2rad(self.phs_fit_x_data), amplitude, phase, offset))
-
-    # def set_amplitude_fit_plot(self, a, b, c):
-    #     self._amp_fit_plot.set_ydata(quadratic_fit_fn(self.amp_fit_x_data, a, b, c))
-
-
-
