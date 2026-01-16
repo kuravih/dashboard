@@ -780,7 +780,7 @@ class TaskControlsWidget(QWidget):
 
         self.info_button = QPushButton(QIcon(ICON_INFO), "", parent=self)
         self.info_button.setFixedWidth(self.play_pause_button.sizeHint().height())
-        self.info_button.setToolTip("Result")
+        self.info_button.setToolTip("Info")
         self.info_button.setEnabled(False)
 
         layout = QHBoxLayout()

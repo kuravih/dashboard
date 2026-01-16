@@ -1,3 +1,4 @@
+from matplotlib import cm
 import numpy as np
 
 from PySide6.QtCore import Signal
@@ -15,6 +16,8 @@ from matplotlib.gridspec import GridSpecFromSubplotSpec
 from matplotlib.axes import Axes
 from matplotlib.image import AxesImage
 from matplotlib.axis import Axis
+from matplotlib.colors import LogNorm
+from matplotlib.ticker import MaxNLocator
 import matplotlib.pyplot as plt
 import matplotlib.patches as patches
 from mpl_toolkits.axes_grid1 import make_axes_locatable
@@ -109,6 +112,7 @@ class MirrorFigureWidget(SinkFigureWidget):
         self.figure.get_imshow_ax().set_title("DM")
         self.figure.get_imshow_ax().set_xlabel("act", size=10)
         self.figure.get_imshow_ax().set_ylabel("act", size=10)
+        self.figure.get_image().set_cmap("bwr")
         self.figure.get_imshow_ax().axhline(4.5, alpha=0.25, linewidth=0.5, color="white")
         self.figure.get_imshow_ax().axhline(10.5, alpha=0.25, linewidth=0.5, color="white")
         self.figure.get_imshow_ax().axhline(16.5, alpha=0.25, linewidth=0.5, color="white")
@@ -166,7 +170,8 @@ class ContrastFigureWidget(FigureWidget):
     def __init__(self, frame: np.ndarray, mask: np.ndarray, show_toolbar: bool = False, parent=None):
         super().__init__(Imshow_Colorbar_Preset(frame), show_toolbar, parent)
         self.figure.get_image().set_cmap("jet")
-        self.figure.get_image().set_clim(-5, 0)
+        self.figure.get_image().set_norm(LogNorm(vmax=1, vmin=1e-5))
+        # self.figure.get_image().set_clim(-5, 0)
         self.figure.get_image().set_alpha(np.where(mask, 1.0, 0.9))
         # self.figure.get_image().set_clim(0, 2**12 - 1)
         self.figure.get_imshow_ax().set_title("Speckle field", size=10)
@@ -248,12 +253,9 @@ class AmpModulationFigureWidget(FigureWidget):
 
 class SpeckleNullingFigureWidget(FigureWidget):
 
-    def __init__(self, capture: np.ndarray, command: np.ndarray, phs_array: np.ndarray, amp_array: np.ndarray, toolbar: bool = False, parent=None):
+    def __init__(self, capture: np.ndarray, command: np.ndarray, phs_lim: list[float], amp_lim: list[float], toolbar: bool = False, parent=None):
 
         super().__init__(GridSpec_Layout(nrows=3, ncols=1, height_ratios=(1, 0.2, 0.2), hspace=0.5), toolbar, parent)
-
-        # cmap_snk = plt.cm.viridis.copy()
-        # cmap_snk.set_bad(color="black")
 
         _image_axes, self._plot_ax_phs, self._plot_ax_amp = self.figure.get_axes()
         _image_axes.remove()
@@ -261,28 +263,22 @@ class SpeckleNullingFigureWidget(FigureWidget):
         self._plot_ax_phs.set_title("Phase modulation", size=10)
         self._plot_ax_phs.set_xlabel("Phase", size=10)
         self._plot_ax_phs.set_ylabel("Intensity", size=10)
-        self._plot_ax_phs.set_xlim((0, 360))
-        # self._plot_ax_phs.set_ylim((0, 2**12 - 1))
-        (self._phs_data_plot,) = self._plot_ax_phs.plot(phs_array, phs_array * np.nan, marker="+", linestyle="None")
-        self.phs_fit_x_data = np.linspace(0, 360, 101)
-        (self._phs_fit_plot,) = self._plot_ax_phs.plot(self.phs_fit_x_data, self.phs_fit_x_data * np.nan, color="red")
-        self._speck_phs = self._plot_ax_phs.axvline(np.nan, color="red")
+        self._plot_ax_phs.set_xlim((phs_lim[0], phs_lim[1]))
+        self._plot_ax_phs.xaxis.set_major_locator(MaxNLocator(nbins=7))
+        (self._phs_data_plot,) = self._plot_ax_phs.plot([], [], marker="+", linestyle="None")
+        (self._phs_fit_plot,) = self._plot_ax_phs.plot([], [], color="red")
+        self._phs_solve_line = self._plot_ax_phs.axvline(np.nan, color="red")
 
         self._plot_ax_amp.set_title("Amplitude modulation", size=10)
         self._plot_ax_amp.set_xlabel("Amplitude", size=10)
         self._plot_ax_amp.set_ylabel("Intensity", size=10)
-        self._plot_ax_amp.set_xlim((amp_array[0], amp_array[-1]))
-        # self._plot_ax_amp.set_ylim((0, 2**12 - 1))
-        (self._amp_data_plot,) = self._plot_ax_amp.plot(amp_array, amp_array * np.nan, marker="+", linestyle="None")
-        self.amp_fit_x_data = np.linspace(0, amp_array[-1], 101)
-        (self._amp_fit_plot,) = self._plot_ax_amp.plot(self.amp_fit_x_data, self.amp_fit_x_data * np.nan, color="red")
-        self._speck_amp = self._plot_ax_amp.axvline(np.nan, color="red")
+        self._plot_ax_amp.set_xlim((amp_lim[0], amp_lim[-1]))
+        (self._amp_data_plot,) = self._plot_ax_amp.plot([], [], marker="+", linestyle="None")
+        (self._amp_fit_plot,) = self._plot_ax_amp.plot([], [], color="red")
+        self._amp_solve_line = self._plot_ax_amp.axvline(np.nan, color="red")
 
         gs1 = self.figure.get_gridspec()
         gs2 = GridSpecFromSubplotSpec(nrows=1, ncols=2, subplot_spec=gs1[0])
-
-        # cmap_snk = plt.cm.viridis.copy()
-        # cmap_snk.set_bad(color="black")
 
         imshow_ax_sink = self.figure.add_subplot(gs2[0])
         imshow_ax_sink.set_title("SLM", size=10)
@@ -291,9 +287,9 @@ class SpeckleNullingFigureWidget(FigureWidget):
         imshow_ax_sink.axhline(command.shape[0] / 2 - 0.5, alpha=0.25, linewidth=0.5, color="white")
         imshow_ax_sink.axvline(command.shape[1] / 2 - 0.5, alpha=0.25, linewidth=0.5, color="white")
         imshow_ax_sink.add_patch(patches.Circle((command.shape[0] / 2 - 0.5, command.shape[1] / 2 - 0.5), radius=command.shape[1] / 2, fill=False, alpha=0.25, linewidth=0.5, color="white", transform=imshow_ax_sink.transData))
-        # self.figure.get_image().set_clim(0, _pxmax)
-        # self._imshow_image_sink = imshow_ax_sink.imshow(command, cmap=cmap_snk)
-        self._imshow_image_sink = imshow_ax_sink.imshow(command)
+        cmap_snk = plt.cm.bwr.copy()
+        cmap_snk.set_bad(color="black")
+        self._imshow_image_sink = imshow_ax_sink.imshow(command, cmap=cmap_snk)
         self._imshow_image_sink.set_clim(0, 2**16 - 1)
         imshow_ax_sink.invert_yaxis()
 
@@ -309,13 +305,11 @@ class SpeckleNullingFigureWidget(FigureWidget):
         imshow_ax_source.set_ylabel("px", size=10)
         imshow_ax_source.axhline(capture.shape[0] / 2, alpha=0.25, linewidth=0.5, color="white")
         imshow_ax_source.axvline(capture.shape[1] / 2, alpha=0.25, linewidth=0.5, color="white")
-        self.speckle_location_x_line = imshow_ax_source.axvline(np.nan, alpha=0.5, linewidth=0.5, color="red")
-        self.speckle_location_y_line = imshow_ax_source.axhline(np.nan, alpha=0.5, linewidth=0.5, color="red")
+        self.speckle_x_line = imshow_ax_source.axvline(np.nan, alpha=0.5, linewidth=0.5, color="red")
+        self.speckle_y_line = imshow_ax_source.axhline(np.nan, alpha=0.5, linewidth=0.5, color="red")
         imshow_ax_source.add_patch(patches.Circle((capture.shape[0] / 2, capture.shape[1] / 2), radius=225, fill=False, alpha=0.25, linewidth=0.5, color="white", transform=imshow_ax_source.transData))
-        # self._imshow_image_source = imshow_ax_source.imshow(capture, cmap=cmap_snk)
-        # self._imshow_image_source_mask = imshow_ax_source.imshow(capture * 0.0, cmap="gray")
-        self._imshow_image_source = imshow_ax_source.imshow(capture)
-        self._imshow_image_source.set_clim(0, 2**12 - 1)
+        self._imshow_image_source = imshow_ax_source.imshow(capture, cmap='hot', norm=LogNorm(vmin=1, vmax=2**12 - 1))
+        self._imshow_image_source.set_clim(1, 2**12 - 1)
         imshow_ax_source.invert_yaxis()
 
         divider_source = make_axes_locatable(imshow_ax_source)
@@ -359,84 +353,107 @@ class SpeckleNullingFigureWidget(FigureWidget):
         self.figure.get_cbar_axes = _get_cbar_axes
         # -------------------------------------------------------------------------------------------------------------
 
-    def set_speckle(self, xy: list[float]):
-        self.speckle_location_x_line.set_xdata([xy[0], xy[0]])
-        self.speckle_location_y_line.set_ydata([xy[1], xy[1]])
-
     def set_command(self, command: np.ndarray):
         self._imshow_image_sink.set_data(command)
 
     def set_capture(self, capture: np.ndarray):
         self._imshow_image_source.set_data(capture)
 
-    def set_phase_search_data(self, intensity: np.ndarray):
-        self._phs_data_plot.set_ydata(intensity)
+    def set_speckle(self, xy: list[float]):
+        self.speckle_x_line.set_xdata([xy[0], xy[0]])
+        self.speckle_y_line.set_ydata([xy[1], xy[1]])
 
-    def set_amplitude_search_data(self, intensity: np.ndarray):
-        self._amp_data_plot.set_ydata(intensity)
+    def set_phs_data_plot(self, phs_array:np.ndarray, phs_intensity_data_array:np.ndarray):
+        self._phs_data_plot.set_xdata(phs_array)
+        self._phs_data_plot.set_ydata(phs_intensity_data_array)
+
+    def set_phs_fit_plot(self, phs_intensity_fit_x_data:np.ndarray, phs_intensity_fit_y_data:np.ndarray):
+        self._phs_fit_plot.set_xdata(phs_intensity_fit_x_data)
+        self._phs_fit_plot.set_ydata(phs_intensity_fit_y_data)
+
+    def set_amp_data_plot(self, amp_array:np.ndarray, amp_intensity_data_array:np.ndarray):
+        self._amp_data_plot.set_xdata(amp_array)
+        self._amp_data_plot.set_ydata(amp_intensity_data_array)
+
+    def set_amp_fit_plot(self, amp_intensity_fit_x_data:np.ndarray, amp_intensity_fit_y_data:np.ndarray):
+        self._amp_fit_plot.set_xdata(amp_intensity_fit_x_data)
+        self._amp_fit_plot.set_ydata(amp_intensity_fit_y_data)
+
+    def set_phs_solve(self, solve:float):
+        return self._phs_solve_line.set_xdata([solve, solve])
+    
+    def set_amp_solve(self, solve:float):
+        return self._amp_solve_line.set_xdata([solve, solve])
+
+
+
+
+
+
+
+    # def set_phase_search_data(self, intensity: np.ndarray):
+    #     self._phs_data_plot.set_ydata(intensity)
+
+    # def set_amplitude_search_data(self, intensity: np.ndarray):
+    #     self._amp_data_plot.set_ydata(intensity)
+
+    # @property
+    # def speckle_x(self):
+    #     return self.speckle_x_line
+
+    # @property
+    # def speckle_y(self):
+    #     return self.speckle_y_line
+
+    # @property
+    # def sink_image(self):
+    #     return self._imshow_image_sink
+
+    # @property
+    # def sink_colorbar(self):
+    #     return self._colorbar_ax_sink
+
+    # @property
+    # def source_image(self):
+    #     return self._imshow_image_source
+
+    # @property
+    # def source_mask(self):
+    #     return self._imshow_image_source_mask
+
+    # @property
+    # def source_colorbar(self):
+    #     return self._colorbar_ax_source
 
     @property
-    def speckle_x(self):
-        return self.speckle_location_x_line
-
-    @property
-    def speckle_y(self):
-        return self.speckle_location_y_line
-
-    @property
-    def sink_image(self):
-        return self._imshow_image_sink
-
-    @property
-    def sink_colorbar(self):
-        return self._colorbar_ax_sink
-
-    @property
-    def source_image(self):
-        return self._imshow_image_source
-
-    @property
-    def source_mask(self):
-        return self._imshow_image_source_mask
-
-    @property
-    def source_colorbar(self):
-        return self._colorbar_ax_source
-
-    @property
-    def phase_ax(self):
+    def phs_ax(self):
         return self._plot_ax_phs
 
     @property
-    def amplidtude_ax(self):
+    def amp_ax(self):
         return self._plot_ax_amp
 
-    @property
-    def phase_data_plot(self):
-        return self._phs_data_plot
+    # @property
+    # def phs_data_plot(self):
+    #     return self._phs_data_plot
 
-    @property
-    def amplitude_data_plot(self):
-        return self._amp_data_plot
+    # @property
+    # def amp_data_plot(self):
+    #     return self._amp_data_plot
 
-    @property
-    def phase_fit_plot(self):
-        return self._phs_fit_plot
+    # @property
+    # def phs_fit_plot(self):
+    #     return self._phs_fit_plot
 
-    @property
-    def amplitude_fit_plot(self):
-        return self._amp_fit_plot
+    # @property
+    # def amp_fit_plot(self):
+    #     return self._amp_fit_plot
 
-    def set_phase_fit_plot(self, amplitude, phase, offset):
-        self._phs_fit_plot.set_ydata(constrained_sin_fit_fn(np.deg2rad(self.phs_fit_x_data), amplitude, phase, offset))
+    # def set_phase_fit_plot(self, amplitude, phase, offset):
+    #     self._phs_fit_plot.set_ydata(constrained_sin_fit_fn(np.deg2rad(self.phs_fit_x_data), amplitude, phase, offset))
 
-    def set_amplitude_fit_plot(self, a, b, c):
-        self._amp_fit_plot.set_ydata(quadratic_fit_fn(self.amp_fit_x_data, a, b, c))
+    # def set_amplitude_fit_plot(self, a, b, c):
+    #     self._amp_fit_plot.set_ydata(quadratic_fit_fn(self.amp_fit_x_data, a, b, c))
 
-    @property
-    def phase_line(self):
-        return self._speck_phs
 
-    @property
-    def amplitude_line(self):
-        return self._speck_amp
+

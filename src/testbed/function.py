@@ -234,7 +234,7 @@ def sin_fit_fn(x, amplitude, frequency, phase, offset):
 
 
 def constrained_sin_fit_fn(x, amplitude, phase, offset):
-    return sin_fit_fn(x, amplitude, 1.0, phase, offset)
+    return sin_fit_fn(x, amplitude, 1, phase, offset)
 
 
 def quadratic_fit_fn(x, a, b, c):

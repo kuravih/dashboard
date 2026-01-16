@@ -17,8 +17,8 @@ logger = setup_logger(f"{_PROCESS_}_worker", terminator="\n")
 
 
 class ProcessWorkerSignals(WorkerSignals):
-    sourceSampled = Signal(SourceSample)
-    sinkSampled = Signal(SinkSample)
+    srcSampled = Signal(SourceSample)
+    snkSampled = Signal(SinkSample)
 
 
 class ProcessWorker(Worker):
@@ -42,10 +42,10 @@ class ProcessWorker(Worker):
         # ---- blank --------------------------------------------------------------------------------------------------
         command = self._sink.pxmax * np.clip(np.zeros(self._sink.shape) + 0.5, 0, 1)
 
-        self.signals.sinkSampled.emit(self._sink.push_command(command.astype(np.uint16)))
+        self.signals.snkSampled.emit(self._sink.push_command(command.astype(np.uint16)))
         time.sleep(0.1)
 
-        self.signals.sourceSampled.emit(self._source.pull_capture())
+        self.signals.srcSampled.emit(self._source.pull_capture())
         time.sleep(0.2)
 
         self.signals.progressTicked.emit(i_step, time.time() - t_start)
@@ -62,10 +62,10 @@ class ProcessWorker(Worker):
 
                     command = self._sink.pxmax * np.clip(self._ampl * sinusoid(self._sink.shape, 1.0 / self._freqs[i_freq], np.deg2rad(self._phases[i_phase]), np.deg2rad(self._angles[i_angle])) + 0.5, 0, 1)
 
-                    self.signals.sinkSampled.emit(self._sink.push_command(command.astype(np.uint16)))
+                    self.signals.snkSampled.emit(self._sink.push_command(command.astype(np.uint16)))
                     time.sleep(0.1)
 
-                    self.signals.sourceSampled.emit(self._source.pull_capture())
+                    self.signals.srcSampled.emit(self._source.pull_capture())
                     time.sleep(0.2)
 
                     i_step = i_step + 1

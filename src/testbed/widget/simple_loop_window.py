@@ -322,14 +322,14 @@ class ProcessWindow(Window):
 
         if self.settings_widget.record_source:
             source_storage_worker = SourceStorageWorker(f"data/output/{timestamp}_{_PROCESS_}_source.raw", self.settings_widget.n_steps)
-            worker.signals.sourceSampled.connect(source_storage_worker.on_sampled)
+            worker.signals.srcSampled.connect(source_storage_worker.on_sampled)
             source_storage_worker.signals.finished.connect(self.on_source_storage_finished)
             testbed.data.workers[source_storage_worker_id] = source_storage_worker
             testbed.data.threadpool.start(source_storage_worker)
 
         if self.settings_widget.record_sink:
             sink_storage_worker = SinkStorageWorker(f"data/output/{timestamp}_{_PROCESS_}_sink.raw", self.settings_widget.n_steps)
-            worker.signals.sinkSampled.connect(sink_storage_worker.on_sampled)
+            worker.signals.snkSampled.connect(sink_storage_worker.on_sampled)
             sink_storage_worker.signals.finished.connect(self.on_sink_storage_finished)
             testbed.data.workers[sink_storage_worker_id] = sink_storage_worker
             testbed.data.threadpool.start(sink_storage_worker)
@@ -339,9 +339,9 @@ class ProcessWindow(Window):
         self.devices_widget.source_settings_button.setEnabled(False)
 
         if source_preview_window_id in testbed.data.windows:
-            worker.signals.sourceSampled.connect(testbed.data.windows[source_preview_window_id].on_sampled)
+            worker.signals.srcSampled.connect(testbed.data.windows[source_preview_window_id].on_sampled)
         if sink_preview_window_id in testbed.data.windows:
-            worker.signals.sinkSampled.connect(testbed.data.windows[sink_preview_window_id].on_sampled)
+            worker.signals.snkSampled.connect(testbed.data.windows[sink_preview_window_id].on_sampled)
 
         testbed.data.workers[worker_id] = worker
         testbed.data.threadpool.start(worker)
