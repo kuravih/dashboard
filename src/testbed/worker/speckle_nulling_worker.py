@@ -31,6 +31,8 @@ class ProcessWorkerSignals(WorkerSignals):
     ampFitted = Signal(float, float, float)
     ampSolved = Signal(float)
 
+    contrastMeasured = Signal(np.ndarray, np.ndarray)
+
 
 class ProcessWorker(Worker):
     def __init__(self, source: Camera, sink: Modulator, dark_hole_mask: np.ndarray, speckle_calibration: tuple[tuple[float, float], tuple[float, float]], phs_array: np.ndarray, amp_array: np.ndarray, n_iterations: int | None = None):
@@ -79,9 +81,9 @@ class ProcessWorker(Worker):
             logger.info("speckle_phs_search: least_squares_fit failed")
             speckle_phase = 0
         else:
-            speckle_phase = (-np.pi / 2 - fit_phase) % (2*np.pi)
+            speckle_phase = (-np.pi / 2 - fit_phase) % (2 * np.pi)
 
-        logger.info("speckle_phs_search: speckle_phase = %f", np.rad2deg(speckle_phase))
+        # logger.info("speckle_phs_search: speckle_phase = %f", np.rad2deg(speckle_phase))
 
         self.signals.phsSolved.emit(speckle_phase)
 
@@ -116,9 +118,8 @@ class ProcessWorker(Worker):
             speckle_amplitude = amp_array[np.argmin(speckle_intensity)]
         else:
             speckle_amplitude = -fit_b / (2 * fit_a)
-        # speckle_amplitude = amp_array[np.argmin(speckle_intensity)]
 
-        logger.info("speckle_amp_search: speckle_amplitude = %f", speckle_amplitude)
+        # logger.info("speckle_amp_search: speckle_amplitude = %f", speckle_amplitude)
 
         self.signals.ampSolved.emit(speckle_amplitude)
 
@@ -127,9 +128,9 @@ class ProcessWorker(Worker):
     @Slot()
     def run(self):
         super().run()
-        i_iteration = 0
         t_start = time.time()
 
+        measure_array = np.full(self._n_iterations + 1, fill_value=np.nan, dtype=[("avg", float), ("std", float), ("min", float), ("max", float)])
         # ---- blank --------------------------------------------------------------------------------------------------
         current_cmd = self._sink.pxmax * (np.zeros(self._sink.shape) + 0.5)
 
@@ -146,6 +147,13 @@ class ProcessWorker(Worker):
         self.signals.srcSampled.emit(_current_source_sample)
         time.sleep(0.2)
 
+        measure_map = _current_source_sample.capture / (2**12 - 1)
+        mesure_map_dark_hole = measure_map[self._dark_hole_mask]
+        measure_array[0]["avg"], measure_array[0]["std"], measure_array[0]["min"], measure_array[0]["max"] = np.mean(mesure_map_dark_hole), np.std(mesure_map_dark_hole), np.min(mesure_map_dark_hole), np.max(mesure_map_dark_hole)
+        self.signals.contrastMeasured.emit(np.array(measure_map, copy=True), measure_array)
+        logger.info("avg = %.4e, std = %.4e, min = %.4e, max = %.4e", measure_array[0]["avg"], measure_array[0]["std"], measure_array[0]["min"], measure_array[0]["max"])
+
+        i_iteration = 0
         self.signals.progressTicked.emit(i_iteration, time.time() - t_start)
         # ---- blank --------------------------------------------------------------------------------------------------
 
@@ -165,20 +173,6 @@ class ProcessWorker(Worker):
 
             # ---- stage 2: find speckle phase ------------------------------------------------------------------------
             speckle_phase = self.speckle_phs_search(_current_sink_sample.command, speckle_frequency, self._phs_array, speckle_angle, speckle_stencil)
-
-            # amplitude = 0.5
-            # probe_command = amplitude * self._sink.pxmax * sinusoid(self._sink.shape, 1.0 / speckle_frequency, speckle_phase, speckle_angle) / 2
-            # command = _current_sink_sample.command + probe_command
-            # command = np.clip(command, 0, self._sink.pxmax)
-
-            # _current_sink_sample = self._sink.push_command(command.astype(np.uint16))
-            # self.signals.snkSampled.emit(_current_sink_sample)
-            # time.sleep(0.1)
-
-            # _current_source_sample = self._source.pull_capture()
-            # self.signals.srcSampled.emit(_current_source_sample)
-            # time.sleep(0.2)
-            # break
             # ---- stage 2: speckle phase found -----------------------------------------------------------------------
 
             # ---- stage 3: find speckle amplitude --------------------------------------------------------------------
@@ -197,8 +191,13 @@ class ProcessWorker(Worker):
             _current_source_sample = self._source.pull_capture()
             self.signals.srcSampled.emit(_current_source_sample)
             time.sleep(0.2)
-            # ---- stage 4: apply correction --------------------------------------------------------------------------
 
+            measure_map = _current_source_sample.capture / (2**12 - 1)
+            mesure_map_dark_hole = measure_map[self._dark_hole_mask]
+            measure_array[i_iteration + 1]["avg"], measure_array[i_iteration + 1]["std"], measure_array[i_iteration + 1]["min"], measure_array[i_iteration + 1]["max"] = np.mean(mesure_map_dark_hole), np.std(mesure_map_dark_hole), np.min(mesure_map_dark_hole), np.max(mesure_map_dark_hole)
+            self.signals.contrastMeasured.emit(np.array(measure_map, copy=True), measure_array)
+            logger.info("avg = %.4e, std = %.4e, min = %.4e, max = %.4e", measure_array[i_iteration + 1]["avg"], measure_array[i_iteration + 1]["std"], measure_array[i_iteration + 1]["min"], measure_array[i_iteration + 1]["max"])
+            # ---- stage 4: apply correction --------------------------------------------------------------------------
             i_iteration = i_iteration + 1
             self.signals.progressTicked.emit(i_iteration, time.time() - t_start)
 
