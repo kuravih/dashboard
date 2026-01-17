@@ -9,7 +9,7 @@ from pykato.plotfunction.preset import Histogram_Colorbar_Preset
 from pykato.function import timestamp_string
 
 from ..widget import Window, OrientationWidget, CenterWidget, DoubleValueSetWidget
-from ..function import Flip, Rotation, flip_rotate, write_sink_sample_data, write_sink_sample_header
+from ..function import write_sink_sample_data, write_sink_sample_header, Flip, Rotation#, flip_rotate
 from ..device.modulator import Modulator, SinkSample
 from ..widget.command_preset_widget import EFCPresetWidget, ConstPresetWidget, GradientPresetWidget, CheckerPresetWidget, SinusoidPresetWidget, BoxPresetWidget, PolkaPresetWidget, RegisterPresetWidget, DOTFPresetWidget, TextPresetWidget
 from ..widget.figure_widget import FigureWidget, ModulatorFigureWidget

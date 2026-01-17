@@ -9,7 +9,7 @@ from pykato.plotfunction.preset import Histogram_Colorbar_Preset
 from pykato.function import timestamp_string
 
 from ..device.camera import Camera, SourceSample
-from ..function import Flip, Rotation, flip_rotate, write_source_sample_header, write_source_sample_data
+from ..function import write_source_sample_header, write_source_sample_data, Flip, Rotation#, flip_rotate
 from ..widget import Window, OrientationWidget, ROIWidget, DoubleValueSetWidget, ValueSetWidget
 from ..widget.resource import ICON_CAMERA
 from ..widget.figure_widget import FigureWidget, SourceFigureWidget

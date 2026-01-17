@@ -1,5 +1,5 @@
 import time
-from PySide6.QtCore import Slot, Signal, QObject
+from PySide6.QtCore import Slot, Signal
 
 from pykato.log import setup_logger
 

@@ -7,7 +7,6 @@ from PySide6.QtCore import QFileInfo, Qt, QTimer, Signal, Slot
 from PySide6.QtGui import QIcon
 from PySide6.QtWidgets import QCheckBox, QFileDialog, QGridLayout, QHBoxLayout, QLabel, QLineEdit, QMessageBox, QPushButton, QSpinBox, QVBoxLayout, QWidget, QComboBox
 from matplotlib import colormaps
-from matplotlib.colors import LogNorm, Normalize
 
 import testbed
 from testbed.device import SinkSample

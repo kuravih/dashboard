@@ -9,14 +9,10 @@ from pykato.plotfunction.gridspec_layout import GridSpec_Layout
 from pykato.log import setup_logger
 
 import matplotlib as mpl
-from matplotlib.colors import Colormap
 from matplotlib.figure import Figure
 from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.backends.backend_qtagg import NavigationToolbar2QT
 from matplotlib.gridspec import GridSpecFromSubplotSpec
-from matplotlib.axes import Axes
-from matplotlib.image import AxesImage
-from matplotlib.axis import Axis
 from matplotlib.colors import LogNorm, Normalize
 from matplotlib.ticker import MaxNLocator
 import matplotlib.pyplot as plt
