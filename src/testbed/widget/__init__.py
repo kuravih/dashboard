@@ -6,11 +6,10 @@ from PySide6.QtWidgets import QWidget, QHBoxLayout, QVBoxLayout, QDoubleSpinBox,
 from PySide6.QtCore import Signal, Slot, Qt
 from PySide6.QtGui import QIcon, QCursor
 
-from ..device import Device, Stream
+from ..device import Device
 from ..device.camera import Camera
 from ..device.modulator import Modulator
-from ..widget.figure_widget import FigureWidget, SourceFigureWidget, WavefrontFigureWidget, ModulatorFigureWidget, PhaseModulationFigureWidget, AmpModulationFigureWidget, SpeckleNullingFigureWidget
-from ..widget.resource import ICON_RUN, ICON_STEP_FORWARD, ICON_PAUSE, ICON_UNPAUSE, ICON_DISK, ICON_STOP, ICON_PRINT, ICON_EYE, ICON_UP_ARROW, ICON_DOWN_ARROW, ICON_LEFT_ARROW, ICON_RIGHT_ARROW, ICON_INFO, ICON_GEAR, ICON_SUN
+from ..widget.resource import ICON_RUN, ICON_EYE, ICON_UP_ARROW, ICON_DOWN_ARROW, ICON_LEFT_ARROW, ICON_RIGHT_ARROW, ICON_INFO, ICON_GEAR
 from ..function import Rotation, Flip
 
 
@@ -26,26 +25,26 @@ class DevicesComboBox(QComboBox):
     Parameters:
         devices: list[Device]
             Devices list to show.
-        kinds: tuple[Stream.Kind, ...]
-            Kind of devices out of the list to show, specify multiple kinds to show devices of multiple kinds.
+        types: tuple[type, ...]
+            Type of devices out of the list to show, specify multiple kinds to show devices of multiple kinds.
 
     Function:
         showPopup()
             Overridden pop up function will show only device options of a given kind.
     """
 
-    def __init__(self, devices: dict[str, Device], types: tuple[type], parent=None):
+    def __init__(self, devices: dict[str, Device], types: tuple[type, ...], parent=None):
         super().__init__(parent)
-        self._devices = devices
-        self._types = types
+        self.devices = devices
+        self.types = types
 
     def showPopup(self):  # pylint: disable=C0103:invalid-name
         super().blockSignals(True)
 
         self.clear()
 
-        for key, device in self._devices.items():
-            if isinstance(device, self._types):
+        for key, device in self.devices.items():
+            if isinstance(device, self.types):
                 self.addItem(key)
         self.setCurrentIndex(-1)
 
@@ -81,21 +80,21 @@ class DevicesSetupWidget(QWidget):
 
     def __init__(self, devices: dict[str, Camera | Modulator], setup_sink: bool = True, setup_source: bool = True, parent=None):
         super().__init__(parent)
-        self._devices = devices
-        self._setup_sink = setup_sink
-        self._setup_source = setup_source
+        self.devices = devices
+        self.setup_sink = setup_sink
+        self.setup_source = setup_source
         # self._setup_source_settings = setup_source_settings
 
         sink_device_label = QLabel("Sink", self)
         sink_device_label.hide()
 
-        sink_device_combobox = DevicesComboBox(self._devices, (Modulator,), self)
+        sink_device_combobox = DevicesComboBox(self.devices, (Modulator,), self)
         sink_device_combobox.setToolTip("Required")
         sink_device_combobox.hide()
 
         @Slot(str)
         def on_sink_device_select(key: str):
-            self.sinkChanged.emit(self._devices[key])
+            self.sinkChanged.emit(self.devices[key])
 
         sink_device_combobox.currentTextChanged.connect(on_sink_device_select)
 
@@ -118,13 +117,13 @@ class DevicesSetupWidget(QWidget):
         source_device_label.setFixedWidth(100)
         source_device_label.hide()
 
-        source_device_combobox = DevicesComboBox(self._devices, (Camera,), self)
+        source_device_combobox = DevicesComboBox(self.devices, (Camera,), self)
         source_device_combobox.setToolTip("Required")
         source_device_combobox.hide()
 
         @Slot(str)
         def on_source_device_select(key: str):
-            self.sourceChanged.emit(self._devices[key])
+            self.sourceChanged.emit(self.devices[key])
 
         source_device_combobox.currentTextChanged.connect(on_source_device_select)
 
@@ -148,7 +147,7 @@ class DevicesSetupWidget(QWidget):
         row = 0
         col = 0
 
-        if self._setup_sink:
+        if self.setup_sink:
             sink_device_label.show()
             layout.addWidget(sink_device_label, row, col)
             col += 1
@@ -161,7 +160,7 @@ class DevicesSetupWidget(QWidget):
             col += 1
             layout.addWidget(self.sink_preview_button, row, col)
 
-        if self._setup_source:
+        if self.setup_source:
             row += 1
             col = 0
             source_device_label.show()
@@ -222,45 +221,45 @@ class LinspaceWidget(QWidget):
 
     valueChanged = Signal(np.ndarray)
 
-    def __init__(self, start: float = 0, stop: float = 100, steps: int = 2, parent=None):
+    def __init__(self, start: float, stop: float, steps: int, parent=None):
         super().__init__(parent)
 
-        self._start_spinbox = QDoubleSpinBox(self)
-        self._start_spinbox.setRange(-999, 999)
-        self._start_spinbox.setDecimals(2)
-        self._start_spinbox.setToolTip("Start")
-        self._start_spinbox.setValue(start)
-        self._start_spinbox.valueChanged.connect(self._on_value_changed)
+        self.start_spinbox = QDoubleSpinBox(self)
+        self.start_spinbox.setRange(-999, 999)
+        self.start_spinbox.setDecimals(2)
+        self.start_spinbox.setToolTip("Start")
+        self.start_spinbox.setValue(start)
+        self.start_spinbox.valueChanged.connect(self._on_value_changed)
 
-        self._stop_spinbox = QDoubleSpinBox(self)
-        self._stop_spinbox.setRange(-999, 999)
-        self._stop_spinbox.setDecimals(2)
-        self._stop_spinbox.setToolTip("Stop")
-        self._stop_spinbox.setValue(stop)
-        self._stop_spinbox.valueChanged.connect(self._on_value_changed)
+        self.stop_spinbox = QDoubleSpinBox(self)
+        self.stop_spinbox.setRange(-999, 999)
+        self.stop_spinbox.setDecimals(2)
+        self.stop_spinbox.setToolTip("Stop")
+        self.stop_spinbox.setValue(stop)
+        self.stop_spinbox.valueChanged.connect(self._on_value_changed)
 
-        self._num_spinbox = QSpinBox(self)
-        self._num_spinbox.setMinimum(1)
-        self._num_spinbox.setToolTip("Number of steps")
-        self._num_spinbox.setValue(steps)
-        self._num_spinbox.valueChanged.connect(self._on_value_changed)
+        self.num_spinbox = QSpinBox(self)
+        self.num_spinbox.setMinimum(1)
+        self.num_spinbox.setToolTip("Number of steps")
+        self.num_spinbox.setValue(steps)
+        self.num_spinbox.valueChanged.connect(self._on_value_changed)
 
-        self._help_button = QPushButton("?", self)
-        self._help_button.setFixedWidth(self._help_button.sizeHint().height())
-        self._help_button.clicked.connect(lambda: QToolTip.showText(QCursor.pos(), f"{np.array2string(self.value(), precision=4, separator=', ')}"))
+        self.help_button = QPushButton("?", self)
+        self.help_button.setFixedWidth(self.help_button.sizeHint().height())
+        self.help_button.clicked.connect(lambda: QToolTip.showText(QCursor.pos(), f"{np.array2string(self.value(), precision=4, separator=', ')}"))
 
         layout = QHBoxLayout()
-        layout.addWidget(self._start_spinbox)
-        layout.addWidget(self._stop_spinbox)
-        layout.addWidget(self._num_spinbox)
-        layout.addWidget(self._help_button, alignment=Qt.AlignmentFlag.AlignLeft)
+        layout.addWidget(self.start_spinbox)
+        layout.addWidget(self.stop_spinbox)
+        layout.addWidget(self.num_spinbox)
+        layout.addWidget(self.help_button, alignment=Qt.AlignmentFlag.AlignLeft)
 
         layout.setContentsMargins(0, 0, 0, 0)
 
         self.setLayout(layout)
 
     def value(self) -> np.ndarray:
-        return np.linspace(self._start_spinbox.value(), self._stop_spinbox.value(), self._num_spinbox.value())
+        return np.linspace(self.start_spinbox.value(), self.stop_spinbox.value(), self.num_spinbox.value())
 
     @Slot()
     def _on_value_changed(self):
@@ -477,7 +476,7 @@ class SquareROIWidget(QWidget):
 class ROIWidget(QWidget):
     roiMoveClicked = Signal(int, int)  # (dx, dy)
 
-    def __init__(self, _roi: dict[str, tuple[int, int]], step:int=8, parent=None):
+    def __init__(self, _roi: dict[str, tuple[int, int]], step: int = 8, parent=None):
         super().__init__(parent)
 
         # --- spinbox ---
@@ -543,7 +542,7 @@ class ROIWidget(QWidget):
 class CenterWidget(QWidget):
     centerMoveClicked = Signal(int, int)  # (dx, dy)
 
-    def __init__(self, _center: tuple[int, int], step:int=8, parent=None):
+    def __init__(self, _center: tuple[int, int], step: int = 8, parent=None):
         super().__init__(parent)
 
         # --- spinbox ---
@@ -669,93 +668,93 @@ class DoubleValueSetWidget(QWidget):
         self.label.setText(f"{_value}")
 
 
-# class ExposureTimeArrayWidget(QWidget):
-#     """
-#     Exposure time array widget with add and remove step buttons.
+class ExposureTimeArrayWidget(QWidget):
+    """
+    Exposure time array widget with add and remove step buttons.
 
-#     Parameter:
-#         value: int = 10
-#             1st Exposure time of the array.
+    Parameter:
+        value: int = 10
+            1st Exposure time of the array.
 
-#     Function:
-#         value(): list[int]
-#             list of Exposure times (us).
-#     """
+    Function:
+        value(): list[int]
+            list of Exposure times (us).
+    """
 
-#     def __init__(self, value: int = 10, parent=None):
-#         super().__init__(parent)
+    def __init__(self, value: int = 10, parent=None):
+        super().__init__(parent)
 
-#         self._layout = QVBoxLayout()
-#         self._layout.setContentsMargins(0, 0, 0, 0)
+        self._layout = QVBoxLayout()
+        self._layout.setContentsMargins(0, 0, 0, 0)
 
-#         spinbox = QSpinBox()
-#         spinbox.setRange(0, 300000000)
-#         spinbox.setFixedWidth(100)
-#         spinbox.setSuffix(" us")
-#         spinbox.setValue(value)
-#         spinbox.setToolTip("Exposure time in us (maximum 5min)")
-#         self._spinboxes = [spinbox]
-#         self._layout_steps(self._layout, self._spinboxes)
-#         self.setLayout(self._layout)
+        spinbox = QSpinBox()
+        spinbox.setRange(0, 300000000)
+        spinbox.setFixedWidth(100)
+        spinbox.setSuffix(" us")
+        spinbox.setValue(value)
+        spinbox.setToolTip("Exposure time in us (maximum 5min)")
+        self._spinboxes = [spinbox]
+        self._layout_steps(self._layout, self._spinboxes)
+        self.setLayout(self._layout)
 
-#     def _layout_steps(self, parent_layout: QVBoxLayout, spinboxes: list[QSpinBox]):
-#         """Layout a spinbox with a label and a +/- button
+    def _layout_steps(self, parent_layout: QVBoxLayout, spinboxes: list[QSpinBox]):
+        """Layout a spinbox with a label and a +/- button
 
-#         Parameters:
-#             values: list[int]
-#                 Exposure time values list
-#         """
-#         for index, spinbox in enumerate(spinboxes):
-#             exp_time_label = QLabel(f"Exp Time Step {index + 1}", self)
-#             button = QPushButton("", self)
-#             button.setFixedWidth(button.sizeHint().height())
-#             step_layout = QHBoxLayout()
-#             step_layout.addWidget(exp_time_label)
-#             step_layout.addWidget(spinbox)
-#             step_layout.addWidget(button)
-#             if index == 0:
-#                 button.setText("+")
-#                 button.clicked.connect(lambda: self._on_add_step(self._spinboxes[-1].value()))
-#             else:
-#                 button.setText("-")
-#                 button.clicked.connect(lambda: self._on_remove_step(index))
-#             parent_layout.addLayout(step_layout)
+        Parameters:
+            values: list[int]
+                Exposure time values list
+        """
+        for index, spinbox in enumerate(spinboxes):
+            exp_time_label = QLabel(f"Exp Time Step {index + 1}", self)
+            button = QPushButton("", self)
+            button.setFixedWidth(button.sizeHint().height())
+            step_layout = QHBoxLayout()
+            step_layout.addWidget(exp_time_label)
+            step_layout.addWidget(spinbox)
+            step_layout.addWidget(button)
+            if index == 0:
+                button.setText("+")
+                button.clicked.connect(lambda: self._on_add_step(2*self._spinboxes[-1].value()))
+            else:
+                button.setText("-")
+                button.clicked.connect(lambda: self._on_remove_step(index))
+            parent_layout.addLayout(step_layout)
 
-#     def clear_layout(self, layout: QVBoxLayout):
-#         while layout.count():
-#             item = layout.takeAt(0)  # Get the first item
-#             widget = item.widget()  # Get the widget from the item
-#             if isinstance(widget, (QLabel, QPushButton)):  # if button or label
-#                 widget.deleteLater()  # delete it
-#             else:  # If the item is a layout, recursively clear it
-#                 sub_layout = item.layout()
-#                 if sub_layout:
-#                     self.clear_layout(sub_layout)
+    def clear_layout(self, layout: QVBoxLayout):
+        while layout.count():
+            item = layout.takeAt(0)  # Get the first item
+            widget = item.widget()  # Get the widget from the item
+            if isinstance(widget, (QLabel, QPushButton)):  # if button or label
+                widget.deleteLater()  # delete it
+            else:  # If the item is a layout, recursively clear it
+                sub_layout = item.layout()
+                if sub_layout:
+                    self.clear_layout(sub_layout)
 
-#     def _on_add_step(self, value):
-#         spinbox = QSpinBox()
-#         spinbox.setRange(0, 300000000)
-#         spinbox.setFixedWidth(100)
-#         spinbox.setSuffix(" us")
-#         spinbox.setValue(value)
-#         self._spinboxes.append(spinbox)
-#         self.clear_layout(self._layout)
-#         self._layout_steps(self._layout, self._spinboxes)
+    def _on_add_step(self, value):
+        spinbox = QSpinBox()
+        spinbox.setRange(0, 300000000)
+        spinbox.setFixedWidth(100)
+        spinbox.setSuffix(" us")
+        spinbox.setValue(value)
+        self._spinboxes.append(spinbox)
+        self.clear_layout(self._layout)
+        self._layout_steps(self._layout, self._spinboxes)
 
-#     def _on_remove_step(self, index):
-#         self._spinboxes[index].deleteLater()
-#         self._spinboxes.pop(index)
-#         self.clear_layout(self._layout)
-#         self._layout_steps(self._layout, self._spinboxes)
+    def _on_remove_step(self, index):
+        self._spinboxes[index].deleteLater()
+        self._spinboxes.pop(index)
+        self.clear_layout(self._layout)
+        self._layout_steps(self._layout, self._spinboxes)
 
-#     def __getitem__(self, index) -> QSpinBox:
-#         return self._spinboxes[index]
+    def __getitem__(self, index) -> QSpinBox:
+        return self._spinboxes[index]
 
-#     def __iter__(self) -> Iterator[QSpinBox]:
-#         return iter(self._spinboxes)
+    def __iter__(self) -> Iterator[QSpinBox]:
+        return iter(self._spinboxes)
 
-#     def value(self) -> list[int]:
-#         return [spinbox.value() for spinbox in self._spinboxes]
+    def value(self) -> list[int]:
+        return [spinbox.value() for spinbox in self._spinboxes]
 
 
 class TaskControlsWidget(QWidget):
@@ -791,254 +790,3 @@ class TaskControlsWidget(QWidget):
         layout.addStretch()
 
         self.setLayout(layout)
-
-
-# class PreviewControlsWidget(QWidget):
-#     """
-#     Preview controls widget showing a slider to switch between frames.
-
-#     Signal:
-#         valueChanged: Signal(int)
-#             Signal changing value.
-#     """
-
-#     valueChanged = Signal(int)
-
-#     def __init__(self, label: str = "Frame", parent=None):
-#         super().__init__(parent)
-
-#         self.label = QLabel(label, self)
-#         self.label.setFixedWidth(100)
-
-#         self.spinbox = QSpinBox(self)
-#         self.spinbox.setFixedWidth(75)
-#         self.spinbox.setMinimum(0)
-#         self.spinbox.setSingleStep(1)
-#         self.spinbox.setToolTip(f"{label} Number")
-#         self.setMaximum = self.spinbox.setMaximum
-#         self.setValue = self.spinbox.setValue
-#         self.spinbox.valueChanged.connect(self.valueChanged)
-
-#         prev_spacer = QSpacerItem(10, 10, QSizePolicy.Expanding, QSizePolicy.Maximum)
-
-#         layout = QHBoxLayout()
-
-#         layout.addWidget(self.label)
-#         layout.addWidget(self.spinbox)
-#         layout.addItem(prev_spacer)
-
-#         self.setLayout(layout)
-
-
-# class DataPreviewWidget(QWidget):
-#     """
-#     Preview widget with figures for a capture and a command.
-
-#     Functions:
-#         init_source_preview_widget(source: Camera)
-#             Function to initialize the source plot size.
-
-#         init_sink_preview_widget(sink: Union[DeformableMirror | SpatialLightModulator])
-#             Function to initialize the sink plot size.
-#     """
-
-#     def __init__(self, parent=None):
-#         super().__init__(parent)
-
-#         layout = QVBoxLayout()
-#         self.figure_layout = QHBoxLayout()
-
-#         self._sink_figure_widget = QWidget()
-#         self._source_figure_widget = QWidget()
-
-#         self.control_widget = PreviewControlsWidget("Frame", self)
-#         self.control_widget.hide()
-
-#         self.figure_layout.addWidget(self._sink_figure_widget)
-#         self.figure_layout.addWidget(self._source_figure_widget)
-
-#         layout.addLayout(self.figure_layout)
-#         layout.addWidget(self.control_widget)
-
-#         self.setLayout(layout)
-
-#     def init_sink_preview_widget(self, sink: Mirror | Modulator):
-#         if isinstance(self._sink_figure_widget, FigureWidget):
-#             self._sink_figure_widget.figure.close()
-#         self._sink_figure_widget.deleteLater()
-#         if type(sink) is DeformableMirror:
-#             self._sink_figure_widget = MirrorFigureWidget(sink, False, self)
-#         else:
-#             self._sink_figure_widget = ModulatorFigureWidget(sink, False, self)
-#         self.figure_layout.insertWidget(0, self._sink_figure_widget)
-
-#     def init_source_preview_widget(self, source: Camera):
-#         if isinstance(self._source_figure_widget, FigureWidget):
-#             self._source_figure_widget.figure.close()
-#         self._source_figure_widget.deleteLater()
-#         self._source_figure_widget = SourceFigureWidget(source, False, self)
-#         self.figure_layout.insertWidget(1, self._source_figure_widget)
-
-
-# class SpeckleModulationWidget(QWidget):
-#     def __init__(self, parent=None):
-#         super().__init__(parent)
-
-#         layout = QVBoxLayout()
-#         self.figure_layout = QVBoxLayout()
-
-#         self.phase_figure_widget = QWidget()
-#         self.amplitude_figure_widget = QWidget()
-
-#         self.figure_layout.addWidget(self.phase_figure_widget)
-#         self.figure_layout.addWidget(self.amplitude_figure_widget)
-
-#         layout.addLayout(self.figure_layout)
-
-#         self.setLayout(layout)
-
-#     def init_phase_plot_widget(self, phases: np.ndarray):
-#         if isinstance(self.phase_figure_widget, FigureWidget):
-#             self.phase_figure_widget.figure.close()
-#         self.phase_figure_widget.deleteLater()
-#         self.phase_figure_widget = PhaseModulationFigureWidget(False, self)
-#         self.figure_layout.insertWidget(0, self.phase_figure_widget)
-
-#     def init_amplitude_plot_widget(self, amplitudes: np.ndarray):
-#         if isinstance(self.amplitude_figure_widget, FigureWidget):
-#             self.amplitude_figure_widget.figure.close()
-#         self.amplitude_figure_widget.deleteLater()
-#         self.amplitude_figure_widget = AmpModulationFigureWidget(False, self)
-#         self.figure_layout.insertWidget(1, self.amplitude_figure_widget)
-
-
-# class SpeckleNullPreviewWidget(QWidget):
-#     def __init__(self, parent=None):
-#         super().__init__(parent)
-
-#         layout = QVBoxLayout()
-#         self.figure_layout = QHBoxLayout()
-
-#         self.speckle_null_figure_widget = QWidget()
-
-#         self.control_widget = PreviewControlsWidget("Wavefront", self)
-#         self.control_widget.hide()
-
-#         self.figure_layout.addWidget(self.speckle_null_figure_widget)
-
-#         layout.addLayout(self.figure_layout)
-#         layout.addWidget(self.control_widget)
-
-#         self.setLayout(layout)
-
-#     def init_speckle_null_preview_widget(self, source: Camera, sink: Mirror | Modulator, phs_array: np.ndarray, amp_array: np.ndarray):
-#         if isinstance(self.speckle_null_figure_widget, FigureWidget):
-#             self.speckle_null_figure_widget.figure.close()
-#         self.speckle_null_figure_widget.deleteLater()
-#         self.speckle_null_figure_widget = SpeckleNullFigureWidget(source.blank, sink.blank, phs_array, amp_array, False, self)
-#         self.figure_layout.insertWidget(0, self.speckle_null_figure_widget)
-
-
-# class WavefrontPreviewWidget(QWidget):
-#     """
-#     Preview widget with a wavefront figure.
-
-#     Functions:
-#         init_wavefront_preview_widget(shape: Tuple[int, int])
-#             Function to initialize the dotf plot size.
-#     """
-
-#     def __init__(self, parent=None):
-#         super().__init__(parent)
-
-#         layout = QVBoxLayout()
-#         self.figure_layout = QHBoxLayout()
-
-#         self.wavefront_figure_widget = QWidget()
-
-#         self.control_widget = PreviewControlsWidget("Wavefront", self)
-#         self.control_widget.hide()
-
-#         self.figure_layout.addWidget(self.wavefront_figure_widget)
-
-#         layout.addLayout(self.figure_layout)
-#         layout.addWidget(self.control_widget)
-
-#         self.setLayout(layout)
-
-#     def init_wavefront_preview_widget(self, shape: Tuple[int, int]):
-#         if isinstance(self.wavefront_figure_widget, FigureWidget):
-#             self.wavefront_figure_widget.figure.close()
-#         self.wavefront_figure_widget.deleteLater()
-#         self.wavefront_figure_widget = WavefrontFigureWidget(shape, self)
-#         self.figure_layout.insertWidget(0, self.wavefront_figure_widget)
-
-
-# class CommandPreviewWidget(QWidget):
-#     """
-#     Preview widget with a sink figure.
-
-#     Functions:
-#         init_command_preview_widget(sink: Union[DeformableMirror | SpatialLightModulator]):
-#             Function to initialize the dotf plot size.
-#     """
-
-#     def __init__(self, parent=None):
-#         super().__init__(parent)
-
-#         layout = QVBoxLayout()
-#         self.figure_layout = QHBoxLayout()
-
-#         self.command_figure_widget = QWidget()
-
-#         self.control_widget = PreviewControlsWidget("Command", self)
-#         self.control_widget.hide()
-
-#         self.figure_layout.addWidget(self.command_figure_widget)
-
-#         layout.addLayout(self.figure_layout)
-#         layout.addWidget(self.control_widget)
-
-#         self.setLayout(layout)
-
-#     def init_command_preview_widget(self, sink: Mirror):
-#         if isinstance(self.command_figure_widget, FigureWidget):
-#             self.command_figure_widget.figure.close()
-#         self.command_figure_widget.deleteLater()
-#         self.command_figure_widget = MirrorFigureWidget(sink, self)
-#         self.figure_layout.insertWidget(0, self.command_figure_widget)
-
-
-# class CapturePreviewWidget(QWidget):
-#     """
-#     Preview widget with a source figure.
-
-#     Functions:
-#         init_wavefront_preview_widget(shape: Tuple[int, int])
-#             Function to initialize the dotf plot size.
-#     """
-
-#     def __init__(self, parent=None):
-#         super().__init__(parent)
-
-#         layout = QVBoxLayout()
-#         self.figure_layout = QHBoxLayout()
-
-#         self._source_figure_widget = QWidget()
-
-#         self.control_widget = PreviewControlsWidget("Capture", self)
-#         self.control_widget.hide()
-
-#         self.figure_layout.addWidget(self._source_figure_widget)
-
-#         layout.addLayout(self.figure_layout)
-#         layout.addWidget(self.control_widget)
-
-#         self.setLayout(layout)
-
-#     def init_capture_preview_widget(self, source: Camera):
-#         if isinstance(self._source_figure_widget, FigureWidget):
-#             self._source_figure_widget.figure.close()
-#         self._source_figure_widget.deleteLater()
-#         self._source_figure_widget = SourceFigureWidget(source, self)
-#         self.figure_layout.insertWidget(0, self._source_figure_widget)

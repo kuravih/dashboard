@@ -1,18 +1,16 @@
-import pickle
-
 import numpy as np
-from pykato.function import timestamp_string
+
 from pykato.log import setup_logger
-from PySide6.QtCore import Qt, Slot
+from PySide6.QtCore import Qt, Slot, QTimer
 from PySide6.QtGui import QIcon
-from PySide6.QtWidgets import QDoubleSpinBox, QGridLayout, QLabel, QVBoxLayout, QWidget, QMessageBox
+from PySide6.QtWidgets import QCheckBox, QDoubleSpinBox, QGridLayout, QHBoxLayout, QLabel, QSpinBox, QVBoxLayout, QWidget, QMessageBox, QComboBox
+from matplotlib import colormaps
 
 import testbed
 
-from ..device.camera import Camera
-from ..device.modulator import Modulator
-from ..worker.speckle_calibration_worker import ProcessWorker
-from ..worker.storage_worker import SinkStorageWorker, SourceStorageWorker
+from ..device.camera import Camera, SourceSample
+from ..device.modulator import Modulator, SinkSample
+from ..worker.recenter_worker import ProcessWorker
 from .camera_window import InfoWindow as CameraInfoWindow
 from .camera_window import PreviewWindow as CameraPreviewWindow
 from .camera_window import SettingsWindow as CameraSettingsWindow
@@ -20,103 +18,228 @@ from .modulator_window import InfoWindow as ModulatorInfoWindow
 from .modulator_window import PreviewWindow as ModulatorPreviewWindow
 from .modulator_window import SettingsWindow as ModulatorSettingsWindow
 from .dialog import MessageDialog
+from .figure_widget import RecenteringFigureWidget
 from .resource import ICON_PAUSE, ICON_RUN
 
-from . import DevicesSetupWidget, LinspaceWidget, TaskControlsWidget, Window
+from . import DevicesSetupWidget, TaskControlsWidget, Window
 
-_PROCESS_ = testbed.SPECKLE_CALIBRATION
+_PROCESS_ = testbed.RECENTER
 
 logger = setup_logger(f"{_PROCESS_}_window", terminator="\n")
 
 
 class ProcessSettingsWidget(QWidget):
     """
-    Speckle Calibration Process Settings
+    Re-centering Process Settings
     """
 
     def __init__(self, parent=None):
         super().__init__(parent)
 
-        ampl_label = QLabel("Amplitude", self)
-        ampl_label.setFixedWidth(100)
+        n_steps_label = QLabel("Steps", self)
+        n_steps_label.setFixedWidth(100)
 
-        self._ampl_spinbox = QDoubleSpinBox(self)
-        self._ampl_spinbox.setRange(0, 0.5)
-        self._ampl_spinbox.setValue(0.25)
+        self._n_steps_spinbox = QSpinBox(self)
+        self._n_steps_spinbox.setRange(0, 9999)
+        self._n_steps_spinbox.setSingleStep(1)
+        self._n_steps_spinbox.setValue(2)
+        self._n_steps_spinbox.setToolTip("Number of steps")
 
-        angle_label = QLabel("Angle Steps", self)
-        angle_label.setFixedWidth(100)
+        n_steps_layout = QHBoxLayout()
+        n_steps_layout.addWidget(self._n_steps_spinbox)
 
-        self._angle_steps = LinspaceWidget(0, 170, 18, self)
+        sleep_label = QLabel("Sleep", self)
+        sleep_label.setFixedWidth(100)
 
-        freq_label = QLabel("Frequency Steps", self)
-        freq_label.setFixedWidth(100)
-
-        self._freq_steps = LinspaceWidget(0.06, 0.01, 11, self)
-
-        phase_label = QLabel("Phase Steps", self)
-        phase_label.setFixedWidth(100)
-
-        self._phase_steps = LinspaceWidget(0, 180, 2, self)
+        self._sleep_s_spinbox = QDoubleSpinBox(self)
+        self._sleep_s_spinbox.setMinimum(0)
+        self._sleep_s_spinbox.setSingleStep(0.0001)
+        self._sleep_s_spinbox.setDecimals(4)
+        self._sleep_s_spinbox.setValue(0.1)
+        self._sleep_s_spinbox.setSuffix(" s")
 
         widget_layout = QGridLayout()
 
         row = 0
         col = 0
-        widget_layout.addWidget(ampl_label, row, col)
+        widget_layout.addWidget(n_steps_label, row, col)
         col += 1
-        widget_layout.addWidget(self._ampl_spinbox, row, col)
+        widget_layout.addLayout(n_steps_layout, row, col, 1, 3)
 
         row += 1
         col = 0
-        widget_layout.addWidget(angle_label, row, col)
+        widget_layout.addWidget(sleep_label, row, col)
         col += 1
-        widget_layout.addWidget(self._angle_steps, row, col)
-
-        row += 1
-        col = 0
-        widget_layout.addWidget(freq_label, row, col)
-        col += 1
-        widget_layout.addWidget(self._freq_steps, row, col)
-
-        row += 1
-        col = 0
-        widget_layout.addWidget(phase_label, row, col)
-        col += 1
-        widget_layout.addWidget(self._phase_steps, row, col)
+        widget_layout.addWidget(self._sleep_s_spinbox, row, col, 1, 3)
 
         self.setLayout(widget_layout)
 
     @property
-    def amplitude(self) -> float:
-        return self._ampl_spinbox.value()
-
-    @property
-    def angles_array(self) -> np.ndarray:
-        return self._angle_steps.value()
-
-    @property
-    def freqs_array(self) -> np.ndarray:
-        return self._freq_steps.value()
-
-    @property
-    def phases_array(self) -> np.ndarray:
-        return self._phase_steps.value()
-
-    @property
     def n_steps(self) -> int:
-        return self.angles_array.size * self.freqs_array.size * self.phases_array.size + 1  # include blank
+        return self._n_steps_spinbox.value()
+
+    @property
+    def sleep_s(self) -> float:
+        return self._sleep_s_spinbox.value()
+
+
+class ProcessInfoSettingsWindow(Window):
+    """
+    Process Info Settings Window
+    """
+
+    def __init__(self, src_cmap: str, src_cmap_log: bool, snk_cmap: str, parent=None):
+        super().__init__(parent, Qt.WindowType.Dialog)
+        self.src_cmap = src_cmap
+        self.src_cmap_log = src_cmap_log
+        self.snk_cmap = snk_cmap
+        self.setWindowModality(Qt.WindowModality.WindowModal)
+        self.setWindowTitle("Process Info Settings")
+        layout = QVBoxLayout()
+        layout.setContentsMargins(2, 2, 2, 2)
+        layout.addWidget(self.setup_settings_widget())
+        self.setLayout(layout)
+
+    def setup_settings_widget(self) -> QWidget:
+        widget = QWidget(self)
+        layout = QGridLayout(widget)
+        widget.setLayout(layout)
+
+        source_scale_label = QLabel("Source Scale", self)
+        self.source_log_checkbox = QCheckBox("Log", self)
+        self.source_log_checkbox.setToolTip("Log Scale")
+        self.source_log_checkbox.setChecked(self.src_cmap_log)
+
+        source_cmap_label = QLabel("Source Colormap", self)
+        self.source_cmap_combobox = QComboBox(self)
+        self.source_cmap_combobox.addItems(list(colormaps))
+        self.source_cmap_combobox.setCurrentIndex(list(colormaps).index(self.src_cmap))
+
+        sink_cmap_label = QLabel("Sink Colormap", self)
+        self.sink_cmap_combobox = QComboBox(self)
+        self.sink_cmap_combobox.addItems(list(colormaps))
+        self.sink_cmap_combobox.setCurrentIndex(list(colormaps).index(self.snk_cmap))
+
+        row = 0
+        col = 0
+        layout.addWidget(source_scale_label, row, col)
+        col += 1
+        layout.addWidget(self.source_log_checkbox, row, col)
+
+        row += 1
+        col = 0
+        layout.addWidget(source_cmap_label, row, col)
+        col += 1
+        layout.addWidget(self.source_cmap_combobox, row, col)
+
+        row += 1
+        col = 0
+        layout.addWidget(sink_cmap_label, row, col)
+        col += 1
+        layout.addWidget(self.sink_cmap_combobox, row, col)
+
+        return widget
+
+
+class ProcessInfoWindow(Window):
+    """
+    Re-centering Process Information Window
+    """
+
+    def __init__(self, source_sample: SourceSample, sink_sample: SinkSample, parent: QWidget | None = None):
+        super().__init__(parent, Qt.WindowType.Dialog)
+        self.source_sample = source_sample
+        self.sink_sample = sink_sample
+
+        self.speckles = [[np.nan, np.nan], [np.nan, np.nan]]
+        self.center = [np.nan, np.nan]
+
+        self.setWindowTitle("Re-centering")
+
+        layout = QVBoxLayout()
+        layout.setContentsMargins(2, 2, 2, 2)
+        layout.addWidget(self.setup_info_widget())
+        self.setLayout(layout)
+
+        self.update_timer = QTimer(self)
+        self.update_timer.timeout.connect(self.on_update_timer_tick)
+        self.update_timer.start(100)  # Update window every 100 ms
+
+    @Slot(SourceSample)
+    def on_src_sampled(self, sample: SourceSample):
+        self.source_sample = sample
+
+    @Slot(SinkSample)
+    def on_snk_sampled(self, sample: SinkSample):
+        self.sink_sample = sample
+
+    @Slot(float, float, float, float)
+    def on_speckles_located(self, x1: float, y1: float, x2: float, y2: float):
+        self.speckles = [[x1, y1], [x2, y2]]
+
+    @Slot(float, float)
+    def on_center_located(self, x: float, y: float):
+        self.center = [x, y]
+
+    def setup_info_widget(self) -> QWidget:
+        widget = QWidget(self)
+        layout = QVBoxLayout(widget)
+        layout.setContentsMargins(2, 2, 2, 2)
+        widget.setLayout(layout)
+        self.process_info_figure = RecenteringFigureWidget(self.source_sample.capture, self.sink_sample.command, show_toolbar=True, parent=self)
+        self.process_info_figure.toolbar.settingsClicked.connect(self.on_info_settings_clicked)
+        layout.addWidget(self.process_info_figure)
+        return widget
+
+    @Slot()
+    def on_info_settings_clicked(self):
+        process_info_settings_window = ProcessInfoSettingsWindow(snk_cmap=self.process_info_figure.snk_cmap_name, src_cmap_log=self.process_info_figure.src_cmap_log, src_cmap=self.process_info_figure.src_cmap_name, parent=self)
+        process_info_settings_window.show()
+        process_info_settings_window.raise_()
+        process_info_settings_window.activateWindow()
+        process_info_settings_window.source_log_checkbox.checkStateChanged.connect(self.on_src_cmap_log_changed)
+        process_info_settings_window.source_cmap_combobox.currentTextChanged.connect(self.on_src_cmap_changed)
+        process_info_settings_window.sink_cmap_combobox.currentTextChanged.connect(self.on_snk_cmap_changed)
+
+    @Slot(str)
+    def on_src_cmap_changed(self, colormap: str):
+        self.process_info_figure.set_src_cmap(colormap)
+
+    @Slot(str)
+    def on_snk_cmap_changed(self, colormap: str):
+        self.process_info_figure.set_snk_cmap(colormap)
+
+    @Slot(bool)
+    def on_src_cmap_log_changed(self, checked: Qt.CheckState):
+        if checked == Qt.CheckState.Checked:
+            self.process_info_figure.set_src_cmap_norm(True)
+        else:
+            self.process_info_figure.set_src_cmap_norm(False)
+
+    @Slot()
+    def on_update_timer_tick(self):
+        self.process_info_figure.set_command(self.sink_sample.command)
+        self.process_info_figure.set_capture(self.source_sample.capture)
+        self.process_info_figure.set_speckles(self.speckles)
+        self.process_info_figure.set_center(self.center)
+        self.process_info_figure.figure.canvas.draw_idle()
+
+    def closeEvent(self, event):
+        if self.update_timer.isActive():
+            self.update_timer.stop()
+        self.deleteLater()
+        event.accept()
 
 
 class ProcessWindow(Window):
     """
-    Speckle Calibration Process Window
+    Simple Process Window
     """
 
     def __init__(self, parent=None):
         super().__init__(parent, Qt.WindowType.Dialog)
         self.setWindowModality(Qt.WindowModality.WindowModal)
-        self.setWindowTitle("Speckle Calibration")
+        self.setWindowTitle("Recenter Process")
         self._sink = None
         self._source = None
 
@@ -151,7 +274,7 @@ class ProcessWindow(Window):
         self.devices_widget.source_settings_button.clicked.connect(lambda _, _device=_device: self.open_device_settings_window(_device))
         self.devices_widget.source_preview_button.clicked.connect(lambda _, _device=_device: self.open_device_preview_window(_device))
         if self._source is not None and self._sink is not None:
-            self.controls_widget.preview_button.setEnabled(True)
+            self.controls_widget.info_button.setEnabled(True)
             self.controls_widget.play_pause_button.setEnabled(True)
 
     def on_sink_changed(self, _device: Modulator):
@@ -172,7 +295,7 @@ class ProcessWindow(Window):
         self.devices_widget.sink_settings_button.clicked.connect(lambda _, _device=_device: self.open_device_settings_window(_device))
         self.devices_widget.sink_preview_button.clicked.connect(lambda _, _device=_device: self.open_device_preview_window(_device))
         if self._source is not None and self._sink is not None:
-            self.controls_widget.preview_button.setEnabled(True)
+            self.controls_widget.info_button.setEnabled(True)
             self.controls_widget.play_pause_button.setEnabled(True)
 
     def open_device_info_window(self, _device: Camera | Modulator):
@@ -273,6 +396,7 @@ class ProcessWindow(Window):
         worker_id = f"{_PROCESS_}_worker"
         source_storage_worker_id = f"{_PROCESS_}_source_storage_worker"
         sink_storage_worker_id = f"{_PROCESS_}_sink_storage_worker"
+        process_info_window_id = f"{_PROCESS_}_info_window"
 
         if self.source is None or self.sink is None:
             message_dialog = MessageDialog("Devices not selected", "Source and sink devices not selected.", icon=QMessageBox.Icon.Information, buttons=QMessageBox.StandardButton.Ok)
@@ -282,7 +406,6 @@ class ProcessWindow(Window):
             sink_preview_window_id = f"{self.sink.name}_preview_window"
 
             if worker_id in testbed.data.workers:  # an update worker is in progress
-                logger.info("stopping running process")
                 current_worker = testbed.data.workers.pop(worker_id)
                 current_worker.stop()
                 self.controls_widget.play_pause_button.setIcon(QIcon(ICON_RUN))
@@ -299,29 +422,9 @@ class ProcessWindow(Window):
                     current_sink_storage_worker.stop()
                 return
 
-            self.controls_widget.progressbar.setMaximum(self.settings_widget.n_steps)
-
-            worker = ProcessWorker(self.source, self.sink, self.settings_widget.amplitude, self.settings_widget.freqs_array, self.settings_widget.angles_array, self.settings_widget.phases_array)
+            worker = ProcessWorker(self.source, self.sink, self.settings_widget.n_steps)
             worker.signals.progressTicked.connect(self.on_progress_tick)
             worker.signals.finished.connect(self.on_finished)
-
-            timestamp = timestamp_string(frmt="%Y%m%d.%H%M%S", ms=None)
-
-            source_storage_worker = SourceStorageWorker(f"data/output/{timestamp}_{_PROCESS_}_source.raw", self.settings_widget.n_steps)
-            worker.signals.srcSampled.connect(source_storage_worker.on_sampled)
-            source_storage_worker.signals.finished.connect(self.on_source_storage_finished)
-            testbed.data.workers[source_storage_worker_id] = source_storage_worker
-            testbed.data.threadpool.start(source_storage_worker)
-
-            sink_storage_worker = SinkStorageWorker(f"data/output/{timestamp}_{_PROCESS_}_sink.raw", self.settings_widget.n_steps)
-            worker.signals.snkSampled.connect(sink_storage_worker.on_sampled)
-            sink_storage_worker.signals.finished.connect(self.on_sink_storage_finished)
-            testbed.data.workers[sink_storage_worker_id] = sink_storage_worker
-            testbed.data.threadpool.start(sink_storage_worker)
-
-            with open(f"data/output/{timestamp}_{_PROCESS_}_parameters.pkl", "wb") as _file:
-                parameters_dict = {"amplitudes": self.settings_widget.amplitude, "frequencies": self.settings_widget.freqs_array, "angles": self.settings_widget.angles_array, "phases": self.settings_widget.phases_array}
-                pickle.dump(parameters_dict, _file, protocol=pickle.HIGHEST_PROTOCOL)
 
             self.controls_widget.play_pause_button.setIcon(QIcon(ICON_PAUSE))
             self.devices_widget.sink_settings_button.setEnabled(False)
@@ -331,9 +434,36 @@ class ProcessWindow(Window):
                 worker.signals.srcSampled.connect(testbed.data.windows[source_preview_window_id].on_sampled)
             if sink_preview_window_id in testbed.data.windows:
                 worker.signals.snkSampled.connect(testbed.data.windows[sink_preview_window_id].on_sampled)
+            if process_info_window_id in testbed.data.windows:
+                worker.signals.srcSampled.connect(testbed.data.windows[process_info_window_id].on_src_sampled)
+                worker.signals.snkSampled.connect(testbed.data.windows[process_info_window_id].on_snk_sampled)
+                worker.signals.specklesLocated.connect(testbed.data.windows[process_info_window_id].on_speckles_located)
+                worker.signals.centerLocated.connect(testbed.data.windows[process_info_window_id].on_center_located)
 
             testbed.data.workers[worker_id] = worker
             testbed.data.threadpool.start(worker)
+
+    def open_process_info_clicked(self):
+        process_info_window_id = f"{_PROCESS_}_info_window"
+        process_update_worker_id = f"{_PROCESS_}_update_worker"
+
+        @Slot()
+        def on_window_closed():
+            testbed.data.windows.pop(process_info_window_id, None)
+
+        if process_info_window_id not in testbed.data.windows and self._source is not None and self._sink is not None:
+            process_info_window = ProcessInfoWindow(self._source.sample, self._sink.sample, parent=self)
+            process_info_window.destroyed.connect(on_window_closed)
+            process_info_window.show()
+            process_info_window.raise_()
+            process_info_window.activateWindow()
+            testbed.data.windows[process_info_window_id] = process_info_window
+
+            if process_update_worker_id in testbed.data.workers:
+                testbed.data.workers[process_update_worker_id].signals.srcSampled.connect(testbed.data.windows[process_info_window_id].on_src_sampled)
+                testbed.data.workers[process_update_worker_id].signals.snkSampled.connect(testbed.data.windows[process_info_window_id].on_snk_sampled)
+                testbed.data.workers[process_update_worker_id].signals.specklesLocated.connect(testbed.data.windows[process_info_window_id].on_speckles_located)
+                testbed.data.workers[process_update_worker_id].signals.centerLocated.connect(testbed.data.windows[process_info_window_id].on_center_located)
 
     def setup_main_widget(self) -> QWidget:
         widget = QWidget(self)
@@ -348,8 +478,8 @@ class ProcessWindow(Window):
 
         self.controls_widget = TaskControlsWidget(self)
         self.controls_widget.play_pause_button.clicked.connect(self.on_start_stop_clicked)
+        self.controls_widget.info_button.clicked.connect(self.open_process_info_clicked)
         self.controls_widget.preview_button.hide()
-        self.controls_widget.info_button.hide()
 
         layout.addWidget(self.devices_widget)
         layout.addWidget(self.settings_widget)

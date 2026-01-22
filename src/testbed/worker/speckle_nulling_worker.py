@@ -38,28 +38,28 @@ class ProcessWorker(Worker):
     def __init__(self, source: Camera, sink: Modulator, dark_hole_mask: np.ndarray, speckle_calibration: tuple[tuple[float, float], tuple[float, float]], phs_array: np.ndarray, amp_array: np.ndarray, n_iterations: int | None = None):
         super().__init__()
         self.signals = ProcessWorkerSignals()
-        self._source = source
-        self._sink = sink
-        self._dark_hole_mask = dark_hole_mask
-        self._speckle_calibration = speckle_calibration
-        self._phs_array = phs_array
-        self._amp_array = amp_array
-        self._n_iterations = n_iterations
+        self.source = source
+        self.sink = sink
+        self.dark_hole_mask = dark_hole_mask
+        self.speckle_calibration = speckle_calibration
+        self.phs_array = phs_array
+        self.amp_array = amp_array
+        self.n_iterations = n_iterations
 
     def speckle_phs_search(self, current_cmd: np.ndarray, speckle_frequency: float, phs_array: np.ndarray, speckle_angle: float, speckle_stencil: np.ndarray):
         speckle_intensity = np.zeros_like(phs_array) * np.nan
         amplitude = 0.5
         i_phs = 0
         while i_phs < phs_array.size:
-            probe_command = amplitude * self._sink.pxmax * sinusoid(self._sink.shape, 1.0 / speckle_frequency, np.deg2rad(phs_array[i_phs]), speckle_angle) / 2
+            probe_command = amplitude * self.sink.pxmax * sinusoid(self.sink.shape, 1.0 / speckle_frequency, np.deg2rad(phs_array[i_phs]), speckle_angle) / 2
             command = current_cmd + probe_command
-            command = np.clip(command, 0, self._sink.pxmax)
+            command = np.clip(command, 0, self.sink.pxmax)
 
-            _current_sink_sample = self._sink.push_command(command.astype(np.uint16))
+            _current_sink_sample = self.sink.push_command(command.astype(np.uint16))
             self.signals.snkSampled.emit(_current_sink_sample)
             time.sleep(0.1)
 
-            _current_source_sample = self._source.pull_capture()
+            _current_source_sample = self.source.pull_capture()
             self.signals.srcSampled.emit(_current_source_sample)
             time.sleep(0.2)
 
@@ -93,15 +93,15 @@ class ProcessWorker(Worker):
         speckle_intensity = np.zeros_like(amp_array) * np.nan
         i_amp = 0
         while i_amp < amp_array.size:
-            probe_command = amp_array[i_amp] * self._sink.pxmax * sinusoid(self._sink.shape, 1.0 / speckle_frequency, speckle_phase, speckle_angle) / 2
+            probe_command = amp_array[i_amp] * self.sink.pxmax * sinusoid(self.sink.shape, 1.0 / speckle_frequency, speckle_phase, speckle_angle) / 2
             command = current_cmd + probe_command
-            command = np.clip(command, 0, self._sink.pxmax)
+            command = np.clip(command, 0, self.sink.pxmax)
 
-            _current_sink_sample = self._sink.push_command(command.astype(np.uint16))
+            _current_sink_sample = self.sink.push_command(command.astype(np.uint16))
             self.signals.snkSampled.emit(_current_sink_sample)
             time.sleep(0.1)
 
-            _current_source_sample = self._source.pull_capture()
+            _current_source_sample = self.source.pull_capture()
             self.signals.srcSampled.emit(_current_source_sample)
             time.sleep(0.2)
 
@@ -130,26 +130,27 @@ class ProcessWorker(Worker):
         super().run()
         t_start = time.time()
 
-        measure_array = np.full(self._n_iterations + 1, fill_value=np.nan, dtype=[("avg", float), ("std", float), ("min", float), ("max", float)])
+        measure_array = np.full(self.n_iterations + 1, fill_value=np.nan, dtype=[("avg", float), ("std", float), ("min", float), ("max", float)])
         # ---- blank --------------------------------------------------------------------------------------------------
-        current_cmd = self._sink.pxmax * (np.zeros(self._sink.shape) + 0.5)
+        current_cmd = self.sink.pxmax * (np.zeros(self.sink.shape) + 0.5)
 
         #  Inject test speckle
-        test_command = 0.1 * self._sink.pxmax * sinusoid(self._sink.shape, 1.0 / 0.035, 0, np.pi / 6) / 2
+        test_command = 0.1 * self.sink.pxmax * sinusoid(self.sink.shape, 1.0 / 0.035, 0, np.pi / 6) / 2
         command = current_cmd + test_command
-        command = np.clip(command, 0, self._sink.pxmax)
+        # command = current_cmd
+        command = np.clip(command, 0, self.sink.pxmax)
 
-        _current_sink_sample = self._sink.push_command(command.astype(np.uint16))
+        _current_sink_sample = self.sink.push_command(command.astype(np.uint16))
         self.signals.snkSampled.emit(_current_sink_sample)
         time.sleep(0.1)
 
-        _current_source_sample = self._source.pull_capture()
+        _current_source_sample = self.source.pull_capture()
         self.signals.srcSampled.emit(_current_source_sample)
         time.sleep(0.2)
 
         measure_map = _current_source_sample.capture / (2**12 - 1)
-        mesure_map_dark_hole = measure_map[self._dark_hole_mask]
-        measure_array[0]["avg"], measure_array[0]["std"], measure_array[0]["min"], measure_array[0]["max"] = np.mean(mesure_map_dark_hole), np.std(mesure_map_dark_hole), np.min(mesure_map_dark_hole), np.max(mesure_map_dark_hole)
+        measure_map_dark_hole = measure_map[self.dark_hole_mask]
+        measure_array[0]["avg"], measure_array[0]["std"], measure_array[0]["min"], measure_array[0]["max"] = np.mean(measure_map_dark_hole), np.std(measure_map_dark_hole), np.min(measure_map_dark_hole), np.max(measure_map_dark_hole)
         self.signals.contrastMeasured.emit(np.array(measure_map, copy=True), measure_array)
         logger.info("avg = %.4e, std = %.4e, min = %.4e, max = %.4e", measure_array[0]["avg"], measure_array[0]["std"], measure_array[0]["min"], measure_array[0]["max"])
 
@@ -157,44 +158,44 @@ class ProcessWorker(Worker):
         self.signals.progressTicked.emit(i_iteration, time.time() - t_start)
         # ---- blank --------------------------------------------------------------------------------------------------
 
-        logger.info("%s and %s ProcessWorker.run : iteration %s of %s", self._source.name, self._sink.name, i_iteration, self._n_iterations)
+        logger.info("%s and %s ProcessWorker.run : iteration %s of %s", self.source.name, self.sink.name, i_iteration, self.n_iterations)
 
-        center = (self._source.shape[0] / 2, self._source.shape[1] / 2)
-        while ((self._n_iterations is None) or (self._n_iterations > i_iteration)) and self._running:
+        center = (self.source.shape[0] / 2, self.source.shape[1] / 2)
+        while ((self.n_iterations is None) or (self.n_iterations > i_iteration)) and self._running:
             # ---- stage 0: find speckle ------------------------------------------------------------------------------
-            specks, speckle_stencil = find_speckles((_current_source_sample.capture * self._dark_hole_mask).astype(float), 1, 5)
+            specks, speckle_stencil = find_speckles((_current_source_sample.capture * self.dark_hole_mask).astype(float), 1, 5)
             # ---- stage 0: speckle found -----------------------------------------------------------------------------
 
             # ---- stage 1: calculate speckle period and angle --------------------------------------------------------
-            speckle_frequency, speckle_angle = speckle_parameters(center, specks[0], self._speckle_calibration)
+            speckle_frequency, speckle_angle = speckle_parameters(center, specks[0], self.speckle_calibration)
             speckle_angle = np.pi - speckle_angle
             self.signals.speckleLocated.emit(*specks[0], speckle_frequency, speckle_angle)
             # ---- stage 1: speckle period and angle calculated -------------------------------------------------------
 
             # ---- stage 2: find speckle phase ------------------------------------------------------------------------
-            speckle_phase = self.speckle_phs_search(_current_sink_sample.command, speckle_frequency, self._phs_array, speckle_angle, speckle_stencil)
+            speckle_phase = self.speckle_phs_search(_current_sink_sample.command, speckle_frequency, self.phs_array, speckle_angle, speckle_stencil)
             # ---- stage 2: speckle phase found -----------------------------------------------------------------------
 
             # ---- stage 3: find speckle amplitude --------------------------------------------------------------------
-            speckle_amplitude = self.speckle_amp_search(_current_sink_sample.command, speckle_frequency, speckle_phase, speckle_angle, self._amp_array, speckle_stencil)
+            speckle_amplitude = self.speckle_amp_search(_current_sink_sample.command, speckle_frequency, speckle_phase, speckle_angle, self.amp_array, speckle_stencil)
             # ---- stage 3: speckle amplitude found -------------------------------------------------------------------
 
             # ---- stage 4: apply correction --------------------------------------------------------------------------
-            correction = speckle_amplitude * self._sink.pxmax * sinusoid(self._sink.shape, 1.0 / speckle_frequency, speckle_phase, speckle_angle) / 2
+            correction = speckle_amplitude * self.sink.pxmax * sinusoid(self.sink.shape, 1.0 / speckle_frequency, speckle_phase, speckle_angle) / 2
             command = _current_sink_sample.command + correction
-            command = np.clip(command, 0, self._sink.pxmax)
+            command = np.clip(command, 0, self.sink.pxmax)
 
-            _current_sink_sample = self._sink.push_command(command.astype(np.uint16))
+            _current_sink_sample = self.sink.push_command(command.astype(np.uint16))
             self.signals.snkSampled.emit(_current_sink_sample)
             time.sleep(0.1)
 
-            _current_source_sample = self._source.pull_capture()
+            _current_source_sample = self.source.pull_capture()
             self.signals.srcSampled.emit(_current_source_sample)
             time.sleep(0.2)
 
             measure_map = _current_source_sample.capture / (2**12 - 1)
-            mesure_map_dark_hole = measure_map[self._dark_hole_mask]
-            measure_array[i_iteration + 1]["avg"], measure_array[i_iteration + 1]["std"], measure_array[i_iteration + 1]["min"], measure_array[i_iteration + 1]["max"] = np.mean(mesure_map_dark_hole), np.std(mesure_map_dark_hole), np.min(mesure_map_dark_hole), np.max(mesure_map_dark_hole)
+            measure_map_dark_hole = measure_map[self.dark_hole_mask]
+            measure_array[i_iteration + 1]["avg"], measure_array[i_iteration + 1]["std"], measure_array[i_iteration + 1]["min"], measure_array[i_iteration + 1]["max"] = np.mean(measure_map_dark_hole), np.std(measure_map_dark_hole), np.min(measure_map_dark_hole), np.max(measure_map_dark_hole)
             self.signals.contrastMeasured.emit(np.array(measure_map, copy=True), measure_array)
             logger.info("avg = %.4e, std = %.4e, min = %.4e, max = %.4e", measure_array[i_iteration + 1]["avg"], measure_array[i_iteration + 1]["std"], measure_array[i_iteration + 1]["min"], measure_array[i_iteration + 1]["max"])
             # ---- stage 4: apply correction --------------------------------------------------------------------------

@@ -187,14 +187,14 @@ def read_sink_samples(filename: str) -> SinkSampleStore:
 
 
 def find_speckles(speckle_image: np.ndarray, num_peaks: int = 1, footprint_size: int = 10, min_distance: int = 1) -> tuple[list[tuple[float, float]], np.ndarray]:
-    rot_speckle_image = speckle_image
-    peak_idx = peak_local_max(rot_speckle_image, num_peaks=num_peaks, min_distance=min_distance, threshold_abs=None)
-    peak_mask = np.zeros_like(rot_speckle_image, dtype=bool)
+    peak_idx = peak_local_max(speckle_image, num_peaks=num_peaks, min_distance=min_distance, threshold_abs=None)
+    assert len(peak_idx) == num_peaks, f"looking for {num_peaks} speckles, found {len(peak_idx)}"
+    peak_mask = np.zeros_like(speckle_image, dtype=bool)
     peak_mask[tuple(peak_idx.T)] = True
     disk_mask = disk(footprint_size)
     peak_mask = dilation(peak_mask, disk_mask)
     label_image = label(peak_mask)
-    speckles = regionprops(label_image, rot_speckle_image)
+    speckles = regionprops(label_image, speckle_image)
     ind = np.lexsort(([speckle.centroid_weighted[0] for speckle in speckles], [speckle.centroid_weighted[1] for speckle in speckles]))
     return [(speckles[i].centroid_weighted[1], speckles[i].centroid_weighted[0]) for i in ind], peak_mask
 

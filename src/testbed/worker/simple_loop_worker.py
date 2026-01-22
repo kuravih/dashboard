@@ -22,12 +22,13 @@ class ProcessWorkerSignals(WorkerSignals):
 
 
 class ProcessWorker(Worker):
-    def __init__(self, _source: Camera, _sink: Modulator, n_steps: int | None = None):
+    def __init__(self, source: Camera, sink: Modulator, amplitude: float, n_steps: int | None = None):
         super().__init__()
         self.signals = ProcessWorkerSignals()
-        self._source = _source
-        self._sink = _sink
-        self._n_steps = n_steps
+        self.source = source
+        self.sink = sink
+        self.amplitude = amplitude
+        self.n_steps = n_steps
 
     @Slot()
     def run(self):
@@ -36,33 +37,35 @@ class ProcessWorker(Worker):
         t_start = time.time()
 
         # ---- blank --------------------------------------------------------------------------------------------------
-        command = self._sink.pxmax * np.clip(np.zeros(self._sink.shape) + 0.5, 0, 1)
+        current_cmd = self.sink.pxmax * (np.zeros(self.sink.shape) + 0.5)
 
-        self.signals.snkSampled.emit(self._sink.push_command(command.astype(np.uint16)))
+        self.signals.snkSampled.emit(self.sink.push_command(current_cmd.astype(np.uint16)))
         time.sleep(0.1)
 
-        self.signals.srcSampled.emit(self._source.pull_capture())
+        self.signals.srcSampled.emit(self.source.pull_capture())
         time.sleep(0.2)
 
         self.signals.progressTicked.emit(i_step, time.time() - t_start)
         # ---- blank --------------------------------------------------------------------------------------------------
 
-        logger.info("%s and %s ProcessWorker.run : step %s of %s", self._source.name, self._sink.name, i_step, self._n_steps)
+        logger.info("%s and %s ProcessWorker.run : step %i of %i", self.source.name, self.sink.name, i_step, self.n_steps)
 
-        while ((self._n_steps is None) or (self._n_steps > i_step)) and self._running:
-            command = self._sink.pxmax * np.clip(text(self._sink.shape, f"{i_step:02d}", font_size=150), 0, 1)
+        while ((self.n_steps is None) or (self.n_steps > i_step)) and self._running:
+            probe_command = self.amplitude * self.sink.pxmax * (text(self.sink.shape, f"{i_step:02d}", font_size=150) - 0.5)
+            command = current_cmd + probe_command
+            command = np.clip(command, 0, self.sink.pxmax)
 
-            self.signals.snkSampled.emit(self._sink.push_command(command.astype(np.uint16)))
+            _current_sink_sample = self.sink.push_command(command.astype(np.uint16))
+            self.signals.snkSampled.emit(_current_sink_sample)
             time.sleep(0.1)
 
-            self.signals.srcSampled.emit(self._source.pull_capture())
+            _current_source_sample = self.source.pull_capture()
+            self.signals.srcSampled.emit(_current_source_sample)
             time.sleep(0.2)
 
             i_step = i_step + 1
             self.signals.progressTicked.emit(i_step, time.time() - t_start)
 
-            logger.info("%s and %s ProcessWorker.run : step %s of %s", self._source.name, self._sink.name, i_step, self._n_steps)
+            logger.info("%s and %s ProcessWorker.run : step %i of %i", self.source.name, self.sink.name, i_step, self.n_steps)
 
         self.signals.finished.emit()
-
-        # self._sink.push_command(_current_sink_sample.command.astype(np.uint16))

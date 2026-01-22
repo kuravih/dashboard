@@ -9,24 +9,24 @@ from PySide6.QtWidgets import QCheckBox, QFileDialog, QGridLayout, QHBoxLayout, 
 from matplotlib import colormaps
 
 import testbed
-from testbed.device import SinkSample
-from testbed.function import constrained_sin_fit_fn, quadratic_fit_fn
 
-from ..device.camera import Camera, SourceSample
-from ..device.modulator import Modulator, SinkSample
-from ..function import is_speckle_calibration_file_valid
+from ..device import SinkSample, SourceSample
+from ..device.camera import Camera
+from ..device.modulator import Modulator
+from ..function import is_speckle_calibration_file_valid, constrained_sin_fit_fn, quadratic_fit_fn
 from ..worker.speckle_nulling_worker import ProcessWorker
 from ..worker.storage_worker import SinkStorageWorker, SourceStorageWorker
-from . import DevicesSetupWidget, LinspaceWidget, TaskControlsWidget, Window
 from .camera_window import InfoWindow as CameraInfoWindow
 from .camera_window import PreviewWindow as CameraPreviewWindow
 from .camera_window import SettingsWindow as CameraSettingsWindow
-from .dialog import MessageDialog
-from .figure_widget import ContrastFigureWidget, SpeckleNullingFigureWidget
 from .modulator_window import InfoWindow as ModulatorInfoWindow
 from .modulator_window import PreviewWindow as ModulatorPreviewWindow
 from .modulator_window import SettingsWindow as ModulatorSettingsWindow
+from .dialog import MessageDialog
+from .figure_widget import ContrastFigureWidget, SpeckleNullingFigureWidget
 from .resource import ICON_BACKSPACE, ICON_FOLDER, ICON_PAUSE, ICON_RUN
+
+from . import DevicesSetupWidget, LinspaceWidget, TaskControlsWidget, Window
 
 _PROCESS_ = testbed.SPECKLE_NULLING
 
@@ -217,10 +217,10 @@ class ProcessInfoSettingsWindow(Window):
 
     def __init__(self, src_cmap: str, src_cmap_log: bool, src_mask_show: bool, snk_cmap: str, parent=None):
         super().__init__(parent, Qt.WindowType.Dialog)
-        self._src_cmap = src_cmap
-        self._src_cmap_log = src_cmap_log
-        self._src_mask_show = src_mask_show
-        self._snk_cmap = snk_cmap
+        self.src_cmap = src_cmap
+        self.src_cmap_log = src_cmap_log
+        self.src_mask_show = src_mask_show
+        self.snk_cmap = snk_cmap
         self.setWindowModality(Qt.WindowModality.WindowModal)
         self.setWindowTitle("Process Info Settings")
         layout = QVBoxLayout()
@@ -236,22 +236,22 @@ class ProcessInfoSettingsWindow(Window):
         source_scale_label = QLabel("Source Scale", self)
         self.source_log_checkbox = QCheckBox("Log", self)
         self.source_log_checkbox.setToolTip("Log Scale")
-        self.source_log_checkbox.setChecked(self._src_cmap_log)
+        self.source_log_checkbox.setChecked(self.src_cmap_log)
 
         dark_hole_mask_label = QLabel("Dark Hole Mask", self)
         self.source_mask_checkbox = QCheckBox("Show", self)
         self.source_mask_checkbox.setToolTip("Show dark hole mask")
-        self.source_mask_checkbox.setChecked(self._src_mask_show)
+        self.source_mask_checkbox.setChecked(self.src_mask_show)
 
         source_cmap_label = QLabel("Source Colormap", self)
         self.source_cmap_combobox = QComboBox(self)
         self.source_cmap_combobox.addItems(list(colormaps))
-        self.source_cmap_combobox.setCurrentIndex(list(colormaps).index(self._src_cmap))
+        self.source_cmap_combobox.setCurrentIndex(list(colormaps).index(self.src_cmap))
 
         sink_cmap_label = QLabel("Sink Colormap", self)
         self.sink_cmap_combobox = QComboBox(self)
         self.sink_cmap_combobox.addItems(list(colormaps))
-        self.sink_cmap_combobox.setCurrentIndex(list(colormaps).index(self._snk_cmap))
+        self.sink_cmap_combobox.setCurrentIndex(list(colormaps).index(self.snk_cmap))
 
         row = 0
         col = 0
@@ -501,7 +501,7 @@ class ProcessPreviewWindow(Window):
         self.dark_hole_mask = dark_hole_mask
 
         self.speckle = [np.nan, np.nan]
-        
+
         self.setWindowTitle("Contrast")
 
         layout = QVBoxLayout()
@@ -514,7 +514,7 @@ class ProcessPreviewWindow(Window):
         self.update_timer.start(100)  # Update window every 100 ms
 
     @Slot(np.ndarray, np.ndarray)
-    def on_contrast_measured(self, measure_map: np.ndarray, measure_array:np.ndarray):
+    def on_contrast_measured(self, measure_map: np.ndarray, measure_array: np.ndarray):
         self.measure_map = measure_map
         self.measure_array = measure_array
 
@@ -754,77 +754,82 @@ class ProcessWindow(Window):
         process_worker_id = f"{_PROCESS_}_worker"
         source_storage_worker_id = f"{_PROCESS_}_source_storage_worker"
         sink_storage_worker_id = f"{_PROCESS_}_sink_storage_worker"
-        source_preview_window_id = f"{self.source.name}_preview_window"
-        sink_preview_window_id = f"{self.sink.name}_preview_window"
         process_info_window_id = f"{_PROCESS_}_info_window"
         process_preview_window_id = f"{_PROCESS_}_preview_window"
 
-        if process_worker_id in testbed.data.workers:  # an update worker is in progress
-            current_worker = testbed.data.workers.pop(process_worker_id)
-            current_worker.stop()
-            self.controls_widget.play_pause_button.setIcon(QIcon(ICON_RUN))
+        if self.source is None or self.sink is None:
+            message_dialog = MessageDialog("Devices not selected", "Source and sink devices not selected.", icon=QMessageBox.Icon.Information, buttons=QMessageBox.StandardButton.Ok)
+            message_dialog.exec()
+        else:
+            source_preview_window_id = f"{self.source.name}_preview_window"
+            sink_preview_window_id = f"{self.sink.name}_preview_window"
+
+            if process_worker_id in testbed.data.workers:  # an update worker is in progress
+                current_worker = testbed.data.workers.pop(process_worker_id)
+                current_worker.stop()
+                self.controls_widget.play_pause_button.setIcon(QIcon(ICON_RUN))
+                self.devices_widget.sink_settings_button.setEnabled(False)
+                self.devices_widget.source_settings_button.setEnabled(False)
+                self.controls_widget.progressbar.setMaximum(100)
+                self.controls_widget.progressbar.reset()
+                self.controls_widget.progressbar.updateProgress()
+                if source_storage_worker_id in testbed.data.workers:
+                    current_source_storage_worker = testbed.data.workers.pop(source_storage_worker_id)
+                    current_source_storage_worker.stop()
+                if sink_storage_worker_id in testbed.data.workers:
+                    current_sink_storage_worker = testbed.data.workers.pop(sink_storage_worker_id)
+                    current_sink_storage_worker.stop()
+                return
+
+            if self.settings_widget.continuous:
+                self.controls_widget.progressbar.setMaximum(0)
+            else:
+                self.controls_widget.progressbar.setMaximum(self.settings_widget.n_iterations)
+
+            worker = ProcessWorker(self.source, self.sink, self.settings_widget.dark_hole_mask, self.settings_widget.speckle_calibration, self.settings_widget.phs_array, self.settings_widget.amp_array, self.settings_widget.n_iterations)
+            worker.signals.progressTicked.connect(self.on_progress_tick)
+            worker.signals.finished.connect(self.on_finish)
+
+            timestamp = timestamp_string(frmt="%Y%m%d.%H%M%S", ms=None)
+
+            if self.settings_widget.record_source:
+                source_storage_worker = SourceStorageWorker(f"data/output/{timestamp}_{_PROCESS_}_source.raw", self.settings_widget.n_iterations)
+                worker.signals.srcSampled.connect(source_storage_worker.on_sample)
+                source_storage_worker.signals.finished.connect(self.on_source_storage_finish)
+                testbed.data.workers[source_storage_worker_id] = source_storage_worker
+                testbed.data.threadpool.start(source_storage_worker)
+
+            if self.settings_widget.record_sink:
+                sink_storage_worker = SinkStorageWorker(f"data/output/{timestamp}_{_PROCESS_}_sink.raw", self.settings_widget.n_iterations)
+                worker.signals.snkSampled.connect(sink_storage_worker.on_sample)
+                sink_storage_worker.signals.finished.connect(self.on_sink_storage_finish)
+                testbed.data.workers[sink_storage_worker_id] = sink_storage_worker
+                testbed.data.threadpool.start(sink_storage_worker)
+
+            self.controls_widget.play_pause_button.setIcon(QIcon(ICON_PAUSE))
             self.devices_widget.sink_settings_button.setEnabled(False)
             self.devices_widget.source_settings_button.setEnabled(False)
-            self.controls_widget.progressbar.setMaximum(100)
-            self.controls_widget.progressbar.reset()
-            self.controls_widget.progressbar.updateProgress()
-            if source_storage_worker_id in testbed.data.workers:
-                current_source_storage_worker = testbed.data.workers.pop(source_storage_worker_id)
-                current_source_storage_worker.stop()
-            if sink_storage_worker_id in testbed.data.workers:
-                current_sink_storage_worker = testbed.data.workers.pop(sink_storage_worker_id)
-                current_sink_storage_worker.stop()
-            return
 
-        if self.settings_widget.continuous:
-            self.controls_widget.progressbar.setMaximum(0)
-        else:
-            self.controls_widget.progressbar.setMaximum(self.settings_widget.n_iterations)
+            if source_preview_window_id in testbed.data.windows:
+                worker.signals.srcSampled.connect(testbed.data.windows[source_preview_window_id].on_sample)
+            if sink_preview_window_id in testbed.data.windows:
+                worker.signals.snkSampled.connect(testbed.data.windows[sink_preview_window_id].on_sample)
+            if process_info_window_id in testbed.data.windows:
+                worker.signals.srcSampled.connect(testbed.data.windows[process_info_window_id].on_src_sampled)
+                worker.signals.snkSampled.connect(testbed.data.windows[process_info_window_id].on_snk_sampled)
+                worker.signals.speckleLocated.connect(testbed.data.windows[process_info_window_id].on_speckle_located)
+                worker.signals.phsSwept.connect(testbed.data.windows[process_info_window_id].on_phs_swept)
+                worker.signals.phsFitted.connect(testbed.data.windows[process_info_window_id].on_phs_fitted)
+                worker.signals.phsSolved.connect(testbed.data.windows[process_info_window_id].on_phs_solved)
+                worker.signals.ampSwept.connect(testbed.data.windows[process_info_window_id].on_amp_swept)
+                worker.signals.ampFitted.connect(testbed.data.windows[process_info_window_id].on_amp_fitted)
+                worker.signals.ampSolved.connect(testbed.data.windows[process_info_window_id].on_amp_solved)
+            if process_preview_window_id in testbed.data.windows:
+                worker.signals.contrastMeasured.connect(testbed.data.windows[process_preview_window_id].on_contrast_measured)
+                worker.signals.speckleLocated.connect(testbed.data.windows[process_preview_window_id].on_speckle_located)
 
-        worker = ProcessWorker(self.source, self.sink, self.settings_widget.dark_hole_mask, self.settings_widget.speckle_calibration, self.settings_widget.phs_array, self.settings_widget.amp_array, self.settings_widget.n_iterations)
-        worker.signals.progressTicked.connect(self.on_progress_tick)
-        worker.signals.finished.connect(self.on_finish)
-
-        timestamp = timestamp_string(frmt="%Y%m%d.%H%M%S", ms=None)
-
-        if self.settings_widget.record_source:
-            source_storage_worker = SourceStorageWorker(f"data/output/{timestamp}_{_PROCESS_}_source.raw", self.settings_widget.n_iterations)
-            worker.signals.srcSampled.connect(source_storage_worker.on_sample)
-            source_storage_worker.signals.finished.connect(self.on_source_storage_finish)
-            testbed.data.workers[source_storage_worker_id] = source_storage_worker
-            testbed.data.threadpool.start(source_storage_worker)
-
-        if self.settings_widget.record_sink:
-            sink_storage_worker = SinkStorageWorker(f"data/output/{timestamp}_{_PROCESS_}_sink.raw", self.settings_widget.n_iterations)
-            worker.signals.snkSampled.connect(sink_storage_worker.on_sample)
-            sink_storage_worker.signals.finished.connect(self.on_sink_storage_finish)
-            testbed.data.workers[sink_storage_worker_id] = sink_storage_worker
-            testbed.data.threadpool.start(sink_storage_worker)
-
-        self.controls_widget.play_pause_button.setIcon(QIcon(ICON_PAUSE))
-        self.devices_widget.sink_settings_button.setEnabled(False)
-        self.devices_widget.source_settings_button.setEnabled(False)
-
-        if source_preview_window_id in testbed.data.windows:
-            worker.signals.srcSampled.connect(testbed.data.windows[source_preview_window_id].on_sample)
-        if sink_preview_window_id in testbed.data.windows:
-            worker.signals.snkSampled.connect(testbed.data.windows[sink_preview_window_id].on_sample)
-        if process_info_window_id in testbed.data.windows:
-            worker.signals.srcSampled.connect(testbed.data.windows[process_info_window_id].on_src_sampled)
-            worker.signals.snkSampled.connect(testbed.data.windows[process_info_window_id].on_snk_sampled)
-            worker.signals.speckleLocated.connect(testbed.data.windows[process_info_window_id].on_speckle_located)
-            worker.signals.phsSwept.connect(testbed.data.windows[process_info_window_id].on_phs_swept)
-            worker.signals.phsFitted.connect(testbed.data.windows[process_info_window_id].on_phs_fitted)
-            worker.signals.phsSolved.connect(testbed.data.windows[process_info_window_id].on_phs_solved)
-            worker.signals.ampSwept.connect(testbed.data.windows[process_info_window_id].on_amp_swept)
-            worker.signals.ampFitted.connect(testbed.data.windows[process_info_window_id].on_amp_fitted)
-            worker.signals.ampSolved.connect(testbed.data.windows[process_info_window_id].on_amp_solved)
-        if process_preview_window_id in testbed.data.windows:
-            worker.signals.contrastMeasured.connect(testbed.data.windows[process_preview_window_id].on_contrast_measured)
-            worker.signals.speckleLocated.connect(testbed.data.windows[process_preview_window_id].on_speckle_located)
-
-        testbed.data.workers[process_worker_id] = worker
-        testbed.data.threadpool.start(worker)
+            testbed.data.workers[process_worker_id] = worker
+            testbed.data.threadpool.start(worker)
 
     def open_process_preview_clicked(self):
         process_preview_window_id = f"{_PROCESS_}_preview_window"
@@ -886,7 +891,6 @@ class ProcessWindow(Window):
         self.settings_widget.calibration_changed.connect(self.on_calibration_change)
 
         self.controls_widget = TaskControlsWidget(self)
-        self.controls_widget.play_pause_button.setEnabled(False)
         self.controls_widget.play_pause_button.clicked.connect(self.on_start_stop_clicked)
         self.controls_widget.info_button.clicked.connect(self.open_process_info_clicked)
         self.controls_widget.preview_button.clicked.connect(self.open_process_preview_clicked)

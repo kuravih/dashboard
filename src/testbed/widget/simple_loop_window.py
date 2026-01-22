@@ -2,7 +2,7 @@ from pykato.function import timestamp_string
 from pykato.log import setup_logger
 from PySide6.QtCore import Qt, Slot
 from PySide6.QtGui import QIcon
-from PySide6.QtWidgets import QCheckBox, QDoubleSpinBox, QGridLayout, QHBoxLayout, QLabel, QSpinBox, QVBoxLayout, QWidget
+from PySide6.QtWidgets import QCheckBox, QDoubleSpinBox, QGridLayout, QHBoxLayout, QLabel, QSpinBox, QVBoxLayout, QWidget, QMessageBox
 
 import testbed
 
@@ -10,14 +10,16 @@ from ..device.camera import Camera
 from ..device.modulator import Modulator
 from ..worker.simple_loop_worker import ProcessWorker
 from ..worker.storage_worker import SinkStorageWorker, SourceStorageWorker
-from . import DevicesSetupWidget, TaskControlsWidget, Window
 from .camera_window import InfoWindow as CameraInfoWindow
 from .camera_window import PreviewWindow as CameraPreviewWindow
 from .camera_window import SettingsWindow as CameraSettingsWindow
 from .modulator_window import InfoWindow as ModulatorInfoWindow
 from .modulator_window import PreviewWindow as ModulatorPreviewWindow
 from .modulator_window import SettingsWindow as ModulatorSettingsWindow
+from .dialog import MessageDialog
 from .resource import ICON_PAUSE, ICON_RUN
+
+from . import DevicesSetupWidget, TaskControlsWidget, Window
 
 _PROCESS_ = testbed.SIMPLE_LOOP
 
@@ -31,6 +33,13 @@ class ProcessSettingsWidget(QWidget):
 
     def __init__(self, parent=None):
         super().__init__(parent)
+
+        ampl_label = QLabel("Amplitude", self)
+        ampl_label.setFixedWidth(100)
+
+        self._ampl_spinbox = QDoubleSpinBox(self)
+        self._ampl_spinbox.setRange(0, 0.5)
+        self._ampl_spinbox.setValue(0.25)
 
         n_steps_label = QLabel("Steps", self)
         n_steps_label.setFixedWidth(100)
@@ -85,6 +94,12 @@ class ProcessSettingsWidget(QWidget):
 
         row = 0
         col = 0
+        widget_layout.addWidget(ampl_label, row, col)
+        col += 1
+        widget_layout.addWidget(self._ampl_spinbox, row, col)
+
+        row += 1
+        col = 0
         widget_layout.addWidget(n_steps_label, row, col)
         col += 1
         widget_layout.addLayout(n_steps_layout, row, col, 1, 3)
@@ -102,6 +117,10 @@ class ProcessSettingsWidget(QWidget):
         widget_layout.addLayout(record_layout, row, col, 1, 3)
 
         self.setLayout(widget_layout)
+
+    @property
+    def amplitude(self) -> float:
+        return self._ampl_spinbox.value()
 
     @property
     def continuous(self) -> bool:
@@ -289,62 +308,67 @@ class ProcessWindow(Window):
         worker_id = f"{_PROCESS_}_worker"
         source_storage_worker_id = f"{_PROCESS_}_source_storage_worker"
         sink_storage_worker_id = f"{_PROCESS_}_sink_storage_worker"
-        source_preview_window_id = f"{self.source.name}_preview_window"
-        sink_preview_window_id = f"{self.sink.name}_preview_window"
 
-        if worker_id in testbed.data.workers:  # an update worker is in progress
-            current_worker = testbed.data.workers.pop(worker_id)
-            current_worker.stop()
-            self.controls_widget.play_pause_button.setIcon(QIcon(ICON_RUN))
-            self.devices_widget.sink_settings_button.setEnabled(True)
-            self.devices_widget.source_settings_button.setEnabled(True)
-            self.controls_widget.progressbar.setMaximum(100)
-            self.controls_widget.progressbar.reset()
-            self.controls_widget.progressbar.updateProgress()
-            if source_storage_worker_id in testbed.data.workers:
-                current_source_storage_worker = testbed.data.workers.pop(source_storage_worker_id)
-                current_source_storage_worker.stop()
-            if sink_storage_worker_id in testbed.data.workers:
-                current_sink_storage_worker = testbed.data.workers.pop(sink_storage_worker_id)
-                current_sink_storage_worker.stop()
-            return
-
-        if self.settings_widget.continuous:
-            self.controls_widget.progressbar.setMaximum(0)
+        if self.source is None or self.sink is None:
+            message_dialog = MessageDialog("Devices not selected", "Source and sink devices not selected.", icon=QMessageBox.Icon.Information, buttons=QMessageBox.StandardButton.Ok)
+            message_dialog.exec()
         else:
-            self.controls_widget.progressbar.setMaximum(self.settings_widget.n_steps)
+            source_preview_window_id = f"{self.source.name}_preview_window"
+            sink_preview_window_id = f"{self.sink.name}_preview_window"
 
-        worker = ProcessWorker(self.source, self.sink, self.settings_widget.n_steps)
-        worker.signals.progressTicked.connect(self.on_progress_tick)
-        worker.signals.finished.connect(self.on_finished)
+            if worker_id in testbed.data.workers:  # an update worker is in progress
+                current_worker = testbed.data.workers.pop(worker_id)
+                current_worker.stop()
+                self.controls_widget.play_pause_button.setIcon(QIcon(ICON_RUN))
+                self.devices_widget.sink_settings_button.setEnabled(True)
+                self.devices_widget.source_settings_button.setEnabled(True)
+                self.controls_widget.progressbar.setMaximum(100)
+                self.controls_widget.progressbar.reset()
+                self.controls_widget.progressbar.updateProgress()
+                if source_storage_worker_id in testbed.data.workers:
+                    current_source_storage_worker = testbed.data.workers.pop(source_storage_worker_id)
+                    current_source_storage_worker.stop()
+                if sink_storage_worker_id in testbed.data.workers:
+                    current_sink_storage_worker = testbed.data.workers.pop(sink_storage_worker_id)
+                    current_sink_storage_worker.stop()
+                return
 
-        timestamp = timestamp_string(frmt="%Y%m%d.%H%M%S", ms=None)
+            if self.settings_widget.continuous:
+                self.controls_widget.progressbar.setMaximum(0)
+            else:
+                self.controls_widget.progressbar.setMaximum(self.settings_widget.n_steps)
 
-        if self.settings_widget.record_source:
-            source_storage_worker = SourceStorageWorker(f"data/output/{timestamp}_{_PROCESS_}_source.raw", self.settings_widget.n_steps)
-            worker.signals.srcSampled.connect(source_storage_worker.on_sampled)
-            source_storage_worker.signals.finished.connect(self.on_source_storage_finished)
-            testbed.data.workers[source_storage_worker_id] = source_storage_worker
-            testbed.data.threadpool.start(source_storage_worker)
+            worker = ProcessWorker(self.source, self.sink, self.settings_widget.amplitude, self.settings_widget.n_steps)
+            worker.signals.progressTicked.connect(self.on_progress_tick)
+            worker.signals.finished.connect(self.on_finished)
 
-        if self.settings_widget.record_sink:
-            sink_storage_worker = SinkStorageWorker(f"data/output/{timestamp}_{_PROCESS_}_sink.raw", self.settings_widget.n_steps)
-            worker.signals.snkSampled.connect(sink_storage_worker.on_sampled)
-            sink_storage_worker.signals.finished.connect(self.on_sink_storage_finished)
-            testbed.data.workers[sink_storage_worker_id] = sink_storage_worker
-            testbed.data.threadpool.start(sink_storage_worker)
+            timestamp = timestamp_string(frmt="%Y%m%d.%H%M%S", ms=None)
 
-        self.controls_widget.play_pause_button.setIcon(QIcon(ICON_PAUSE))
-        self.devices_widget.sink_settings_button.setEnabled(False)
-        self.devices_widget.source_settings_button.setEnabled(False)
+            if self.settings_widget.record_source:
+                source_storage_worker = SourceStorageWorker(f"data/output/{timestamp}_{_PROCESS_}_source.raw", self.settings_widget.n_steps)
+                worker.signals.srcSampled.connect(source_storage_worker.on_sampled)
+                source_storage_worker.signals.finished.connect(self.on_source_storage_finished)
+                testbed.data.workers[source_storage_worker_id] = source_storage_worker
+                testbed.data.threadpool.start(source_storage_worker)
 
-        if source_preview_window_id in testbed.data.windows:
-            worker.signals.srcSampled.connect(testbed.data.windows[source_preview_window_id].on_sampled)
-        if sink_preview_window_id in testbed.data.windows:
-            worker.signals.snkSampled.connect(testbed.data.windows[sink_preview_window_id].on_sampled)
+            if self.settings_widget.record_sink:
+                sink_storage_worker = SinkStorageWorker(f"data/output/{timestamp}_{_PROCESS_}_sink.raw", self.settings_widget.n_steps)
+                worker.signals.snkSampled.connect(sink_storage_worker.on_sampled)
+                sink_storage_worker.signals.finished.connect(self.on_sink_storage_finished)
+                testbed.data.workers[sink_storage_worker_id] = sink_storage_worker
+                testbed.data.threadpool.start(sink_storage_worker)
 
-        testbed.data.workers[worker_id] = worker
-        testbed.data.threadpool.start(worker)
+            self.controls_widget.play_pause_button.setIcon(QIcon(ICON_PAUSE))
+            self.devices_widget.sink_settings_button.setEnabled(False)
+            self.devices_widget.source_settings_button.setEnabled(False)
+
+            if source_preview_window_id in testbed.data.windows:
+                worker.signals.srcSampled.connect(testbed.data.windows[source_preview_window_id].on_sampled)
+            if sink_preview_window_id in testbed.data.windows:
+                worker.signals.snkSampled.connect(testbed.data.windows[sink_preview_window_id].on_sampled)
+
+            testbed.data.workers[worker_id] = worker
+            testbed.data.threadpool.start(worker)
 
     def setup_main_widget(self) -> QWidget:
         widget = QWidget(self)
@@ -358,7 +382,6 @@ class ProcessWindow(Window):
         self.settings_widget = ProcessSettingsWidget(self)
 
         self.controls_widget = TaskControlsWidget(self)
-        self.controls_widget.play_pause_button.setEnabled(False)
         self.controls_widget.play_pause_button.clicked.connect(self.on_start_stop_clicked)
         self.controls_widget.preview_button.hide()
         self.controls_widget.info_button.hide()

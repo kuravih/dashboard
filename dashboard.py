@@ -18,6 +18,8 @@ from testbed.worker.modulator_worker import UpdateWorker as ModulatorUpdateWorke
 from testbed.widget.simple_loop_window import ProcessWindow as SimpleLoopWindow
 from testbed.widget.speckle_calibration_window import ProcessWindow as SpeckleCalibrationWindow
 from testbed.widget.speckle_nulling_window import ProcessWindow as SpeckleNullingWindow
+from testbed.widget.recenter_window import ProcessWindow as RecenterWindow
+from testbed.widget.camera_calibration_window import ProcessWindow as CameraCalibrationWindow
 
 from testbed.widget.dialog import MessageDialog
 from testbed.widget.resource import ICON_EYE, ICON_GEAR, ICON_INFO, ICON_PLAY, ICON_PAUSE
@@ -58,6 +60,12 @@ class MainWindow(QMainWindow):
         speckle_nulling_button = QPushButton("Speckle Nulling Process")
         speckle_nulling_button.clicked.connect(self.open_speckle_nulling_clicked)
 
+        recenter_button = QPushButton("Recenter Process")
+        recenter_button.clicked.connect(self.open_recenter_clicked)
+
+        camera_calibration_button = QPushButton("Camera Calibration Process")
+        camera_calibration_button.clicked.connect(self.open_camera_calibration_clicked)
+
         device_button_layout = QHBoxLayout()
         device_button_layout.addWidget(add_device_button)
         device_button_layout.addWidget(remove_device_button)
@@ -70,11 +78,13 @@ class MainWindow(QMainWindow):
         layout.addWidget(simple_loop_button)
         layout.addWidget(speckle_calibration_button)
         layout.addWidget(speckle_nulling_button)
+        layout.addWidget(recenter_button)
+        layout.addWidget(camera_calibration_button)
         self.setCentralWidget(container)
 
     def open_device_preview_window(self, _device: Camera | Modulator):
 
-        preview_window_id =  f"{_device.name}_preview_window"
+        preview_window_id = f"{_device.name}_preview_window"
         device_update_worker_id = f"{_device.name}_update_worker"
 
         @Slot()
@@ -165,7 +175,7 @@ class MainWindow(QMainWindow):
             _button.setToolTip("Stop")
             return
 
-        device_update_worker: CameraUpdateWorker | ModulatorUpdateWorker| None = None
+        device_update_worker: CameraUpdateWorker | ModulatorUpdateWorker | None = None
         if isinstance(_device, Camera):
             device_update_worker = CameraUpdateWorker(_device)
         elif isinstance(_device, Modulator):
@@ -313,6 +323,40 @@ class MainWindow(QMainWindow):
             speckle_nulling_window.raise_()
             speckle_nulling_window.activateWindow()
             testbed.data.windows[speckle_nulling_window_id] = speckle_nulling_window
+
+    @Slot()
+    def open_recenter_clicked(self):
+
+        recenter_window_id = f"{testbed.RECENTER}_window"
+
+        @Slot()
+        def on_window_closed():
+            testbed.data.windows.pop(recenter_window_id, None)
+
+        if recenter_window_id not in testbed.data.windows:
+            recenter_window = RecenterWindow(self)
+            recenter_window.destroyed.connect(on_window_closed)
+            recenter_window.show()
+            recenter_window.raise_()
+            recenter_window.activateWindow()
+            testbed.data.windows[recenter_window_id] = recenter_window
+
+    @Slot()
+    def open_camera_calibration_clicked(self):
+
+        camera_calibration_window_id = f"{testbed.CAMERA_CALIBRATION}_window"
+
+        @Slot()
+        def on_window_closed():
+            testbed.data.windows.pop(camera_calibration_window_id, None)
+
+        if camera_calibration_window_id not in testbed.data.windows:
+            camera_calibration_window = CameraCalibrationWindow(self)
+            camera_calibration_window.destroyed.connect(on_window_closed)
+            camera_calibration_window.show()
+            camera_calibration_window.raise_()
+            camera_calibration_window.activateWindow()
+            testbed.data.windows[camera_calibration_window_id] = camera_calibration_window
 
     def closeEvent(self, event):
         if testbed.data.windows:
