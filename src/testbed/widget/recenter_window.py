@@ -187,7 +187,8 @@ class ProcessInfoWindow(Window):
         layout.setContentsMargins(2, 2, 2, 2)
         widget.setLayout(layout)
         self.process_info_figure = RecenteringFigureWidget(self.source_sample.capture, self.sink_sample.command, show_toolbar=True, parent=self)
-        self.process_info_figure.toolbar.settingsClicked.connect(self.on_info_settings_clicked)
+        if self.process_info_figure.toolbar is not None:
+            self.process_info_figure.toolbar.settingsClicked.connect(self.on_info_settings_clicked)
         layout.addWidget(self.process_info_figure)
         return widget
 
@@ -300,6 +301,7 @@ class ProcessWindow(Window):
 
     def open_device_info_window(self, _device: Camera | Modulator):
         info_window_id = f"{_device.name}_info_window"
+        worker_id = f"{_PROCESS_}_worker"
 
         @Slot()
         def on_window_closed():
@@ -309,8 +311,12 @@ class ProcessWindow(Window):
             info_window: CameraInfoWindow | ModulatorInfoWindow | None = None
             if isinstance(_device, Camera):
                 info_window = CameraInfoWindow(_device, self)
+                if worker_id in testbed.data.workers:  # an update worker is in progress
+                    testbed.data.workers[worker_id].signals.srcSampled.connect(info_window.on_sampled)
             elif isinstance(_device, Modulator):
                 info_window = ModulatorInfoWindow(_device, self)
+                if worker_id in testbed.data.workers:  # an update worker is in progress
+                    testbed.data.workers[worker_id].signals.snkSampled.connect(info_window.on_sampled)
             else:
                 raise ValueError("Invalid device")
             info_window.destroyed.connect(on_window_closed)
@@ -342,6 +348,7 @@ class ProcessWindow(Window):
 
     def open_device_preview_window(self, _device: Camera | Modulator):
         preview_window_id = f"{_device.name}_preview_window"
+        worker_id = f"{_PROCESS_}_worker"
 
         @Slot()
         def on_window_closed():
@@ -351,8 +358,12 @@ class ProcessWindow(Window):
             preview_window: CameraPreviewWindow | ModulatorPreviewWindow | None = None
             if isinstance(_device, Camera):
                 preview_window = CameraPreviewWindow(_device, self)
+                if worker_id in testbed.data.workers:  # an update worker is in progress
+                    testbed.data.workers[worker_id].signals.srcSampled.connect(preview_window.on_sampled)
             elif isinstance(_device, Modulator):
                 preview_window = ModulatorPreviewWindow(_device, self)
+                if worker_id in testbed.data.workers:  # an update worker is in progress
+                    testbed.data.workers[worker_id].signals.snkSampled.connect(preview_window.on_sampled)
             else:
                 raise ValueError("Invalid device")
             preview_window.destroyed.connect(on_window_closed)

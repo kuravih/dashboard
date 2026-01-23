@@ -20,7 +20,7 @@ from .resource import ICON_PAUSE, ICON_RUN
 
 from . import DevicesSetupWidget, TaskControlsWidget, ExposureTimeArrayWidget, Window
 
-_PROCESS_ = testbed.SPECKLE_CALIBRATION
+_PROCESS_ = testbed.CAMERA_CALIBRATION
 
 logger = setup_logger(f"{_PROCESS_}_window", terminator="\n")
 
@@ -191,7 +191,7 @@ class ProcessWindow(Window):
                     current_source_storage_worker.stop()
                 return
 
-            self.controls_widget.progressbar.setMaximum(self.settings_widget.n_steps)
+            self.controls_widget.progressbar.setMaximum(self.settings_widget.exposure_times_array.size)
 
             worker = ProcessWorker(self.source, self.settings_widget.exposure_times_array)
             worker.signals.progressTicked.connect(self.on_progress_tick)
@@ -199,15 +199,11 @@ class ProcessWindow(Window):
 
             timestamp = timestamp_string(frmt="%Y%m%d.%H%M%S", ms=None)
 
-            source_storage_worker = SourceStorageWorker(f"data/output/{timestamp}_{_PROCESS_}_source.raw", self.settings_widget.n_steps)
+            source_storage_worker = SourceStorageWorker(f"data/output/{timestamp}_{_PROCESS_}_source.raw", self.settings_widget.exposure_times_array.size)
             worker.signals.srcSampled.connect(source_storage_worker.on_sampled)
             source_storage_worker.signals.finished.connect(self.on_source_storage_finished)
             testbed.data.workers[source_storage_worker_id] = source_storage_worker
             testbed.data.threadpool.start(source_storage_worker)
-
-            with open(f"data/output/{timestamp}_{_PROCESS_}_parameters.pkl", "wb") as _file:
-                parameters_dict = {"amplitudes": self.settings_widget.amplitude, "frequencies": self.settings_widget.freqs_array, "angles": self.settings_widget.angles_array, "phases": self.settings_widget.phases_array}
-                pickle.dump(parameters_dict, _file, protocol=pickle.HIGHEST_PROTOCOL)
 
             self.controls_widget.play_pause_button.setIcon(QIcon(ICON_PAUSE))
             self.device_widget.source_settings_button.setEnabled(False)

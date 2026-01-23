@@ -33,7 +33,7 @@ class DevicesComboBox(QComboBox):
             Overridden pop up function will show only device options of a given kind.
     """
 
-    def __init__(self, devices: dict[str, Device], types: tuple[type, ...], parent=None):
+    def __init__(self, devices: dict[str, Camera | Modulator], types: tuple[type, ...], parent=None):
         super().__init__(parent)
         self.devices = devices
         self.types = types
@@ -58,7 +58,7 @@ class DevicesSetupWidget(QWidget):
     Devices setup widget, with two comboboxes for sink devices and source devices.
 
     Parameters:
-        devices: list[Device]
+        devices: dict[str, Camera | Modulator]
             list of devices to show.
         setup_sink: bool = True
             Show the sink selection combobox
@@ -384,12 +384,12 @@ class OrientationWidget(QWidget):
     def _on_rotation_changed(self, id_):
         mapping = [Rotation.UP, Rotation.RIGHT, Rotation.DOWN, Rotation.LEFT]
         self._rotation = mapping[id_]
-        self.rotation_changed.emit(self._rotation)
+        self.rotationChanged.emit(self._rotation)
 
     @Slot()
     def _on_flip_change(self, state):
         self._flip = Flip.POS if state else Flip.NEG
-        self.flip_changed.emit(self._flip)
+        self.flipChanged.emit(self._flip)
 
     # --- getters / setters ---
     def get_flip(self) -> Flip:

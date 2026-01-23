@@ -159,7 +159,7 @@ class MainWindow(QMainWindow):
             testbed.data.windows[settings_window_id] = settings_window
 
             if device_update_worker_id in testbed.data.workers:
-                testbed.data.workers[device_update_worker_id].signals.sampled.connect(testbed.data.windows[settings_window_id].sampled)
+                testbed.data.workers[device_update_worker_id].signals.sampled.connect(testbed.data.windows[settings_window_id].on_sampled)
 
     def on_start_stop(self, _device: Camera | Modulator, _button: QPushButton):
 

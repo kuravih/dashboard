@@ -2,16 +2,14 @@ import time
 import numpy as np
 from PySide6.QtCore import Slot, Signal
 
-from pykato.function import sinusoid
 from pykato.log import setup_logger
 
 import testbed
 from ..device import SourceSample, SinkSample
 from ..device.camera import Camera
-from ..device.modulator import Modulator
 from . import Worker, WorkerSignals
 
-_PROCESS_ = testbed.SPECKLE_CALIBRATION
+_PROCESS_ = testbed.CAMERA_CALIBRATION
 
 logger = setup_logger(f"{_PROCESS_}_worker", terminator="\n")
 
@@ -45,6 +43,8 @@ class ProcessWorker(Worker):
 
         i_exp = 0
         while (self.exp_array.size > i_exp) and self._running:
+
+            self.source.set_exposure_time_us(int(self.exp_array[i_exp]))
 
             _current_source_sample = self.source.pull_capture()
             self.signals.srcSampled.emit(_current_source_sample)

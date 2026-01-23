@@ -182,12 +182,14 @@ class ZMQLink:
         super().__init__()
         if (uri is None) and (address is None) and (port is None):
             self._uri = "tcp://127.0.0.1:555"
-        elif (uri is not None) and (address is None) and (port is None):
-            self._uri = uri
         elif (uri is None) and (address is None) and (port is not None):
             self._uri = f"tcp://127.0.0.1:{port}"
-        elif (uri is None) and (address is not None) and (port is not None):
+        elif (uri is None) and (address is not None) and (port is None):
             self._uri = f"tcp://{address}:5555"
+        elif (uri is None) and (address is not None) and (port is not None):
+            self._uri = f"tcp://{address}:{port}"
+        elif uri is not None:
+            self._uri = uri
         self._context = zmq.Context()
         self._socket = self._context.socket(zmq.REQ)
         self._connected = False
@@ -244,19 +246,6 @@ class SourceSample:
         self.capture = _capture
 
 
-class SourceSampleStore:
-    __slots__ = ("exposure_time_us", "gain", "frame_rate_fps", "temperature_c", "roi", "captures", "timestamps")
-
-    def __init__(self, _exposure_time_us: int, _gain: float, _frame_rate_fps: float, _temperature_c: float, _roi: dict[str, tuple[int, int]], _captures: list[np.ndarray], _timestamps: list[datetime]):
-        self.exposure_time_us = _exposure_time_us
-        self.gain = _gain
-        self.frame_rate_fps = _frame_rate_fps
-        self.temperature_c = _temperature_c
-        self.roi = _roi
-        self.captures = _captures
-        self.timestamps = _timestamps
-
-
 class SinkSample:
     __slots__ = ("last_access_time", "frame_rate_fps", "center", "radius", "command")
 
@@ -266,14 +255,3 @@ class SinkSample:
         self.center = _center
         self.radius = _radius
         self.command = _command
-
-
-class SinkSampleStore:
-    __slots__ = ("frame_rate_fps", "center", "radius", "commands", "timestamps")
-
-    def __init__(self, _frame_rate_fps: float, _center: tuple[float, float], _radius: float, _commands: list[np.ndarray], _timestamps: list[datetime]):
-        self.frame_rate_fps = _frame_rate_fps
-        self.center = _center
-        self.radius = _radius
-        self.commands = _commands
-        self.timestamps = _timestamps

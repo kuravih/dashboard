@@ -177,6 +177,7 @@ class ProcessWindow(Window):
 
     def open_device_info_window(self, _device: Camera | Modulator):
         info_window_id = f"{_device.name}_info_window"
+        worker_id = f"{_PROCESS_}_worker"
 
         @Slot()
         def on_window_closed():
@@ -186,8 +187,12 @@ class ProcessWindow(Window):
             info_window: CameraInfoWindow | ModulatorInfoWindow | None = None
             if isinstance(_device, Camera):
                 info_window = CameraInfoWindow(_device, self)
+                if worker_id in testbed.data.workers:  # an update worker is in progress
+                    testbed.data.workers[worker_id].signals.srcSampled.connect(info_window.on_sampled)
             elif isinstance(_device, Modulator):
                 info_window = ModulatorInfoWindow(_device, self)
+                if worker_id in testbed.data.workers:  # an update worker is in progress
+                    testbed.data.workers[worker_id].signals.snkSampled.connect(info_window.on_sampled)
             else:
                 raise ValueError("Invalid device")
             info_window.destroyed.connect(on_window_closed)
@@ -219,6 +224,7 @@ class ProcessWindow(Window):
 
     def open_device_preview_window(self, _device: Camera | Modulator):
         preview_window_id = f"{_device.name}_preview_window"
+        worker_id = f"{_PROCESS_}_worker"
 
         @Slot()
         def on_window_closed():
@@ -228,8 +234,12 @@ class ProcessWindow(Window):
             preview_window: CameraPreviewWindow | ModulatorPreviewWindow | None = None
             if isinstance(_device, Camera):
                 preview_window = CameraPreviewWindow(_device, self)
+                if worker_id in testbed.data.workers:  # an update worker is in progress
+                    testbed.data.workers[worker_id].signals.srcSampled.connect(preview_window.on_sampled)
             elif isinstance(_device, Modulator):
                 preview_window = ModulatorPreviewWindow(_device, self)
+                if worker_id in testbed.data.workers:  # an update worker is in progress
+                    testbed.data.workers[worker_id].signals.snkSampled.connect(preview_window.on_sampled)
             else:
                 raise ValueError("Invalid device")
             preview_window.destroyed.connect(on_window_closed)
@@ -319,9 +329,9 @@ class ProcessWindow(Window):
             testbed.data.workers[sink_storage_worker_id] = sink_storage_worker
             testbed.data.threadpool.start(sink_storage_worker)
 
-            with open(f"data/output/{timestamp}_{_PROCESS_}_parameters.pkl", "wb") as _file:
+            with open(f"data/output/{timestamp}_{_PROCESS_}_parameters.pkl", "wb") as fileio:
                 parameters_dict = {"amplitudes": self.settings_widget.amplitude, "frequencies": self.settings_widget.freqs_array, "angles": self.settings_widget.angles_array, "phases": self.settings_widget.phases_array}
-                pickle.dump(parameters_dict, _file, protocol=pickle.HIGHEST_PROTOCOL)
+                pickle.dump(parameters_dict, fileio, protocol=pickle.HIGHEST_PROTOCOL)
 
             self.controls_widget.play_pause_button.setIcon(QIcon(ICON_PAUSE))
             self.devices_widget.sink_settings_button.setEnabled(False)

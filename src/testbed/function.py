@@ -3,7 +3,7 @@ from enum import Enum, auto
 import struct
 import numpy as np
 from datetime import datetime
-from .device import SinkSample, SinkSampleStore, SourceSample, SourceSampleStore
+from .device import SinkSample, SourceSample
 from io import FileIO
 from pykato.log import setup_logger
 
@@ -27,13 +27,19 @@ DTYPE_MAP = {
 }
 INV_DTYPE_MAP = {v: k for k, v in DTYPE_MAP.items()}
 
+HEADER_FORMAT = "=7s2HB"  # 7 char tag + unsigned short width + unsigned short height + unsigned byte datatype
+SRC_TAG = b"SRCSMPL"
+SRC_HEADER_FORMAT = "=4dI4H"  # double timestamp + double frame_rate_fps + double temperature_c + double gain + unsigned int exposure_time_us + unsigned short roi.tl.x + unsigned short roi.tl.y + unsigned short roi.br.x + unsigned short roi.br.y
+SNK_TAG = b"SNKSMPL"
+SNK_HEADER_FORMAT = "=2d3H"  # double timestamp + double frame_rate_fps + unsigned short radius + unsigned short center.x + unsigned short center.y
+
 
 class Flip(Enum):
     NEG = auto()
     POS = auto()
 
     @classmethod
-    def from_bool(cls, value: bool):
+    def from_bool(cls, value: bool) -> "Flip":
         return cls.POS if value else cls.NEG
 
     def to_bool(self) -> bool:
@@ -54,136 +60,140 @@ class Rotation(Enum):
         return {Rotation.UP: 0, Rotation.RIGHT: 1, Rotation.DOWN: 2, Rotation.LEFT: 3}[self]
 
 
-def flip_rotate(_frame: np.ndarray, _flip: Flip, _rotation: Rotation) -> np.ndarray:
-    frame = np.rot90(_frame, _rotation.to_int())
-    if _flip == Flip.NEG:
+def flip_rotate(frame: np.ndarray, flip: Flip, rotation: Rotation) -> np.ndarray:
+    frame = np.rot90(frame, rotation.to_int())
+    if flip == Flip.NEG:
         frame = np.fliplr(frame)
     return frame
 
 
-def write_source_sample_header(_file: FileIO, _sample: SourceSample):
-    h, w = _sample.capture.shape[:2]
-    tl = _sample.roi.get("tl", (0, 0))
-    br = _sample.roi.get("br", (w, h))
-    dtype_code = DTYPE_MAP[_sample.capture.dtype.type]
+def write_source_sample_header(fileio: FileIO, sample: SourceSample):
+    h, w = sample.capture.shape[:2]
+    dtype_code = DTYPE_MAP[sample.capture.dtype.type]
     header = struct.pack(
-        "<7s" + "HH" + "I" + "fff" + "HHHH" + "B",
-        b"SRCSMPL",
-        h,  # unsigned short - H
-        w,  # unsigned short - H
-        _sample.exposure_time_us,  # unsigned int - I
-        _sample.gain,  # float - f
-        _sample.frame_rate_fps,  # float - f
-        _sample.temperature_c,  # float - f
-        tl[0],  # unsigned short - H
-        tl[1],  # unsigned short - H
-        br[0],  # unsigned short - H
-        br[1],  # unsigned short - H
-        dtype_code,  # unsigned byte - B
+        HEADER_FORMAT,  # 7 char tag + unsigned short width + unsigned short height + unsigned byte datatype
+        SRC_TAG,  # 7 char tag - 7s
+        np.uint16(h),  # unsigned short width - H
+        np.uint16(w),  # unsigned int height - H
+        dtype_code,  # unsigned byte datatype - B
     )
-    _file.write(header)
+    fileio.write(header)
 
 
-def write_source_sample_data(_file: FileIO, _sample: SourceSample):
-    _file.write(struct.pack("<d", _sample.last_access_time.timestamp()) + _sample.capture.tobytes())
+def write_source_sample_data(fileio: FileIO, sample: SourceSample):
+    h, w = sample.capture.shape[:2]
+    tl = sample.roi.get("tl", (0, 0))
+    br = sample.roi.get("br", (w, h))
+    sub_header = struct.pack(
+        SRC_HEADER_FORMAT,  # double timestamp + double frame_rate_fps + double temperature_c + double gain + unsigned int exposure_time_us + unsigned short roi.tl.x + unsigned short roi.tl.y + unsigned short roi.br.x + unsigned short roi.br.y
+        np.float64(sample.last_access_time.timestamp()),  # double timestamp - d
+        np.float64(sample.frame_rate_fps),  # double frame_rate_fps - d
+        np.float64(sample.temperature_c),  # double temperature_c - d
+        np.float64(sample.gain),  # double gain - d
+        np.uint32(sample.exposure_time_us),  # unsigned int exposure_time_us - I
+        np.uint16(tl[0]),  # unsigned short roi.tl.x - H
+        np.uint16(tl[1]),  # unsigned short roi.tl.y - H
+        np.uint16(br[0]),  # unsigned short roi.br.x - H
+        np.uint16(br[1]),  # unsigned short roi.br.y - H
+    )
+    fileio.write(sub_header + sample.capture.tobytes())
 
 
-def read_source_samples(filename: str) -> SourceSampleStore:
+def read_source_samples(filename: str) -> list[SourceSample]:
 
-    header_fmt = "<7s" + "HH" + "I" + "fff" + "HHHH" + "B"
-    header_size = struct.calcsize(header_fmt)
+    header_size = struct.calcsize(HEADER_FORMAT)
+    src_header_size = struct.calcsize(SRC_HEADER_FORMAT)
 
-    with open(filename, "rb") as f:
+    with open(filename, "rb") as fileio:
         # --- read header ---
-        header_bytes = f.read(header_size)
-        magic, h, w, exposure_us, gain, fps, temp_c, tlx, tly, brx, bry, dtype_code = struct.unpack(header_fmt, header_bytes)
-        roi = {"tl": (tlx, tly), "br": (brx, bry)}
-
-        if magic != b"SRCSMPL":
-            raise ValueError("Invalid file header (magic mismatch)")
+        header_bytes = fileio.read(header_size)
+        tag, h, w, dtype_code = struct.unpack(HEADER_FORMAT, header_bytes)
+        if tag != SRC_TAG:
+            raise ValueError(f"Invalid file header (tag mismatch) looking for {SRC_TAG.decode('utf-8')}, found {tag}")
 
         dtype = INV_DTYPE_MAP[dtype_code]
         capture_size = h * w * np.dtype(dtype).itemsize
 
         # --- read capture records ---
-        captures = []
-        timestamps = []
+        sample_list = []
         while True:
-            ts_bytes = f.read(8)
-            if len(ts_bytes) < 8:
+            src_header_bytes = fileio.read(src_header_size)
+            if len(src_header_bytes) < src_header_size:
                 break  # EOF
-            (timestamp,) = struct.unpack("<d", ts_bytes)
+            (timestamp, frame_rate_fps, temperature_c, gain, exposure_time_us, tl_x, tl_y, br_x, br_y) = struct.unpack(SRC_HEADER_FORMAT, src_header_bytes)
+            # double timestamp + double frame_rate_fps + double temperature_c + double gain + unsigned int exposure_time_us + unsigned short roi.tl.x + unsigned short roi.tl.y + unsigned short roi.br.x + unsigned short roi.br.y
 
-            capture_bytes = f.read(capture_size)
+            capture_bytes = fileio.read(capture_size)
             if len(capture_bytes) < capture_size:
                 break  # incomplete capture
 
             capture = np.frombuffer(capture_bytes, dtype=dtype).reshape((h, w))
             timestamp = datetime.fromtimestamp(timestamp)
-            captures.append(capture)
-            timestamps.append(timestamp)
 
-    return SourceSampleStore(exposure_us, gain, fps, temp_c, roi, np.array(captures), np.array(timestamps))
+            sample_list.append(SourceSample(timestamp, exposure_time_us, gain, frame_rate_fps, temperature_c, {"tl":(tl_x, tl_y), "br":(br_x, br_y)}, capture))
 
+        return sample_list
 
-def write_sink_sample_header(_file: FileIO, _sample: SinkSample):
-    h, w = _sample.command.shape[:2]
-    center = _sample.center
-    dtype_code = DTYPE_MAP[_sample.command.dtype.type]
+def write_sink_sample_header(fileio: FileIO, sample: SinkSample):
+    h, w = sample.command.shape[:2]
+    dtype_code = DTYPE_MAP[sample.command.dtype.type]
     header = struct.pack(
-        "<7s" + "HH" + "f" + "fff" + "B",
-        b"SNKSMPL",
-        h,  # unsigned short - H
-        w,  # unsigned short - H
-        _sample.frame_rate_fps,  # float - f
-        center[0],  # unsigned short - H
-        center[1],  # unsigned short - H
-        _sample.radius,  # unsigned short - H
-        dtype_code,  # unsigned byte - B
+        HEADER_FORMAT,  # 7 char tag + unsigned short width + unsigned short height + unsigned byte datatype
+        SNK_TAG,  # 7 char tag - 7s
+        np.uint16(h),  # unsigned short width - H
+        np.uint16(w),  # unsigned int height - H
+        dtype_code,  # unsigned byte datatype - B
     )
-    _file.write(header)
+    fileio.write(header)
 
 
-def write_sink_sample_data(_file: FileIO, _sample: SinkSample):
-    _file.write(struct.pack("<d", _sample.last_access_time.timestamp()) + _sample.command.tobytes())
+def write_sink_sample_data(fileio: FileIO, sample: SinkSample):
+    center = sample.center
+    sub_header = struct.pack(
+        SNK_HEADER_FORMAT,  # double timestamp + double frame_rate_fps + unsigned short radius + unsigned short center.x + unsigned short center.y
+        np.float64(sample.last_access_time.timestamp()),  # double timestamp - d
+        np.float64(sample.frame_rate_fps),  # double frame_rate_fps - d
+        np.uint16(sample.radius),  # unsigned short radius - H
+        np.uint16(center[0]),  # unsigned short center.x - H
+        np.uint16(center[1]),  # unsigned short center.y - H
+    )
+    fileio.write(sub_header + sample.command.tobytes())
 
 
-def read_sink_samples(filename: str) -> SinkSampleStore:
+def read_sink_samples(filename: str) -> list[SinkSample]:
 
-    header_fmt = "<7s" + "HH" + "f" + "fff" + "B"
-    header_size = struct.calcsize(header_fmt)
+    header_size = struct.calcsize(HEADER_FORMAT)
+    snk_header_size = struct.calcsize(SNK_HEADER_FORMAT)
 
-    with open(filename, "rb") as f:
+    with open(filename, "rb") as fileio:
         # --- read header ---
-        header_bytes = f.read(header_size)
-        magic, h, w, fps, centerx, centery, radius, dtype_code = struct.unpack(header_fmt, header_bytes)
-        center = (centerx, centery)
-
-        if magic != b"SNKSMPL":
-            raise ValueError("Invalid file header (magic mismatch)")
+        header_bytes = fileio.read(header_size)
+        tag, h, w, dtype_code = struct.unpack(HEADER_FORMAT, header_bytes)
+        if tag != SNK_TAG:
+            raise ValueError(f"Invalid file header (tag mismatch) looking for {SNK_TAG.decode('utf-8')}, found {tag}")
 
         dtype = INV_DTYPE_MAP[dtype_code]
         command_size = h * w * np.dtype(dtype).itemsize
 
         # --- read command records ---
-        commands = []
-        timestamps = []
+        sample_list = []
         while True:
-            ts_bytes = f.read(8)
-            if len(ts_bytes) < 8:
+            snk_header_bytes = fileio.read(snk_header_size)
+            if len(snk_header_bytes) < snk_header_size:
                 break  # EOF
-            (timestamp,) = struct.unpack("<d", ts_bytes)
+            (timestamp, frame_rate_fps, radius, center_x, center_y) = struct.unpack(SNK_HEADER_FORMAT, snk_header_bytes)
+            # double timestamp + double frame_rate_fps + unsigned short radius + unsigned short center.x + unsigned short center.y
 
-            command_bytes = f.read(command_size)
+            command_bytes = fileio.read(command_size)
             if len(command_bytes) < command_size:
                 break  # incomplete command
 
             command = np.frombuffer(command_bytes, dtype=dtype).reshape((h, w))
             timestamp = datetime.fromtimestamp(timestamp)
-            commands.append(command)
-            timestamps.append(timestamp)
 
-    return SinkSampleStore(fps, center, radius, np.array(commands), np.array(timestamps))
+            sample_list.append(SinkSample(timestamp, frame_rate_fps, (center_x, center_y), radius, command))
+
+    return sample_list
 
 
 def find_speckles(speckle_image: np.ndarray, num_peaks: int = 1, footprint_size: int = 10, min_distance: int = 1) -> tuple[list[tuple[float, float]], np.ndarray]:

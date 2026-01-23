@@ -9,7 +9,7 @@ from pykato.plotfunction.preset import Histogram_Colorbar_Preset
 from pykato.function import timestamp_string
 
 from ..device.camera import Camera, SourceSample
-from ..function import write_source_sample_header, write_source_sample_data, Flip, Rotation#, flip_rotate
+from ..function import write_source_sample_header, write_source_sample_data, Flip, Rotation #, flip_rotate
 from ..widget import Window, OrientationWidget, ROIWidget, DoubleValueSetWidget, ValueSetWidget
 from ..widget.resource import ICON_CAMERA
 from ..widget.figure_widget import FigureWidget, SourceFigureWidget
@@ -101,7 +101,8 @@ class PreviewWindow(Window):
 
         self._sample = self.camera.sample
         self.preview_figure_widget = SourceFigureWidget(self.camera.blank, self.camera.pxmax, True, self)
-        self.preview_figure_widget.toolbar.settingsClicked.connect(self.on_preview_settings_clicked)
+        if self.preview_figure_widget.toolbar is not None:
+            self.preview_figure_widget.toolbar.settingsClicked.connect(self.on_preview_settings_clicked)
 
         layout.addWidget(self.preview_figure_widget)
 
@@ -496,9 +497,9 @@ class SettingsWindow(Window):
         def on_capture_clicked():
             timestamp = timestamp_string(frmt="%Y%m%d.%H%M%S", ms=None)
             filename = f"data/output/{timestamp}_capture_source.raw"
-            with open(filename, "wb", buffering=0) as _file:
-                write_source_sample_header(_file, self.sample)
-                write_source_sample_data(_file, self.sample)
+            with open(filename, "wb", buffering=0) as fileio:
+                write_source_sample_header(fileio, self.sample)
+                write_source_sample_data(fileio, self.sample)
 
         capture_pushbutton.clicked.connect(on_capture_clicked)
         # ---- capture ------------------------------------------------------------------------------------------------
