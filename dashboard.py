@@ -83,15 +83,14 @@ class MainWindow(QMainWindow):
         self.setCentralWidget(container)
 
     def open_device_preview_window(self, _device: Camera | Modulator):
-
-        preview_window_id = f"{_device.name}_preview_window"
+        device_preview_window_id = f"{_device.name}_preview_window"
         device_update_worker_id = f"{_device.name}_update_worker"
 
         @Slot()
         def on_window_closed():
-            testbed.data.windows.pop(preview_window_id, None)
+            testbed.data.windows.pop(device_preview_window_id, None)
 
-        if preview_window_id not in testbed.data.windows:
+        if device_preview_window_id not in testbed.data.windows:
             preview_window: CameraPreviewWindow | ModulatorPreviewWindow | None = None
             if isinstance(_device, Camera):
                 preview_window = CameraPreviewWindow(_device, parent=self)
@@ -104,21 +103,21 @@ class MainWindow(QMainWindow):
             preview_window.show()
             preview_window.raise_()
             preview_window.activateWindow()
-            testbed.data.windows[preview_window_id] = preview_window
+            testbed.data.windows[device_preview_window_id] = preview_window
 
             if device_update_worker_id in testbed.data.workers:
-                testbed.data.workers[device_update_worker_id].signals.sampled.connect(testbed.data.windows[preview_window_id].on_sampled)
+                testbed.data.workers[device_update_worker_id].signals.sampled.connect(testbed.data.windows[device_preview_window_id].on_sampled)
 
     def open_device_info_window(self, _device: Camera | Modulator):
 
-        info_window_id = f"{_device.name}_info_window"
+        device_info_window_id = f"{_device.name}_info_window"
         device_update_worker_id = f"{_device.name}_update_worker"
 
         @Slot()
         def on_window_closed():
-            testbed.data.windows.pop(info_window_id, None)
+            testbed.data.windows.pop(device_info_window_id, None)
 
-        if info_window_id not in testbed.data.windows:
+        if device_info_window_id not in testbed.data.windows:
             info_window: CameraInfoWindow | ModulatorInfoWindow | None = None
             if isinstance(_device, Camera):
                 info_window = CameraInfoWindow(_device, parent=self)
@@ -130,21 +129,21 @@ class MainWindow(QMainWindow):
             info_window.show()
             info_window.raise_()
             info_window.activateWindow()
-            testbed.data.windows[info_window_id] = info_window
+            testbed.data.windows[device_info_window_id] = info_window
 
             if device_update_worker_id in testbed.data.workers:
-                testbed.data.workers[device_update_worker_id].signals.sampled.connect(testbed.data.windows[info_window_id].on_sampled)
+                testbed.data.workers[device_update_worker_id].signals.sampled.connect(testbed.data.windows[device_info_window_id].on_sampled)
 
     def open_device_settings_window(self, _device: Camera | Modulator):
 
-        settings_window_id = f"{_device.name}_settings_window"
+        device_settings_window_id = f"{_device.name}_settings_window"
         device_update_worker_id = f"{_device.name}_update_worker"
 
         @Slot()
         def on_window_closed():
-            testbed.data.windows.pop(settings_window_id, None)
+            testbed.data.windows.pop(device_settings_window_id, None)
 
-        if settings_window_id not in testbed.data.windows:
+        if device_settings_window_id not in testbed.data.windows:
             settings_window: CameraSettingsWindow | ModulatorSettingsWindow | None = None
             if isinstance(_device, Camera):
                 settings_window = CameraSettingsWindow(_device, parent=self)
@@ -156,16 +155,16 @@ class MainWindow(QMainWindow):
             settings_window.show()
             settings_window.raise_()
             settings_window.activateWindow()
-            testbed.data.windows[settings_window_id] = settings_window
+            testbed.data.windows[device_settings_window_id] = settings_window
 
             if device_update_worker_id in testbed.data.workers:
-                testbed.data.workers[device_update_worker_id].signals.sampled.connect(testbed.data.windows[settings_window_id].on_sampled)
+                testbed.data.workers[device_update_worker_id].signals.sampled.connect(testbed.data.windows[device_settings_window_id].on_sampled)
 
     def on_start_stop(self, _device: Camera | Modulator, _button: QPushButton):
 
-        preview_window_id = f"{_device.name}_preview_window"
-        info_window_id = f"{_device.name}_info_window"
-        settings_window_id = f"{_device.name}_settings_window"
+        device_preview_window_id = f"{_device.name}_preview_window"
+        device_info_window_id = f"{_device.name}_info_window"
+        device_settings_window_id = f"{_device.name}_settings_window"
         device_update_worker_id = f"{_device.name}_update_worker"
 
         if device_update_worker_id in testbed.data.workers:  # an update worker is in progress
@@ -183,12 +182,12 @@ class MainWindow(QMainWindow):
         else:
             raise ValueError("Invalid device")
 
-        if preview_window_id in testbed.data.windows:
-            device_update_worker.signals.sampled.connect(testbed.data.windows[preview_window_id].on_sampled)
-        if info_window_id in testbed.data.windows:
-            device_update_worker.signals.sampled.connect(testbed.data.windows[info_window_id].on_sampled)
-        if settings_window_id in testbed.data.windows:
-            device_update_worker.signals.sampled.connect(testbed.data.windows[settings_window_id].on_sampled)
+        if device_preview_window_id in testbed.data.windows:
+            device_update_worker.signals.sampled.connect(testbed.data.windows[device_preview_window_id].on_sampled)
+        if device_info_window_id in testbed.data.windows:
+            device_update_worker.signals.sampled.connect(testbed.data.windows[device_info_window_id].on_sampled)
+        if device_settings_window_id in testbed.data.windows:
+            device_update_worker.signals.sampled.connect(testbed.data.windows[device_settings_window_id].on_sampled)
 
         testbed.data.workers[device_update_worker_id] = device_update_worker
 

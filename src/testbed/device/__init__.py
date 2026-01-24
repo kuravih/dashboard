@@ -33,7 +33,7 @@ def create_camera_memory(name: str, full_size: tuple[int, int], roi_size: tuple[
     return SharedMemory.create(name, roi_size[0] * roi_size[1], dtype, [kw_kind, kw_sn, kw_pxmax, kw_full_w, kw_full_h, kw_port, kw_width, kw_height, kw_exptime, kw_frmrate, kw_gain, kw_temp, kw_roi_tl_x, kw_roi_tl_y, kw_roi_br_x, kw_roi_br_y])
 
 
-def create_modulator_memory(name: str, full_size: tuple[int, int], _center: tuple[float, float], _radius: float, dtype: DataType, serial: str, pxmax: int, port: int) -> SharedMemory:
+def create_modulator_memory(name: str, full_size: tuple[int, int], center: tuple[float, float], radius: float, dtype: DataType, serial: str, pxmax: int, port: int) -> SharedMemory:
     # ---- constants ----
     kw_kind = Keyword("KIND", KeywordType.STRING, "SLM", "Device kind")
     kw_sn = Keyword("SN", KeywordType.STRING, serial, "Serial number")
@@ -41,14 +41,14 @@ def create_modulator_memory(name: str, full_size: tuple[int, int], _center: tupl
     kw_full_w = Keyword("FULL.W", KeywordType.LONG, int(full_size[0]), "Detector width")
     kw_full_h = Keyword("FULL.H", KeywordType.LONG, int(full_size[1]), "Detector height")
     kw_port = Keyword("PORT", KeywordType.LONG, int(port), "Link port")
-    kw_radmax = Keyword("RADMAX", KeywordType.LONG, int(_radius), "Maximum Radius (px)")
+    kw_radmax = Keyword("RADMAX", KeywordType.LONG, int(radius), "Maximum Radius (px)")
     # ---- variables ----
-    kw_radius = Keyword("RADIUS", KeywordType.DOUBLE, float(_radius), "Radius (px)")
-    kw_center_x = Keyword("CENTER.X", KeywordType.DOUBLE, float(_center[0]), "Center x (px)")
-    kw_center_y = Keyword("CENTER.Y", KeywordType.DOUBLE, float(_center[1]), "Center y (px)")
+    kw_radius = Keyword("RADIUS", KeywordType.DOUBLE, float(radius), "Radius (px)")
+    kw_center_x = Keyword("CENTER.X", KeywordType.DOUBLE, float(center[0]), "Center x (px)")
+    kw_center_y = Keyword("CENTER.Y", KeywordType.DOUBLE, float(center[1]), "Center y (px)")
     kw_frmrate = Keyword("FRMRATE", KeywordType.DOUBLE, float(0), "Frame rate (fps)")
 
-    return SharedMemory.create(name, 2 * _radius * 2 * _radius, dtype, [kw_kind, kw_sn, kw_pxmax, kw_full_w, kw_full_h, kw_port, kw_radmax, kw_radius, kw_center_x, kw_center_y, kw_frmrate])
+    return SharedMemory.create(name, 2 * radius * 2 * radius, dtype, [kw_kind, kw_sn, kw_pxmax, kw_full_w, kw_full_h, kw_port, kw_radmax, kw_radius, kw_center_x, kw_center_y, kw_frmrate])
 
 
 class Device:
@@ -236,22 +236,22 @@ class ZMQLink:
 class SourceSample:
     __slots__ = ("last_access_time", "exposure_time_us", "gain", "frame_rate_fps", "temperature_c", "roi", "capture")
 
-    def __init__(self, _last_access_time: datetime, _exposure_time_us: int, _gain: float, _frame_rate_fps: float, _temperature_c: float, _roi: dict[str, tuple[int, int]], _capture: np.ndarray):
-        self.last_access_time = _last_access_time
-        self.exposure_time_us = _exposure_time_us
-        self.gain = _gain
-        self.frame_rate_fps = _frame_rate_fps
-        self.temperature_c = _temperature_c
-        self.roi = _roi
-        self.capture = _capture
+    def __init__(self, last_access_time: datetime, exposure_time_us: int, gain: float, frame_rate_fps: float, temperature_c: float, roi: dict[str, tuple[int, int]], capture: np.ndarray):
+        self.last_access_time = last_access_time
+        self.exposure_time_us = exposure_time_us
+        self.gain = gain
+        self.frame_rate_fps = frame_rate_fps
+        self.temperature_c = temperature_c
+        self.roi = roi
+        self.capture = capture
 
 
 class SinkSample:
     __slots__ = ("last_access_time", "frame_rate_fps", "center", "radius", "command")
 
-    def __init__(self, _last_access_time: datetime, _frame_rate_fps: float, _center: tuple[float, float], _radius: float, _command: np.ndarray):
-        self.last_access_time = _last_access_time
-        self.frame_rate_fps = _frame_rate_fps
-        self.center = _center
-        self.radius = _radius
-        self.command = _command
+    def __init__(self, last_access_time: datetime, frame_rate_fps: float, center: tuple[float, float], radius: float, command: np.ndarray):
+        self.last_access_time = last_access_time
+        self.frame_rate_fps = frame_rate_fps
+        self.center = center
+        self.radius = radius
+        self.command = command

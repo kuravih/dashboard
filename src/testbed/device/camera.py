@@ -99,9 +99,9 @@ class Camera(Device):
         self._sample = SourceSample(self.last_access_time, self.exposure_time_us, self.gain, self.frame_rate_fps, self.temperature_c, self.roi, capture.copy())
         return self._sample
     
-    def set_capture(self, _capture: np.ndarray) -> SourceSample:
-        self._stream.set_data(_capture)
-        self._sample = SourceSample(self.last_access_time, self.exposure_time_us, self.gain, self.frame_rate_fps, self.temperature_c, self.roi, _capture.copy())
+    def set_capture(self, capture: np.ndarray) -> SourceSample:
+        self._stream.set_data(capture)
+        self._sample = SourceSample(self.last_access_time, self.exposure_time_us, self.gain, self.frame_rate_fps, self.temperature_c, self.roi, capture.copy())
         return self._sample
 
     @property

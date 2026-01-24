@@ -95,9 +95,9 @@ class Modulator(Device):
     def flip(self, value: Flip):
         self._flip = value
 
-    def push_command(self, _command: np.ndarray) -> SinkSample:
-        self._stream.set_data(_command)
-        self._sample = SinkSample(self.last_access_time, self.frame_rate_fps, self.center, self.radius, _command.copy())
+    def push_command(self, command: np.ndarray) -> SinkSample:
+        self._stream.set_data(command)
+        self._sample = SinkSample(self.last_access_time, self.frame_rate_fps, self.center, self.radius, command.copy())
         return self._sample
 
     def get_command(self) -> SinkSample:

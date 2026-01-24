@@ -180,7 +180,7 @@ class DevicesSetupWidget(QWidget):
 
 class ProgressBar(QWidget):
     def __init__(self, parent=None):
-        super(ProgressBar, self).__init__(parent)
+        super().__init__(parent)
         grid = QGridLayout()
 
         self.time = 0
@@ -348,12 +348,7 @@ class OrientationWidget(QWidget):
 
     def __init__(self, rotation: Rotation = Rotation.UP, flip: Flip = Flip.NEG, parent=None):
         super().__init__(parent)
-        self.rotate_buttons = {
-            Rotation.UP: QRadioButton("0\u00b0"),
-            Rotation.RIGHT: QRadioButton("90\u00b0"),
-            Rotation.DOWN: QRadioButton("180\u00b0"),
-            Rotation.LEFT: QRadioButton("270\u00b0"),
-        }
+        self.rotate_buttons = {Rotation.UP: QRadioButton("0\u00b0"), Rotation.RIGHT: QRadioButton("90\u00b0"), Rotation.DOWN: QRadioButton("180\u00b0"), Rotation.LEFT: QRadioButton("270\u00b0")}
         for _, b in self.rotate_buttons.items():
             b.setToolTip(f"Rotate preview {b.text()}")
         self.set_rotation(rotation)
@@ -381,9 +376,9 @@ class OrientationWidget(QWidget):
         self.flip_checkbox.stateChanged.connect(self._on_flip_change)
 
     @Slot()
-    def _on_rotation_changed(self, id_):
+    def _on_rotation_changed(self, index:int):
         mapping = [Rotation.UP, Rotation.RIGHT, Rotation.DOWN, Rotation.LEFT]
-        self._rotation = mapping[id_]
+        self._rotation = mapping[index]
         self.rotationChanged.emit(self._rotation)
 
     @Slot()
@@ -395,16 +390,16 @@ class OrientationWidget(QWidget):
     def get_flip(self) -> Flip:
         return self._flip
 
-    def set_flip(self, _flip: Flip):
-        self._flip = _flip
-        self.flip_checkbox.setChecked(_flip == Flip.POS)
+    def set_flip(self, flip: Flip):
+        self._flip = flip
+        self.flip_checkbox.setChecked(flip == Flip.POS)
 
     def get_rotation(self) -> Rotation:
         return self._rotation
 
-    def set_rotation(self, _rotation: Rotation):
-        self._rotation = _rotation
-        self.rotate_buttons[_rotation].setChecked(True)
+    def set_rotation(self, rotation: Rotation):
+        self._rotation = rotation
+        self.rotate_buttons[rotation].setChecked(True)
 
 
 class SquareROIWidget(QWidget):
@@ -476,7 +471,7 @@ class SquareROIWidget(QWidget):
 class ROIWidget(QWidget):
     roiMoveClicked = Signal(int, int)  # (dx, dy)
 
-    def __init__(self, _roi: dict[str, tuple[int, int]], step: int = 8, parent=None):
+    def __init__(self, roi: dict[str, tuple[int, int]], step: int = 8, parent=None):
         super().__init__(parent)
 
         # --- spinbox ---
@@ -511,7 +506,7 @@ class ROIWidget(QWidget):
         self.value_label = QLabel("", self)
         self.value_label.setToolTip("Region of interest [(x1,y1),(x2,y2)]")
 
-        self.set_roi(_roi)
+        self.set_roi(roi)
 
         # --- layout ---
         layout = QHBoxLayout()
@@ -531,18 +526,18 @@ class ROIWidget(QWidget):
         left_button.clicked.connect(lambda: self._emit_moved(-Δ_spinbox.value(), 0))
         right_button.clicked.connect(lambda: self._emit_moved(Δ_spinbox.value(), 0))
 
-    def _emit_moved(self, _dx: int, _dy: int):
-        self.roiMoveClicked.emit(_dx, _dy)
+    def _emit_moved(self, dx: int, dy: int):
+        self.roiMoveClicked.emit(dx, dy)
 
-    def set_roi(self, _roi: dict[str, tuple[int, int]]):
-        br, tl = _roi["br"], _roi["tl"]
+    def set_roi(self, roi: dict[str, tuple[int, int]]):
+        br, tl = roi["br"], roi["tl"]
         self.value_label.setText(f"[({br[0]}, {br[1]}),({tl[0]}, {tl[1]})]")
 
 
 class CenterWidget(QWidget):
     centerMoveClicked = Signal(int, int)  # (dx, dy)
 
-    def __init__(self, _center: tuple[int, int], step: int = 8, parent=None):
+    def __init__(self, center: tuple[int, int], step: int = 8, parent=None):
         super().__init__(parent)
 
         # --- spinbox ---
@@ -577,7 +572,7 @@ class CenterWidget(QWidget):
         self.value_label = QLabel("", self)
         self.value_label.setToolTip("Center (x1,y1)")
 
-        self.set_center(_center)
+        self.set_center(center)
 
         # --- layout ---
         layout = QHBoxLayout()
@@ -600,24 +595,24 @@ class CenterWidget(QWidget):
     def _emit_moved(self, dx: int, dy: int):
         self.centerMoveClicked.emit(dx, dy)
 
-    def set_center(self, _center: tuple[int, int]):
-        self.value_label.setText(f"({_center[0]}, {_center[1]})")
+    def set_center(self, center: tuple[int, int]):
+        self.value_label.setText(f"({center[0]}, {center[1]})")
 
 
 class ValueSetWidget(QWidget):
     valueSetClicked = Signal(int)
 
-    def __init__(self, _value: int, parent=None):
+    def __init__(self, value: int, parent=None):
         super().__init__(parent)
         self.spinbox = QSpinBox(self)
-        self.spinbox.setValue(_value)
+        self.spinbox.setValue(value)
         self.spinbox.setFixedWidth(75)
 
         self.pushbutton = QPushButton("Set", self)
         self.pushbutton.setFixedWidth(75)
 
         self.label = QLabel("", self)
-        self.label.setText(f"{_value}")
+        self.label.setText(f"{value}")
 
         layout = QHBoxLayout()
         layout.addWidget(self.spinbox)
@@ -629,27 +624,27 @@ class ValueSetWidget(QWidget):
 
         self.pushbutton.clicked.connect(lambda: self._emit_clicked(self.spinbox.value()))
 
-    def _emit_clicked(self, _value: int):
-        self.valueSetClicked.emit(_value)
+    def _emit_clicked(self, value: int):
+        self.valueSetClicked.emit(value)
 
-    def setValue(self, _value: int):
-        self.label.setText(f"{_value}")
+    def setValue(self, value: int):
+        self.label.setText(f"{value}")
 
 
 class DoubleValueSetWidget(QWidget):
     valueSetClicked = Signal(float)
 
-    def __init__(self, _value: float, parent=None):
+    def __init__(self, value: float, parent=None):
         super().__init__(parent)
         self.spinbox = QDoubleSpinBox(self)
-        self.spinbox.setValue(_value)
+        self.spinbox.setValue(value)
         self.spinbox.setFixedWidth(75)
 
         self.pushbutton = QPushButton("Set", self)
         self.pushbutton.setFixedWidth(75)
 
         self.label = QLabel("", self)
-        self.label.setText(f"{_value}")
+        self.label.setText(f"{value}")
 
         layout = QHBoxLayout()
         layout.addWidget(self.spinbox)
@@ -661,11 +656,11 @@ class DoubleValueSetWidget(QWidget):
 
         self.pushbutton.clicked.connect(lambda: self._emit_clicked(self.spinbox.value()))
 
-    def _emit_clicked(self, _value: float):
-        self.valueSetClicked.emit(_value)
+    def _emit_clicked(self, value: float):
+        self.valueSetClicked.emit(value)
 
-    def setValue(self, _value: float):
-        self.label.setText(f"{_value}")
+    def setValue(self, value: float):
+        self.label.setText(f"{value}")
 
 
 class ExposureTimeArrayWidget(QWidget):
@@ -714,7 +709,7 @@ class ExposureTimeArrayWidget(QWidget):
             step_layout.addWidget(button)
             if index == 0:
                 button.setText("+")
-                button.clicked.connect(lambda: self._on_add_step(2*self._spinboxes[-1].value()))
+                button.clicked.connect(lambda: self._on_add_step(2 * self._spinboxes[-1].value()))
             else:
                 button.setText("-")
                 button.clicked.connect(lambda: self._on_remove_step(index))

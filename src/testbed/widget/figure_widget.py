@@ -325,7 +325,7 @@ class SpeckleNullingFigureWidget(FigureWidget):
         imshow_ax_source.set_ylabel("px", size=10)
         imshow_ax_source.axhline(capture.shape[0] / 2, alpha=0.25, linewidth=0.5, color="white")
         imshow_ax_source.axvline(capture.shape[1] / 2, alpha=0.25, linewidth=0.5, color="white")
-        self.speckle_vline, self.speckle_hline = imshow_ax_source.axvline(np.nan, alpha=0.5, linewidth=0.5, color="red"), imshow_ax_source.axhline(np.nan, alpha=0.5, linewidth=0.5, color="red")
+        self.speckle = (imshow_ax_source.axvline(np.nan, alpha=0.5, linewidth=0.5, color="red"), imshow_ax_source.axhline(np.nan, alpha=0.5, linewidth=0.5, color="red"))
         imshow_ax_source.add_patch(patches.Circle((capture.shape[0] / 2, capture.shape[1] / 2), radius=225, fill=False, alpha=0.25, linewidth=0.5, color="white", transform=imshow_ax_source.transData))
         self.imshow_image_source = imshow_ax_source.imshow(capture)
         imshow_ax_source.set_facecolor("black")
@@ -409,8 +409,8 @@ class SpeckleNullingFigureWidget(FigureWidget):
         self.imshow_image_source.set_data(capture)
 
     def set_speckle(self, xy: list[float]):
-        self.speckle_x_line.set_xdata([xy[0], xy[0]])
-        self.speckle_y_line.set_ydata([xy[1], xy[1]])
+        self.speckle[0].set_xdata([xy[0], xy[0]])
+        self.speckle[1].set_ydata([xy[1], xy[1]])
 
     def set_phs_data_plot(self, phs_array: np.ndarray, phs_intensity_data_array: np.ndarray):
         self.phs_data_plot.set_xdata(phs_array)

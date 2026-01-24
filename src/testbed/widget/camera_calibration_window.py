@@ -69,15 +69,15 @@ class ProcessWindow(Window):
         self.device_widget.source_settings_button.setEnabled(True)
         self.device_widget.source_preview_button.setEnabled(True)
         self._source = _device
-        preview_window_id = f"{_device.name}_preview_window"
-        if preview_window_id in testbed.data.windows:
-            testbed.data.windows.pop(preview_window_id).close()
-        info_window_id = f"{_device.name}_info_window"
-        if info_window_id in testbed.data.windows:
-            testbed.data.windows.pop(info_window_id).close()
-        settings_window_id = f"{_device.name}_settings_window"
-        if settings_window_id in testbed.data.windows:
-            testbed.data.windows.pop(settings_window_id).close()
+        device_preview_window_id = f"{_device.name}_preview_window"
+        if device_preview_window_id in testbed.data.windows:
+            testbed.data.windows.pop(device_preview_window_id).close()
+        device_info_window_id = f"{_device.name}_info_window"
+        if device_info_window_id in testbed.data.windows:
+            testbed.data.windows.pop(device_info_window_id).close()
+        device_settings_window_id = f"{_device.name}_settings_window"
+        if device_settings_window_id in testbed.data.windows:
+            testbed.data.windows.pop(device_settings_window_id).close()
         self.device_widget.source_info_button.clicked.connect(lambda _, _device=_device: self.open_device_info_window(_device))
         self.device_widget.source_settings_button.clicked.connect(lambda _, _device=_device: self.open_device_settings_window(_device))
         self.device_widget.source_preview_button.clicked.connect(lambda _, _device=_device: self.open_device_preview_window(_device))
@@ -87,13 +87,13 @@ class ProcessWindow(Window):
 
 
     def open_device_info_window(self, _device: Camera):
-        info_window_id = f"{_device.name}_info_window"
+        device_info_window_id = f"{_device.name}_info_window"
 
         @Slot()
         def on_window_closed():
-            testbed.data.windows.pop(info_window_id, None)
+            testbed.data.windows.pop(device_info_window_id, None)
 
-        if info_window_id not in testbed.data.windows:
+        if device_info_window_id not in testbed.data.windows:
             info_window: CameraInfoWindow | None = None
             if isinstance(_device, Camera):
                 info_window = CameraInfoWindow(_device, self)
@@ -103,16 +103,16 @@ class ProcessWindow(Window):
             info_window.show()
             info_window.raise_()
             info_window.activateWindow()
-            testbed.data.windows[info_window_id] = info_window
+            testbed.data.windows[device_info_window_id] = info_window
 
     def open_device_settings_window(self, _device: Camera):
-        settings_window_id = f"{_device.name}_settings_window"
+        device_settings_window_id = f"{_device.name}_settings_window"
 
         @Slot()
         def on_window_closed():
-            testbed.data.windows.pop(settings_window_id, None)
+            testbed.data.windows.pop(device_settings_window_id, None)
 
-        if settings_window_id not in testbed.data.windows:
+        if device_settings_window_id not in testbed.data.windows:
             settings_window: CameraSettingsWindow | None = None
             if isinstance(_device, Camera):
                 settings_window = CameraSettingsWindow(_device, self)
@@ -122,16 +122,16 @@ class ProcessWindow(Window):
             settings_window.show()
             settings_window.raise_()
             settings_window.activateWindow()
-            testbed.data.windows[settings_window_id] = settings_window
+            testbed.data.windows[device_settings_window_id] = settings_window
 
     def open_device_preview_window(self, _device: Camera):
-        preview_window_id = f"{_device.name}_preview_window"
+        device_preview_window_id = f"{_device.name}_preview_window"
 
         @Slot()
         def on_window_closed():
-            testbed.data.windows.pop(preview_window_id, None)
+            testbed.data.windows.pop(device_preview_window_id, None)
 
-        if preview_window_id not in testbed.data.windows:
+        if device_preview_window_id not in testbed.data.windows:
             preview_window: CameraPreviewWindow | None = None
             if isinstance(_device, Camera):
                 preview_window = CameraPreviewWindow(_device, self)
@@ -141,7 +141,7 @@ class ProcessWindow(Window):
             preview_window.show()
             preview_window.raise_()
             preview_window.activateWindow()
-            testbed.data.windows[preview_window_id] = preview_window
+            testbed.data.windows[device_preview_window_id] = preview_window
 
     @Slot(int, float)  # step, elapsed_time
     def on_progress_tick(self, step: int, t_elapsed: float):

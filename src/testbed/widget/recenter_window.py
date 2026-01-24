@@ -24,6 +24,10 @@ from .resource import ICON_PAUSE, ICON_RUN
 from . import DevicesSetupWidget, TaskControlsWidget, Window
 
 _PROCESS_ = testbed.RECENTER
+process_worker_id = f"{_PROCESS_}_worker"
+process_info_window_id = f"{_PROCESS_}_info_window"
+source_storage_worker_id = f"{_PROCESS_}_source_storage_worker"
+sink_storage_worker_id = f"{_PROCESS_}_sink_storage_worker"
 
 logger = setup_logger(f"{_PROCESS_}_window", terminator="\n")
 
@@ -262,15 +266,15 @@ class ProcessWindow(Window):
         self.devices_widget.source_settings_button.setEnabled(True)
         self.devices_widget.source_preview_button.setEnabled(True)
         self._source = _device
-        preview_window_id = f"{_device.name}_preview_window"
-        if preview_window_id in testbed.data.windows:
-            testbed.data.windows.pop(preview_window_id).close()
-        info_window_id = f"{_device.name}_info_window"
-        if info_window_id in testbed.data.windows:
-            testbed.data.windows.pop(info_window_id).close()
-        settings_window_id = f"{_device.name}_settings_window"
-        if settings_window_id in testbed.data.windows:
-            testbed.data.windows.pop(settings_window_id).close()
+        device_preview_window_id = f"{_device.name}_preview_window"
+        if device_preview_window_id in testbed.data.windows:
+            testbed.data.windows.pop(device_preview_window_id).close()
+        device_info_window_id = f"{_device.name}_info_window"
+        if device_info_window_id in testbed.data.windows:
+            testbed.data.windows.pop(device_info_window_id).close()
+        device_settings_window_id = f"{_device.name}_settings_window"
+        if device_settings_window_id in testbed.data.windows:
+            testbed.data.windows.pop(device_settings_window_id).close()
         self.devices_widget.source_info_button.clicked.connect(lambda _, _device=_device: self.open_device_info_window(_device))
         self.devices_widget.source_settings_button.clicked.connect(lambda _, _device=_device: self.open_device_settings_window(_device))
         self.devices_widget.source_preview_button.clicked.connect(lambda _, _device=_device: self.open_device_preview_window(_device))
@@ -283,15 +287,15 @@ class ProcessWindow(Window):
         self.devices_widget.sink_settings_button.setEnabled(True)
         self.devices_widget.sink_preview_button.setEnabled(True)
         self._sink = _device
-        preview_window_id = f"{_device.name}_preview_window"
-        if preview_window_id in testbed.data.windows:
-            testbed.data.windows.pop(preview_window_id).close()
-        info_window_id = f"{_device.name}_info_window"
-        if info_window_id in testbed.data.windows:
-            testbed.data.windows.pop(info_window_id).close()
-        settings_window_id = f"{_device.name}_settings_window"
-        if settings_window_id in testbed.data.windows:
-            testbed.data.windows.pop(settings_window_id).close()
+        device_preview_window_id = f"{_device.name}_preview_window"
+        if device_preview_window_id in testbed.data.windows:
+            testbed.data.windows.pop(device_preview_window_id).close()
+        device_info_window_id = f"{_device.name}_info_window"
+        if device_info_window_id in testbed.data.windows:
+            testbed.data.windows.pop(device_info_window_id).close()
+        device_settings_window_id = f"{_device.name}_settings_window"
+        if device_settings_window_id in testbed.data.windows:
+            testbed.data.windows.pop(device_settings_window_id).close()
         self.devices_widget.sink_info_button.clicked.connect(lambda _, _device=_device: self.open_device_info_window(_device))
         self.devices_widget.sink_settings_button.clicked.connect(lambda _, _device=_device: self.open_device_settings_window(_device))
         self.devices_widget.sink_preview_button.clicked.connect(lambda _, _device=_device: self.open_device_preview_window(_device))
@@ -300,39 +304,38 @@ class ProcessWindow(Window):
             self.controls_widget.play_pause_button.setEnabled(True)
 
     def open_device_info_window(self, _device: Camera | Modulator):
-        info_window_id = f"{_device.name}_info_window"
-        worker_id = f"{_PROCESS_}_worker"
+        device_info_window_id = f"{_device.name}_info_window"
 
         @Slot()
         def on_window_closed():
-            testbed.data.windows.pop(info_window_id, None)
+            testbed.data.windows.pop(device_info_window_id, None)
 
-        if info_window_id not in testbed.data.windows:
+        if device_info_window_id not in testbed.data.windows:
             info_window: CameraInfoWindow | ModulatorInfoWindow | None = None
             if isinstance(_device, Camera):
                 info_window = CameraInfoWindow(_device, self)
-                if worker_id in testbed.data.workers:  # an update worker is in progress
-                    testbed.data.workers[worker_id].signals.srcSampled.connect(info_window.on_sampled)
+                if process_worker_id in testbed.data.workers:  # an update worker is in progress
+                    testbed.data.workers[process_worker_id].signals.srcSampled.connect(info_window.on_sampled)
             elif isinstance(_device, Modulator):
                 info_window = ModulatorInfoWindow(_device, self)
-                if worker_id in testbed.data.workers:  # an update worker is in progress
-                    testbed.data.workers[worker_id].signals.snkSampled.connect(info_window.on_sampled)
+                if process_worker_id in testbed.data.workers:  # an update worker is in progress
+                    testbed.data.workers[process_worker_id].signals.snkSampled.connect(info_window.on_sampled)
             else:
                 raise ValueError("Invalid device")
             info_window.destroyed.connect(on_window_closed)
             info_window.show()
             info_window.raise_()
             info_window.activateWindow()
-            testbed.data.windows[info_window_id] = info_window
+            testbed.data.windows[device_info_window_id] = info_window
 
     def open_device_settings_window(self, _device: Camera | Modulator):
-        settings_window_id = f"{_device.name}_settings_window"
+        device_settings_window_id = f"{_device.name}_settings_window"
 
         @Slot()
         def on_window_closed():
-            testbed.data.windows.pop(settings_window_id, None)
+            testbed.data.windows.pop(device_settings_window_id, None)
 
-        if settings_window_id not in testbed.data.windows:
+        if device_settings_window_id not in testbed.data.windows:
             settings_window: CameraSettingsWindow | ModulatorSettingsWindow | None = None
             if isinstance(_device, Camera):
                 settings_window = CameraSettingsWindow(_device, self)
@@ -344,33 +347,32 @@ class ProcessWindow(Window):
             settings_window.show()
             settings_window.raise_()
             settings_window.activateWindow()
-            testbed.data.windows[settings_window_id] = settings_window
+            testbed.data.windows[device_settings_window_id] = settings_window
 
     def open_device_preview_window(self, _device: Camera | Modulator):
-        preview_window_id = f"{_device.name}_preview_window"
-        worker_id = f"{_PROCESS_}_worker"
+        device_preview_window_id = f"{_device.name}_preview_window"
 
         @Slot()
         def on_window_closed():
-            testbed.data.windows.pop(preview_window_id, None)
+            testbed.data.windows.pop(device_preview_window_id, None)
 
-        if preview_window_id not in testbed.data.windows:
+        if device_preview_window_id not in testbed.data.windows:
             preview_window: CameraPreviewWindow | ModulatorPreviewWindow | None = None
             if isinstance(_device, Camera):
                 preview_window = CameraPreviewWindow(_device, self)
-                if worker_id in testbed.data.workers:  # an update worker is in progress
-                    testbed.data.workers[worker_id].signals.srcSampled.connect(preview_window.on_sampled)
+                if process_worker_id in testbed.data.workers:  # an update worker is in progress
+                    testbed.data.workers[process_worker_id].signals.srcSampled.connect(preview_window.on_sampled)
             elif isinstance(_device, Modulator):
                 preview_window = ModulatorPreviewWindow(_device, self)
-                if worker_id in testbed.data.workers:  # an update worker is in progress
-                    testbed.data.workers[worker_id].signals.snkSampled.connect(preview_window.on_sampled)
+                if process_worker_id in testbed.data.workers:  # an update worker is in progress
+                    testbed.data.workers[process_worker_id].signals.snkSampled.connect(preview_window.on_sampled)
             else:
                 raise ValueError("Invalid device")
             preview_window.destroyed.connect(on_window_closed)
             preview_window.show()
             preview_window.raise_()
             preview_window.activateWindow()
-            testbed.data.windows[preview_window_id] = preview_window
+            testbed.data.windows[device_preview_window_id] = preview_window
 
     @Slot(int, float)  # step, elapsed_time
     def on_progress_tick(self, step: int, t_elapsed: float):
@@ -380,35 +382,27 @@ class ProcessWindow(Window):
 
     @Slot()
     def on_finished(self):
-        worker_id = f"{_PROCESS_}_worker"
         self.controls_widget.progressbar.reset()
         self.controls_widget.progressbar.updateProgress()
-        if worker_id in testbed.data.workers:  # an update worker is in progress
-            current_worker = testbed.data.workers.pop(worker_id)
+        if process_worker_id in testbed.data.workers:  # an update worker is in progress
+            current_worker = testbed.data.workers.pop(process_worker_id)
             current_worker.stop()
             self.controls_widget.play_pause_button.setIcon(QIcon(ICON_RUN))
 
     @Slot()
     def on_source_storage_finished(self):
-        source_storage_worker_id = f"{_PROCESS_}_source_storage_worker"
         if source_storage_worker_id in testbed.data.workers:
             source_storage_worker = testbed.data.workers.pop(source_storage_worker_id)
             source_storage_worker.stop()
 
     @Slot()
     def on_sink_storage_finished(self):
-        sink_storage_worker_id = f"{_PROCESS_}_sink_storage_worker"
         if sink_storage_worker_id in testbed.data.workers:
             sink_storage_worker = testbed.data.workers.pop(sink_storage_worker_id)
             sink_storage_worker.stop()
 
     @Slot()
     def on_start_stop_clicked(self):
-        worker_id = f"{_PROCESS_}_worker"
-        source_storage_worker_id = f"{_PROCESS_}_source_storage_worker"
-        sink_storage_worker_id = f"{_PROCESS_}_sink_storage_worker"
-        process_info_window_id = f"{_PROCESS_}_info_window"
-
         if self.source is None or self.sink is None:
             message_dialog = MessageDialog("Devices not selected", "Source and sink devices not selected.", icon=QMessageBox.Icon.Information, buttons=QMessageBox.StandardButton.Ok)
             message_dialog.exec()
@@ -416,8 +410,8 @@ class ProcessWindow(Window):
             source_preview_window_id = f"{self.source.name}_preview_window"
             sink_preview_window_id = f"{self.sink.name}_preview_window"
 
-            if worker_id in testbed.data.workers:  # an update worker is in progress
-                current_worker = testbed.data.workers.pop(worker_id)
+            if process_worker_id in testbed.data.workers:  # an update worker is in progress
+                current_worker = testbed.data.workers.pop(process_worker_id)
                 current_worker.stop()
                 self.controls_widget.play_pause_button.setIcon(QIcon(ICON_RUN))
                 self.devices_widget.sink_settings_button.setEnabled(True)
@@ -451,13 +445,10 @@ class ProcessWindow(Window):
                 worker.signals.specklesLocated.connect(testbed.data.windows[process_info_window_id].on_speckles_located)
                 worker.signals.centerLocated.connect(testbed.data.windows[process_info_window_id].on_center_located)
 
-            testbed.data.workers[worker_id] = worker
+            testbed.data.workers[process_worker_id] = worker
             testbed.data.threadpool.start(worker)
 
     def open_process_info_clicked(self):
-        process_info_window_id = f"{_PROCESS_}_info_window"
-        process_update_worker_id = f"{_PROCESS_}_update_worker"
-
         @Slot()
         def on_window_closed():
             testbed.data.windows.pop(process_info_window_id, None)
@@ -470,11 +461,11 @@ class ProcessWindow(Window):
             process_info_window.activateWindow()
             testbed.data.windows[process_info_window_id] = process_info_window
 
-            if process_update_worker_id in testbed.data.workers:
-                testbed.data.workers[process_update_worker_id].signals.srcSampled.connect(testbed.data.windows[process_info_window_id].on_src_sampled)
-                testbed.data.workers[process_update_worker_id].signals.snkSampled.connect(testbed.data.windows[process_info_window_id].on_snk_sampled)
-                testbed.data.workers[process_update_worker_id].signals.specklesLocated.connect(testbed.data.windows[process_info_window_id].on_speckles_located)
-                testbed.data.workers[process_update_worker_id].signals.centerLocated.connect(testbed.data.windows[process_info_window_id].on_center_located)
+            if process_worker_id in testbed.data.workers:
+                testbed.data.workers[process_worker_id].signals.srcSampled.connect(testbed.data.windows[process_info_window_id].on_src_sampled)
+                testbed.data.workers[process_worker_id].signals.snkSampled.connect(testbed.data.windows[process_info_window_id].on_snk_sampled)
+                testbed.data.workers[process_worker_id].signals.specklesLocated.connect(testbed.data.windows[process_info_window_id].on_speckles_located)
+                testbed.data.workers[process_worker_id].signals.centerLocated.connect(testbed.data.windows[process_info_window_id].on_center_located)
 
     def setup_main_widget(self) -> QWidget:
         widget = QWidget(self)
