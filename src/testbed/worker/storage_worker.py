@@ -26,7 +26,7 @@ class SourceStorageWorker(Worker):
                 __sample = self.queue.get()
                 if __sample is None:
                     break
-                write_source_sample_data(fileio, _sample)
+                write_source_sample_data(fileio, __sample)
         self.signals.finished.emit()
 
 
@@ -51,5 +51,5 @@ class SinkStorageWorker(Worker):
                 __sample = self.queue.get()
                 if __sample is None:
                     break
-                write_sink_sample_data(fileio, _sample)
+                write_sink_sample_data(fileio, __sample)
         self.signals.finished.emit()

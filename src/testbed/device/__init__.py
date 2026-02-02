@@ -1,3 +1,4 @@
+from dataclasses import dataclass
 from enum import Enum, auto
 import zmq
 import toml
@@ -233,25 +234,21 @@ class ZMQLink:
         return self._connected
 
 
+@dataclass(slots=True)
 class SourceSample:
-    __slots__ = ("last_access_time", "exposure_time_us", "gain", "frame_rate_fps", "temperature_c", "roi", "capture")
-
-    def __init__(self, last_access_time: datetime, exposure_time_us: int, gain: float, frame_rate_fps: float, temperature_c: float, roi: dict[str, tuple[int, int]], capture: np.ndarray):
-        self.last_access_time = last_access_time
-        self.exposure_time_us = exposure_time_us
-        self.gain = gain
-        self.frame_rate_fps = frame_rate_fps
-        self.temperature_c = temperature_c
-        self.roi = roi
-        self.capture = capture
+    last_access_time: datetime
+    exposure_time_us: int
+    gain: float
+    frame_rate_fps: float
+    temperature_c: float
+    roi: dict[str, tuple[int, int]]
+    capture: np.ndarray
 
 
+@dataclass(slots=True)
 class SinkSample:
-    __slots__ = ("last_access_time", "frame_rate_fps", "center", "radius", "command")
-
-    def __init__(self, last_access_time: datetime, frame_rate_fps: float, center: tuple[float, float], radius: float, command: np.ndarray):
-        self.last_access_time = last_access_time
-        self.frame_rate_fps = frame_rate_fps
-        self.center = center
-        self.radius = radius
-        self.command = command
+    last_access_time: datetime
+    frame_rate_fps: float
+    center: tuple[float, float]
+    radius: float
+    command: np.ndarray

@@ -21,6 +21,8 @@ from .resource import ICON_PAUSE, ICON_RUN
 from . import DevicesSetupWidget, TaskControlsWidget, ExposureTimeArrayWidget, Window
 
 _PROCESS_ = testbed.CAMERA_CALIBRATION
+process_worker_id = f"{_PROCESS_}_worker"
+source_storage_worker_id = f"{_PROCESS_}_source_storage_worker"
 
 logger = setup_logger(f"{_PROCESS_}_window", terminator="\n")
 
@@ -85,7 +87,6 @@ class ProcessWindow(Window):
             self.controls_widget.preview_button.setEnabled(True)
             self.controls_widget.play_pause_button.setEnabled(True)
 
-
     def open_device_info_window(self, _device: Camera):
         device_info_window_id = f"{_device.name}_info_window"
 
@@ -97,6 +98,8 @@ class ProcessWindow(Window):
             info_window: CameraInfoWindow | None = None
             if isinstance(_device, Camera):
                 info_window = CameraInfoWindow(_device, self)
+                if process_worker_id in testbed.data.workers:  # an update worker is in progress
+                    testbed.data.workers[process_worker_id].signals.srcSampled.connect(info_window.on_sampled)
             else:
                 raise ValueError("Invalid device")
             info_window.destroyed.connect(on_window_closed)
@@ -135,6 +138,8 @@ class ProcessWindow(Window):
             preview_window: CameraPreviewWindow | None = None
             if isinstance(_device, Camera):
                 preview_window = CameraPreviewWindow(_device, self)
+                if process_worker_id in testbed.data.workers:  # an update worker is in progress
+                    testbed.data.workers[process_worker_id].signals.srcSampled.connect(preview_window.on_sampled)
             else:
                 raise ValueError("Invalid device")
             preview_window.destroyed.connect(on_window_closed)
@@ -151,35 +156,30 @@ class ProcessWindow(Window):
 
     @Slot()
     def on_finished(self):
-        worker_id = f"{_PROCESS_}_worker"
         self.controls_widget.progressbar.reset()
         self.controls_widget.progressbar.updateProgress()
-        if worker_id in testbed.data.workers:  # an update worker is in progress
-            current_worker = testbed.data.workers.pop(worker_id)
+        if process_worker_id in testbed.data.workers:  # an update worker is in progress
+            current_worker = testbed.data.workers.pop(process_worker_id)
             current_worker.stop()
             self.controls_widget.play_pause_button.setIcon(QIcon(ICON_RUN))
 
     @Slot()
     def on_source_storage_finished(self):
-        source_storage_worker_id = f"{_PROCESS_}_source_storage_worker"
         if source_storage_worker_id in testbed.data.workers:
             source_storage_worker = testbed.data.workers.pop(source_storage_worker_id)
             source_storage_worker.stop()
 
     @Slot()
     def on_start_stop_clicked(self):
-        worker_id = f"{_PROCESS_}_worker"
-        source_storage_worker_id = f"{_PROCESS_}_source_storage_worker"
-
         if self.source is None:
             message_dialog = MessageDialog("Devices not selected", "Source device not selected.", icon=QMessageBox.Icon.Information, buttons=QMessageBox.StandardButton.Ok)
             message_dialog.exec()
         else:
             source_preview_window_id = f"{self.source.name}_preview_window"
 
-            if worker_id in testbed.data.workers:  # an update worker is in progress
+            if process_worker_id in testbed.data.workers:  # an update worker is in progress
                 logger.info("stopping running process")
-                current_worker = testbed.data.workers.pop(worker_id)
+                current_worker = testbed.data.workers.pop(process_worker_id)
                 current_worker.stop()
                 self.controls_widget.play_pause_button.setIcon(QIcon(ICON_RUN))
                 self.device_widget.source_settings_button.setEnabled(True)
@@ -211,7 +211,7 @@ class ProcessWindow(Window):
             if source_preview_window_id in testbed.data.windows:
                 worker.signals.srcSampled.connect(testbed.data.windows[source_preview_window_id].on_sampled)
 
-            testbed.data.workers[worker_id] = worker
+            testbed.data.workers[process_worker_id] = worker
             testbed.data.threadpool.start(worker)
 
     def setup_main_widget(self) -> QWidget:

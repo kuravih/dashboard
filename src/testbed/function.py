@@ -73,8 +73,8 @@ def write_source_sample_header(fileio: FileIO, sample: SourceSample):
     header = struct.pack(
         HEADER_FORMAT,  # 7 char tag + unsigned short width + unsigned short height + unsigned byte datatype
         SRC_TAG,  # 7 char tag - 7s
-        np.uint16(h),  # unsigned short width - H
-        np.uint16(w),  # unsigned int height - H
+        np.uint16(h),  # unsigned short height - H
+        np.uint16(w),  # unsigned int width - H
         dtype_code,  # unsigned byte datatype - B
     )
     fileio.write(header)
@@ -120,8 +120,7 @@ def read_source_samples(filename: str) -> list[SourceSample]:
             src_header_bytes = fileio.read(src_header_size)
             if len(src_header_bytes) < src_header_size:
                 break  # EOF
-            (timestamp, frame_rate_fps, temperature_c, gain, exposure_time_us, tl_x, tl_y, br_x, br_y) = struct.unpack(SRC_HEADER_FORMAT, src_header_bytes)
-            # double timestamp + double frame_rate_fps + double temperature_c + double gain + unsigned int exposure_time_us + unsigned short roi.tl.x + unsigned short roi.tl.y + unsigned short roi.br.x + unsigned short roi.br.y
+            (timestamp, frame_rate_fps, temperature_c, gain, exposure_time_us, tl_x, tl_y, br_x, br_y) = struct.unpack(SRC_HEADER_FORMAT, src_header_bytes) # double timestamp + double frame_rate_fps + double temperature_c + double gain + unsigned int exposure_time_us + unsigned short roi.tl.x + unsigned short roi.tl.y + unsigned short roi.br.x + unsigned short roi.br.y
 
             capture_bytes = fileio.read(capture_size)
             if len(capture_bytes) < capture_size:
@@ -140,8 +139,8 @@ def write_sink_sample_header(fileio: FileIO, sample: SinkSample):
     header = struct.pack(
         HEADER_FORMAT,  # 7 char tag + unsigned short width + unsigned short height + unsigned byte datatype
         SNK_TAG,  # 7 char tag - 7s
-        np.uint16(h),  # unsigned short width - H
-        np.uint16(w),  # unsigned int height - H
+        np.uint16(h),  # unsigned short height - H
+        np.uint16(w),  # unsigned int width - H
         dtype_code,  # unsigned byte datatype - B
     )
     fileio.write(header)
@@ -181,8 +180,7 @@ def read_sink_samples(filename: str) -> list[SinkSample]:
             snk_header_bytes = fileio.read(snk_header_size)
             if len(snk_header_bytes) < snk_header_size:
                 break  # EOF
-            (timestamp, frame_rate_fps, radius, center_x, center_y) = struct.unpack(SNK_HEADER_FORMAT, snk_header_bytes)
-            # double timestamp + double frame_rate_fps + unsigned short radius + unsigned short center.x + unsigned short center.y
+            (timestamp, frame_rate_fps, radius, center_x, center_y) = struct.unpack(SNK_HEADER_FORMAT, snk_header_bytes) # double timestamp + double frame_rate_fps + unsigned short radius + unsigned short center.x + unsigned short center.y
 
             command_bytes = fileio.read(command_size)
             if len(command_bytes) < command_size:

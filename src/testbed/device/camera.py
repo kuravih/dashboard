@@ -21,7 +21,7 @@ class Camera(Device):
         self._stream = stream
         self._rotation = Rotation.UP  # UP for 0deg, RIGHT for 90deg, DOWN for 180deg, LEFT for 270deg
         self._flip = Flip.NEG
-        self._shape = (self._stream.keywords["WIDTH"].value, self._stream.keywords["HEIGHT"].value)
+        self._shape = (self._stream.keywords["HEIGHT"].value, self._stream.keywords["WIDTH"].value)
         self._link = None
         if self._stream.port != -1:
             self._link = ZMQLink(port=self._stream.port)
