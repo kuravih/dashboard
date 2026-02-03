@@ -14,7 +14,7 @@ class Camera(Device):
     Camera
     """
 
-    __slots__ = ("_stream", "_shape", "_link", "_rotation", "_flip", "_sample", "wait_for_request", "post_response")
+    __slots__ = ("_stream", "_shape", "_link", "_rotation", "_flip", "_sample", "wait_for_request", "post_response", "_settings")
 
     def __init__(self, stream: Stream):
         super().__init__(stream.name)
@@ -29,6 +29,7 @@ class Camera(Device):
         self._sample = SourceSample(self.last_access_time, self.exposure_time_s, self.gain, self.frame_rate_fps, self.temperature_c, self.roi, self.blank)
         self.wait_for_request = self._stream.wait_for_request
         self.post_response = self._stream.post_response
+        self._settings = self.sync_settings()
 
     @property
     def kind(self) -> Stream.Kind:
@@ -53,6 +54,10 @@ class Camera(Device):
     @property
     def shape(self) -> tuple[int, int]:
         return self._shape
+
+    @property
+    def settings(self) -> dict[str, float | dict[str, tuple[tuple[int, int], tuple[int, int]]]]:
+        return self._settings
 
     @property
     def frame_rate_fps(self) -> float:
@@ -98,7 +103,7 @@ class Camera(Device):
         capture = self._stream.get_data().reshape(self.shape)
         self._sample = SourceSample(self.last_access_time, self.exposure_time_s, self.gain, self.frame_rate_fps, self.temperature_c, self.roi, capture.copy())
         return self._sample
-    
+
     def set_capture(self, capture: np.ndarray) -> SourceSample:
         self._stream.set_data(capture)
         self._sample = SourceSample(self.last_access_time, self.exposure_time_s, self.gain, self.frame_rate_fps, self.temperature_c, self.roi, capture.copy())

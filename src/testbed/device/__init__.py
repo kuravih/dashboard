@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 from enum import Enum, auto
+from venv import logger
 import zmq
 import toml
 import numpy as np
@@ -215,8 +216,7 @@ class ZMQLink:
 
     def send_command(self, command: dict) -> dict:
         self.send(toml.dumps(command))
-        rx = self.receive()
-        return toml.loads(rx)
+        return toml.loads(self.receive())
 
     def sync_settings(self):
         command = {"settings": "sync"}
