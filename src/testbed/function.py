@@ -29,7 +29,7 @@ INV_DTYPE_MAP = {v: k for k, v in DTYPE_MAP.items()}
 
 HEADER_FORMAT = "=7s2HB"  # 7 char tag + unsigned short width + unsigned short height + unsigned byte datatype
 SRC_TAG = b"SRCSMPL"
-SRC_HEADER_FORMAT = "=4dI4H"  # double timestamp + double frame_rate_fps + double temperature_c + double gain + unsigned int exposure_time_us + unsigned short roi.tl.x + unsigned short roi.tl.y + unsigned short roi.br.x + unsigned short roi.br.y
+SRC_HEADER_FORMAT = "=5d4H"  # double timestamp + double frame_rate_fps + double temperature_c + double gain + double exposure_time_s + unsigned short roi.tl.x + unsigned short roi.tl.y + unsigned short roi.br.x + unsigned short roi.br.y
 SNK_TAG = b"SNKSMPL"
 SNK_HEADER_FORMAT = "=2d3H"  # double timestamp + double frame_rate_fps + unsigned short radius + unsigned short center.x + unsigned short center.y
 
@@ -85,12 +85,12 @@ def write_source_sample_data(fileio: FileIO, sample: SourceSample):
     tl = sample.roi.get("tl", (0, 0))
     br = sample.roi.get("br", (w, h))
     sub_header = struct.pack(
-        SRC_HEADER_FORMAT,  # double timestamp + double frame_rate_fps + double temperature_c + double gain + unsigned int exposure_time_us + unsigned short roi.tl.x + unsigned short roi.tl.y + unsigned short roi.br.x + unsigned short roi.br.y
+        SRC_HEADER_FORMAT,  # double timestamp + double frame_rate_fps + double temperature_c + double gain + double exposure_time_s + unsigned short roi.tl.x + unsigned short roi.tl.y + unsigned short roi.br.x + unsigned short roi.br.y
         np.float64(sample.last_access_time.timestamp()),  # double timestamp - d
         np.float64(sample.frame_rate_fps),  # double frame_rate_fps - d
         np.float64(sample.temperature_c),  # double temperature_c - d
         np.float64(sample.gain),  # double gain - d
-        np.uint32(sample.exposure_time_us),  # unsigned int exposure_time_us - I
+        np.uint32(sample.exposure_time_s),  # double exposure_time_s - d
         np.uint16(tl[0]),  # unsigned short roi.tl.x - H
         np.uint16(tl[1]),  # unsigned short roi.tl.y - H
         np.uint16(br[0]),  # unsigned short roi.br.x - H
@@ -120,7 +120,7 @@ def read_source_samples(filename: str) -> list[SourceSample]:
             src_header_bytes = fileio.read(src_header_size)
             if len(src_header_bytes) < src_header_size:
                 break  # EOF
-            (timestamp, frame_rate_fps, temperature_c, gain, exposure_time_us, tl_x, tl_y, br_x, br_y) = struct.unpack(SRC_HEADER_FORMAT, src_header_bytes) # double timestamp + double frame_rate_fps + double temperature_c + double gain + unsigned int exposure_time_us + unsigned short roi.tl.x + unsigned short roi.tl.y + unsigned short roi.br.x + unsigned short roi.br.y
+            (timestamp, frame_rate_fps, temperature_c, gain, exposure_time_s, tl_x, tl_y, br_x, br_y) = struct.unpack(SRC_HEADER_FORMAT, src_header_bytes) # double timestamp + double frame_rate_fps + double temperature_c + double gain + double exposure_time_s + unsigned short roi.tl.x + unsigned short roi.tl.y + unsigned short roi.br.x + unsigned short roi.br.y
 
             capture_bytes = fileio.read(capture_size)
             if len(capture_bytes) < capture_size:
@@ -129,7 +129,7 @@ def read_source_samples(filename: str) -> list[SourceSample]:
             capture = np.frombuffer(capture_bytes, dtype=dtype).reshape((h, w))
             timestamp = datetime.fromtimestamp(timestamp)
 
-            sample_list.append(SourceSample(timestamp, exposure_time_us, gain, frame_rate_fps, temperature_c, {"tl":(tl_x, tl_y), "br":(br_x, br_y)}, capture))
+            sample_list.append(SourceSample(timestamp, exposure_time_s, gain, frame_rate_fps, temperature_c, {"tl":(tl_x, tl_y), "br":(br_x, br_y)}, capture))
 
         return sample_list
 

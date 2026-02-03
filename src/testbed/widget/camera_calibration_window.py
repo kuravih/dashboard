@@ -34,16 +34,16 @@ class ProcessSettingsWidget(QWidget):
 
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.exposure_time_us_spinboxes = ExposureTimeArrayWidget(parent=self)
+        self.exposure_time_s_spinboxes = ExposureTimeArrayWidget(parent=self)
 
         layout = QHBoxLayout()
-        layout.addWidget(self.exposure_time_us_spinboxes)
+        layout.addWidget(self.exposure_time_s_spinboxes)
 
         self.setLayout(layout)
 
     @property
     def exposure_times_array(self) -> np.ndarray:
-        return np.array(self.exposure_time_us_spinboxes.value())
+        return np.array(self.exposure_time_s_spinboxes.value())
 
 
 class ProcessWindow(Window):

@@ -602,17 +602,15 @@ class CenterWidget(QWidget):
 class ValueSetWidget(QWidget):
     valueSetClicked = Signal(int)
 
-    def __init__(self, value: int, parent=None):
+    def __init__(self, parent=None):
         super().__init__(parent)
         self.spinbox = QSpinBox(self)
-        self.spinbox.setValue(value)
-        self.spinbox.setFixedWidth(75)
+        self.spinbox.setFixedWidth(100)
 
         self.pushbutton = QPushButton("Set", self)
         self.pushbutton.setFixedWidth(75)
 
         self.label = QLabel("", self)
-        self.label.setText(f"{value}")
 
         layout = QHBoxLayout()
         layout.addWidget(self.spinbox)
@@ -634,17 +632,18 @@ class ValueSetWidget(QWidget):
 class DoubleValueSetWidget(QWidget):
     valueSetClicked = Signal(float)
 
-    def __init__(self, value: float, parent=None):
+    def __init__(self, suffix:str="", parent=None):
         super().__init__(parent)
+        self.suffix = suffix
         self.spinbox = QDoubleSpinBox(self)
-        self.spinbox.setValue(value)
-        self.spinbox.setFixedWidth(75)
+        self.spinbox.setSuffix(self.suffix)
+
+        self.spinbox.setFixedWidth(100)
 
         self.pushbutton = QPushButton("Set", self)
         self.pushbutton.setFixedWidth(75)
 
         self.label = QLabel("", self)
-        self.label.setText(f"{value}")
 
         layout = QHBoxLayout()
         layout.addWidget(self.spinbox)
@@ -660,7 +659,8 @@ class DoubleValueSetWidget(QWidget):
         self.valueSetClicked.emit(value)
 
     def setValue(self, value: float):
-        self.label.setText(f"{value}")
+        self.spinbox.setValue(value)
+        self.label.setText(f"{value}{self.suffix}")
 
 
 class ExposureTimeArrayWidget(QWidget):
@@ -676,16 +676,17 @@ class ExposureTimeArrayWidget(QWidget):
             list of Exposure times (us).
     """
 
-    def __init__(self, value: int = 10, parent=None):
+    def __init__(self, value: float = 0.001, parent=None):
         super().__init__(parent)
 
         self._layout = QVBoxLayout()
         self._layout.setContentsMargins(0, 0, 0, 0)
 
-        spinbox = QSpinBox()
+        spinbox = QDoubleSpinBox()
         spinbox.setRange(0, 300000000)
-        spinbox.setFixedWidth(100)
-        spinbox.setSuffix(" us")
+        spinbox.setDecimals(6)
+        spinbox.setFixedWidth(150)
+        spinbox.setSuffix("s")
         spinbox.setValue(value)
         spinbox.setToolTip("Exposure time in us (maximum 5min)")
         self._spinboxes = [spinbox]
@@ -748,7 +749,7 @@ class ExposureTimeArrayWidget(QWidget):
     def __iter__(self) -> Iterator[QSpinBox]:
         return iter(self._spinboxes)
 
-    def value(self) -> list[int]:
+    def value(self) -> list[float]:
         return [spinbox.value() for spinbox in self._spinboxes]
 
 

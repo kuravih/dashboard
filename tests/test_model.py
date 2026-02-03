@@ -25,7 +25,7 @@ class TestModel(unittest.TestCase):
         logger.info("camera.metadata.creation_time    : %s", camera.creation_time)
         logger.info("camera.metadata.last_access_time : %s", camera.last_access_time)
         # Properties specific to camera streams
-        logger.info("camera.exposure_time_us          : %s", camera.exposure_time_us)
+        logger.info("camera.exposure_time_s           : %s", camera.exposure_time_s)
         logger.info("camera.gain                      : %s", camera.gain)
         logger.info("camera.temperature_c             : %s", camera.temperature_c)
         logger.info("camera.roi                       : %s", camera.roi)

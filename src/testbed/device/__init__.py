@@ -237,7 +237,7 @@ class ZMQLink:
 @dataclass(slots=True)
 class SourceSample:
     last_access_time: datetime
-    exposure_time_us: int
+    exposure_time_s: float
     gain: float
     frame_rate_fps: float
     temperature_c: float

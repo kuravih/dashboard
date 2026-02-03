@@ -13,7 +13,7 @@ class TestFunction(unittest.TestCase):
 
     def test_read_source_samples(self):
         samples = read_source_samples("data/output/20251124.133154_capture_source.raw")
-        logger.info("samples.exposure_time_us : %d", samples.exposure_time_us)
+        logger.info("samples.exposure_time_s  : %d", samples.exposure_time_s)
         logger.info("samples.gain             : %f", samples.gain)
         logger.info("samples.frame_rate_fps   : %f", samples.frame_rate_fps)
         logger.info("samples.temperature_c    : %f", samples.temperature_c)

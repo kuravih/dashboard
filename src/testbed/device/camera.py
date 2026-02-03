@@ -26,7 +26,7 @@ class Camera(Device):
         if self._stream.port != -1:
             self._link = ZMQLink(port=self._stream.port)
             self._link.connect()
-        self._sample = SourceSample(self.last_access_time, self.exposure_time_us, self.gain, self.frame_rate_fps, self.temperature_c, self.roi, self.blank)
+        self._sample = SourceSample(self.last_access_time, self.exposure_time_s, self.gain, self.frame_rate_fps, self.temperature_c, self.roi, self.blank)
         self.wait_for_request = self._stream.wait_for_request
         self.post_response = self._stream.post_response
 
@@ -96,16 +96,16 @@ class Camera(Device):
 
     def pull_capture(self) -> SourceSample:
         capture = self._stream.get_data().reshape(self.shape)
-        self._sample = SourceSample(self.last_access_time, self.exposure_time_us, self.gain, self.frame_rate_fps, self.temperature_c, self.roi, capture.copy())
+        self._sample = SourceSample(self.last_access_time, self.exposure_time_s, self.gain, self.frame_rate_fps, self.temperature_c, self.roi, capture.copy())
         return self._sample
     
     def set_capture(self, capture: np.ndarray) -> SourceSample:
         self._stream.set_data(capture)
-        self._sample = SourceSample(self.last_access_time, self.exposure_time_us, self.gain, self.frame_rate_fps, self.temperature_c, self.roi, capture.copy())
+        self._sample = SourceSample(self.last_access_time, self.exposure_time_s, self.gain, self.frame_rate_fps, self.temperature_c, self.roi, capture.copy())
         return self._sample
 
     @property
-    def exposure_time_us(self) -> int:
+    def exposure_time_s(self) -> int:
         return self._stream.keywords["EXPTIME"].value
 
     @property
@@ -126,20 +126,20 @@ class Camera(Device):
     def sync_settings(self) -> dict:
         return self.link.sync_settings()
 
-    def set_exposure_time_us(self, exposure_time_us: int) -> int:
+    def set_exposure_time_s(self, exposure_time_s: float) -> int:
         """
         Set the exposure time of the camera
 
         Parameters:
-            exposure_time_us: int
-                Exposure time in us
+            exposure_time_s: float
+                Exposure time in s
 
         Returns: int
             Exposure time response from camera
         """
-        command = {"settings": {"exposureTime_us": exposure_time_us}}
+        command = {"settings": {"exposureTime_s": exposure_time_s}}
         reply = self.link.send_command(command)
-        return reply["settings"]["exposureTime_us"]
+        return reply["settings"]["exposureTime_s"]
 
     def set_gain(self, gain: float) -> float:
         """

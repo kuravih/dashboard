@@ -9,12 +9,13 @@ from pykato.plotfunction.preset import Histogram_Colorbar_Preset
 from pykato.function import timestamp_string
 
 from ..device.camera import Camera, SourceSample
-from ..function import write_source_sample_header, write_source_sample_data, Flip, Rotation #, flip_rotate
-from ..widget import Window, OrientationWidget, ROIWidget, DoubleValueSetWidget, ValueSetWidget
+from ..function import write_source_sample_header, write_source_sample_data, Flip, Rotation  # , flip_rotate
+from ..widget import Window, OrientationWidget, ROIWidget, DoubleValueSetWidget
 from ..widget.resource import ICON_CAMERA
 from ..widget.figure_widget import FigureWidget, SourceFigureWidget
 
 logger = setup_logger("camera_window", terminator="\n")
+
 
 # ==== PreviewSettingsWindow ==========================================================================================
 class PreviewSettingsWindow(Window):
@@ -150,7 +151,7 @@ class InfoWindow(Window):
     def __init__(self, camera: Camera, parent=None):
         super().__init__(parent, Qt.WindowType.Dialog)
         self._camera = camera
-        self._sample = SourceSample(self._camera.last_access_time, self._camera.exposure_time_us, self._camera.gain, self._camera.frame_rate_fps, self._camera.temperature_c, self._camera.roi, self._camera.blank)
+        self._sample = SourceSample(self._camera.last_access_time, self._camera.exposure_time_s, self._camera.gain, self._camera.frame_rate_fps, self._camera.temperature_c, self._camera.roi, self._camera.blank)
 
         self.setWindowTitle(f"{self._camera.name} Information")
 
@@ -206,7 +207,7 @@ class InfoWindow(Window):
         kind_dm_radiobutton.setChecked(False)
 
         exposure_time_label = QLabel("Exposure time (us)", self)
-        self.info_exposure_time_value_label = QLabel(f"{self.camera.exposure_time_us}", self)
+        self.info_exposure_time_value_label = QLabel(f"{self.camera.exposure_time_s}", self)
         self.info_exposure_time_value_label.setToolTip("Exposure time (us)")
 
         frame_rate_label = QLabel("Frame rate (fps)", self)
@@ -360,7 +361,7 @@ class InfoWindow(Window):
     def on_update_timer_tick(self):
         # logger.info("InfoWindow.on_update_timer_tick")
         self.info_last_access_time_value_label.setText(f"{self.sample.last_access_time:%Y-%m-%d %H:%M:%S}.{self.sample.last_access_time:%f}"[:-2])
-        self.info_exposure_time_value_label.setText(f"{self.sample.exposure_time_us}")
+        self.info_exposure_time_value_label.setText(f"{self.sample.exposure_time_s}")
         self.info_gain_value_label.setText(f"{self.sample.gain}")
         self.info_frame_rate_value_label.setText(f"{self.sample.frame_rate_fps:.2f}")
         self.info_temperature_value_label.setText(f"{self.sample.temperature_c}")
@@ -381,7 +382,7 @@ class SettingsWindow(Window):
     def __init__(self, camera: Camera, parent=None):
         super().__init__(parent, Qt.WindowType.Dialog)
         self._camera = camera
-        self._sample = SourceSample(self._camera.last_access_time, self._camera.exposure_time_us, self._camera.gain, self._camera.frame_rate_fps, self._camera.temperature_c, self._camera.roi, self._camera.blank)
+        self._sample = SourceSample(self._camera.last_access_time, self._camera.exposure_time_s, self._camera.gain, self._camera.frame_rate_fps, self._camera.temperature_c, self._camera.roi, self._camera.blank)
 
         self.setWindowTitle(f"{self._camera.name} Settings")
 
@@ -432,28 +433,30 @@ class SettingsWindow(Window):
 
         temperature_label = QLabel("Temperature", self)
         temperature_label.setFixedWidth(100)
-        temperature_widget = DoubleValueSetWidget(self.camera.temperature_c, self)
-        temperature_widget.spinbox.setRange(10, 30)  # TODO: use 10 to avoid condensation
-        temperature_widget.spinbox.setSingleStep(0.1)
+        temperature_widget = DoubleValueSetWidget(suffix=" \u00b0C", parent=self)
+        temperature_widget.spinbox.setRange(10, 30)
         temperature_widget.spinbox.setDecimals(1)
-        temperature_widget.spinbox.setSuffix(" \u00b0C")
+        temperature_widget.spinbox.setSingleStep(0.1)
+        temperature_widget.setValue(self.camera.temperature_c)
         temperature_widget.spinbox.setToolTip("Temperature (\u00b0C)")
         temperature_widget.valueSetClicked.connect(on_temperature_set_clicked)
         # ---- temperature setting ------------------------------------------------------------------------------------
 
         # ---- exposure time setting ----------------------------------------------------------------------------------
         @Slot(int)
-        def on_exposure_time_set_clicked(_expTime: int):
-            reply = self.camera.set_exposure_time_us(_expTime)
+        def on_exposure_time_set_clicked(_expTime: float):
+            reply = self.camera.set_exposure_time_s(_expTime)
             logger.info("reply = %s", reply)
-            expTime_widget.setValue(self.camera.exposure_time_us)
+            expTime_widget.setValue(self.camera.exposure_time_s)
 
         expTime_label = QLabel("Exposure Time", self)
         expTime_label.setFixedWidth(100)
-        expTime_widget = ValueSetWidget(self.camera.exposure_time_us, self)
-        expTime_widget.spinbox.setRange(20, 30000000)
-        expTime_widget.spinbox.setSuffix(" us")
-        expTime_widget.spinbox.setToolTip("Exposure time (us)")
+        expTime_widget = DoubleValueSetWidget(suffix=" s", parent=self)
+        expTime_widget.spinbox.setRange(0, 30000000)
+        expTime_widget.spinbox.setDecimals(6)
+        expTime_widget.spinbox.setSingleStep(0.001)
+        expTime_widget.setValue(self.camera.exposure_time_s)
+        expTime_widget.spinbox.setToolTip("Exposure time (s)")
         expTime_widget.valueSetClicked.connect(on_exposure_time_set_clicked)
         # ---- exposure time setting ----------------------------------------------------------------------------------
 
@@ -466,8 +469,11 @@ class SettingsWindow(Window):
 
         gain_label = QLabel("Gain", self)
         gain_label.setFixedWidth(100)
-        gain_widget = DoubleValueSetWidget(self.camera.gain, self)
-        gain_widget.spinbox.setRange(20, 30000000)
+        gain_widget = DoubleValueSetWidget(parent=self)
+        gain_widget.spinbox.setRange(0, 10)
+        gain_widget.spinbox.setDecimals(1)
+        gain_widget.spinbox.setSingleStep(0.1)
+        gain_widget.setValue(self.camera.gain)
         gain_widget.spinbox.setToolTip("gain")
         gain_widget.valueSetClicked.connect(on_gain_set_clicked)
         # ---- gain setting -------------------------------------------------------------------------------------------
