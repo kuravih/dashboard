@@ -206,9 +206,9 @@ class InfoWindow(Window):
         kind_slm_radiobutton.setChecked(False)
         kind_dm_radiobutton.setChecked(False)
 
-        exposure_time_label = QLabel("Exposure time (us)", self)
+        exposure_time_label = QLabel("Exposure time (s)", self)
         self.info_exposure_time_value_label = QLabel(f"{self.camera.exposure_time_s}", self)
-        self.info_exposure_time_value_label.setToolTip("Exposure time (us)")
+        self.info_exposure_time_value_label.setToolTip("Exposure time (s)")
 
         frame_rate_label = QLabel("Frame rate (fps)", self)
         self.info_frame_rate_value_label = QLabel(f"{self.camera.frame_rate_fps:.2f}", self)

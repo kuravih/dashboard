@@ -44,11 +44,11 @@ class ProcessWorker(Worker):
         i_exp = 0
         while (self.exp_array.size > i_exp) and self._running:
 
-            self.source.set_exposure_time_s(self.exp_array[i_exp])
+            self.source.set_exposure_time_s(float(self.exp_array[i_exp]))
 
             _current_source_sample = self.source.pull_capture()
             self.signals.srcSampled.emit(_current_source_sample)
-            time.sleep(0.2)
+            time.sleep(0.1)
 
             i_exp = i_exp + 1
             self.signals.progressTicked.emit(i_exp, time.time() - t_start)
