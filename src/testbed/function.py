@@ -90,7 +90,7 @@ def write_source_sample_data(fileio: FileIO, sample: SourceSample):
         np.float64(sample.frame_rate_fps),  # double frame_rate_fps - d
         np.float64(sample.temperature_c),  # double temperature_c - d
         np.float64(sample.gain),  # double gain - d
-        np.uint32(sample.exposure_time_s),  # double exposure_time_s - d
+        np.float64(sample.exposure_time_s),  # double exposure_time_s - d
         np.uint16(tl[0]),  # unsigned short roi.tl.x - H
         np.uint16(tl[1]),  # unsigned short roi.tl.y - H
         np.uint16(br[0]),  # unsigned short roi.br.x - H
