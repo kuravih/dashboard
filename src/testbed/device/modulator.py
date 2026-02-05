@@ -2,7 +2,6 @@ import numpy as np
 from datetime import datetime
 
 from . import Device, Stream, ZMQLink, SinkSample
-from ..function import Flip, Rotation
 
 from pykato.log import setup_logger
 
@@ -14,14 +13,12 @@ class Modulator(Device):
     Modulator
     """
 
-    __slots__ = ("_stream", "_shape", "_max_radius", "_link", "_rotation", "_flip", "_sample", "post_request", "wait_for_response")
+    __slots__ = ("_stream", "_shape", "_max_radius", "_link", "_sample", "post_request", "wait_for_response")
 
     def __init__(self, stream: Stream):
         super().__init__(stream.name)
         self._stream = stream
         self._max_radius = self._stream.keywords["RADMAX"].value
-        self._rotation = Rotation.UP  # UP for 0deg, RIGHT for 90deg, DOWN for 180deg, LEFT for 270deg
-        self._flip = Flip.NEG
         self._shape = (int(2 * np.ceil(self.radius)), int(2 * np.ceil(self.radius)))
         self._link = None
         if self._stream.port != -1:
@@ -78,22 +75,6 @@ class Modulator(Device):
     @property
     def last_access_time(self) -> datetime:
         return self._stream.last_access_time
-
-    @property
-    def rotation(self) -> Rotation:
-        return self._rotation
-
-    @rotation.setter
-    def rotation(self, value: Rotation):
-        self._rotation = value
-
-    @property
-    def flip(self) -> Flip:
-        return self._flip
-
-    @flip.setter
-    def flip(self, value: Flip):
-        self._flip = value
 
     def push_command(self, command: np.ndarray) -> SinkSample:
         self._stream.set_data(command)

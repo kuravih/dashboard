@@ -6,7 +6,7 @@ from pykato.log import setup_logger
 from pykato.plotfunction.preset import Histogram_Colorbar_Preset
 
 from ..device.camera import Camera, SourceSample
-from ..function import Flip, Rotation  # , flip_rotate
+from ..function import Flip, Rotation, flip_rotate
 from ..widget import Window, OrientationWidget, ROIWidget, DoubleValueSetWidget
 from ..widget.figure_widget import FigureWidget, SourceFigureWidget
 
@@ -19,10 +19,12 @@ class PreviewSettingsWindow(Window):
     Settings for the camera preview window
     """
 
-    def __init__(self, cmap: str, cmap_log: bool, parent=None):
+    def __init__(self, cmap: str, cmap_log: bool, rotation: Rotation, flip: Flip, parent=None):
         super().__init__(parent, Qt.WindowType.Dialog)
-        self.cmap = cmap
-        self.cmap_log = cmap_log
+        self.cmap: str = cmap
+        self.cmap_log: bool = cmap_log
+        self.rotation: Rotation = rotation
+        self.flip: Flip = flip
 
         self.setWindowModality(Qt.WindowModality.WindowModal)
         self.setWindowTitle("Preview Settings")
@@ -46,6 +48,10 @@ class PreviewSettingsWindow(Window):
         self.cmap_combobox.addItems(list(colormaps))
         self.cmap_combobox.setCurrentIndex(list(colormaps).index(self.cmap))
 
+        orientation_label = QLabel("Orientation", self)
+        orientation_label.setFixedWidth(100)
+        self.orientation_widget = OrientationWidget(self.rotation, self.flip, self)
+
         row = 0
         col = 0
         layout.addWidget(scale_label, row, col)
@@ -57,6 +63,12 @@ class PreviewSettingsWindow(Window):
         layout.addWidget(cmap_label, row, col)
         col += 1
         layout.addWidget(self.cmap_combobox, row, col)
+
+        row += 1
+        col = 0
+        layout.addWidget(orientation_label, row, col)
+        col += 1
+        layout.addWidget(self.orientation_widget, row, col)
 
         return widget
 
@@ -112,12 +124,14 @@ class PreviewWindow(Window):
 
     @Slot()
     def on_preview_settings_clicked(self):
-        preview_settings_window = PreviewSettingsWindow(cmap=self.preview_figure_widget.cmap_name, cmap_log=self.preview_figure_widget.cmap_log, parent=self)
+        preview_settings_window = PreviewSettingsWindow(cmap=self.preview_figure_widget.cmap_name, cmap_log=self.preview_figure_widget.cmap_log, rotation=self.preview_figure_widget.rotation, flip=self.preview_figure_widget.flip, parent=self)
         preview_settings_window.show()
         preview_settings_window.raise_()
         preview_settings_window.activateWindow()
         preview_settings_window.log_checkbox.checkStateChanged.connect(self.on_cmap_log_changed)
         preview_settings_window.cmap_combobox.currentTextChanged.connect(self.on_cmap_changed)
+        preview_settings_window.orientation_widget.rotationChanged.connect(self.on_rotation_changed)
+        preview_settings_window.orientation_widget.flipChanged.connect(self.on_flip_changed)
 
     @Slot(str)
     def on_cmap_changed(self, colormap: str):
@@ -129,10 +143,18 @@ class PreviewWindow(Window):
             self.preview_figure_widget.set_cmap_norm(True)
         else:
             self.preview_figure_widget.set_cmap_norm(False)
+
+    @Slot(str)
+    def on_rotation_changed(self, rotation: Rotation):
+        self.preview_figure_widget.rotation = rotation
+
+    @Slot(str)
+    def on_flip_changed(self, flip: Flip):
+        self.preview_figure_widget.flip = flip
+
     @Slot()
     def on_update_timer_tick(self):
-        # self.preview_figure_widget.figure.get_image().set_data(flip_rotate(self.sample.capture, self.camera.flip, self.camera.rotation))
-        self.preview_figure_widget.figure.get_image().set_data(self.sample.capture)
+        self.preview_figure_widget.figure.get_image().set_data(flip_rotate(self.sample.capture, self.preview_figure_widget.flip, self.preview_figure_widget.rotation))
         self.preview_figure_widget.figure.canvas.draw_idle()
 
     def closeEvent(self, event):
@@ -367,7 +389,7 @@ class InfoWindow(Window):
         self.info_temperature_value_label.setText(f"{self.sample.temperature_c}")
         self.info_roi_value_label.setText(f"[({self.sample.roi['br'][0]}, {self.sample.roi['br'][1]})," f"({self.sample.roi['tl'][0]}, {self.sample.roi['tl'][1]})]")  # pylint: disable=W1405:inconsistent-quotes
         self.info_hist_figure_widget.figure.set_data(self.sample.capture)
-        self.info_hist_figure_widget.figure.canvas.draw()
+        self.info_hist_figure_widget.figure.canvas.draw_idle()
 
     def closeEvent(self, event):
         if self.update_timer.isActive():
@@ -411,27 +433,8 @@ class SettingsWindow(Window):
         layout = QGridLayout(widget)
         widget.setLayout(layout)
 
-        # ---- orientation setting ------------------------------------------------------------------------------------
-        @Slot(Rotation)
-        def on_rotation_changed(_rotation: Rotation):
-            self.camera.rotation = _rotation
-
-        @Slot(Flip)
-        def on_flip_changed(_flip: Flip):
-            self.camera.flip = _flip
-
-        orientation_label = QLabel("Orientation", self)
-        orientation_label.setFixedWidth(100)
-        orientation_widget = OrientationWidget(self.camera.rotation, self.camera.flip, self)
-        orientation_widget.rotationChanged.connect(on_rotation_changed)
-        orientation_widget.flipChanged.connect(on_flip_changed)
-        # ---- orientation setting ------------------------------------------------------------------------------------
-
         row = 0
         col = 0
-        layout.addWidget(orientation_label, row, col)
-        col += 1
-        layout.addWidget(orientation_widget, row, col)
 
         if "temperature_C" in self.camera.settings:
             # ---- temperature setting --------------------------------------------------------------------------------

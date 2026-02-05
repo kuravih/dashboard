@@ -9,7 +9,7 @@ from pykato.plotfunction.preset import Histogram_Colorbar_Preset
 from pykato.function import timestamp_string
 
 from ..widget import Window, OrientationWidget, CenterWidget, DoubleValueSetWidget
-from ..function import write_sink_sample_header, write_sink_sample_data, Flip, Rotation #, flip_rotate
+from ..function import write_sink_sample_header, write_sink_sample_data, Flip, Rotation, flip_rotate
 from ..device.modulator import Modulator, SinkSample
 from ..widget.command_preset_widget import EFCPresetWidget, ConstPresetWidget, GradientPresetWidget, CheckerPresetWidget, SinusoidPresetWidget, BoxPresetWidget, PolkaPresetWidget, RegisterPresetWidget, DOTFPresetWidget, TextPresetWidget
 from ..widget.figure_widget import FigureWidget, ModulatorFigureWidget
@@ -25,9 +25,11 @@ class PreviewSettingsWindow(Window):
     Settings for the modulator preview window
     """
 
-    def __init__(self, cmap: str, parent=None):
+    def __init__(self, cmap: str, rotation: Rotation, flip: Flip, parent=None):
         super().__init__(parent, Qt.WindowType.Dialog)
         self.cmap = cmap
+        self.rotation: Rotation = rotation
+        self.flip: Flip = flip
 
         self.setWindowModality(Qt.WindowModality.WindowModal)
         self.setWindowTitle("Preview Settings")
@@ -46,11 +48,21 @@ class PreviewSettingsWindow(Window):
         self.cmap_combobox.addItems(list(colormaps))
         self.cmap_combobox.setCurrentIndex(list(colormaps).index(self.cmap))
 
+        orientation_label = QLabel("Orientation", self)
+        orientation_label.setFixedWidth(100)
+        self.orientation_widget = OrientationWidget(self.rotation, self.flip, self)
+
         row = 0
         col = 0
         layout.addWidget(cmap_label, row, col)
         col += 1
         layout.addWidget(self.cmap_combobox, row, col)
+
+        row += 1
+        col = 0
+        layout.addWidget(orientation_label, row, col)
+        col += 1
+        layout.addWidget(self.orientation_widget, row, col)
 
         return widget
 
@@ -106,21 +118,30 @@ class PreviewWindow(Window):
 
     @Slot()
     def on_preview_settings_clicked(self):
-        preview_settings_window = PreviewSettingsWindow(cmap=self.preview_figure_widget.cmap_name, parent=self)
+        preview_settings_window = PreviewSettingsWindow(cmap=self.preview_figure_widget.cmap_name, rotation=self.preview_figure_widget.rotation, flip=self.preview_figure_widget.flip, parent=self)
         preview_settings_window.show()
         preview_settings_window.raise_()
         preview_settings_window.activateWindow()
         preview_settings_window.cmap_combobox.currentTextChanged.connect(self.on_cmap_changed)
+        preview_settings_window.orientation_widget.rotationChanged.connect(self.on_rotation_changed)
+        preview_settings_window.orientation_widget.flipChanged.connect(self.on_flip_changed)
 
     @Slot(str)
     def on_cmap_changed(self, colormap: str):
         self.preview_figure_widget.set_cmap(colormap)
 
+    @Slot(str)
+    def on_rotation_changed(self, rotation: Rotation):
+        self.preview_figure_widget.rotation = rotation
+
+    @Slot(str)
+    def on_flip_changed(self, flip: Flip):
+        self.preview_figure_widget.flip = flip
+
     @Slot()
     def on_update_timer_tick(self):
-        # self.preview_figure_widget.figure.get_image().set_data(flip_rotate(self.sample.command, self.modulator.flip, self.modulator.rotation))
-        self.preview_figure_widget.figure.get_image().set_data(self.sample.command)
-        self.preview_figure_widget.figure.canvas.draw()
+        self.preview_figure_widget.figure.get_image().set_data(flip_rotate(self.sample.command, self.preview_figure_widget.flip, self.preview_figure_widget.rotation))
+        self.preview_figure_widget.figure.canvas.draw_idle()
 
     def closeEvent(self, event):
         if self.update_timer.isActive():
@@ -331,7 +352,7 @@ class InfoWindow(Window):
         self.info_radius_value_label.setText(f"{self.sample.radius}")
         self.info_frame_rate_value_label.setText(f"{self.sample.frame_rate_fps:.2f}")
         self.info_hist_figure_widget.figure.set_data(self.sample.command)
-        self.info_hist_figure_widget.figure.canvas.draw()
+        self.info_hist_figure_widget.figure.canvas.draw_idle()
 
     def closeEvent(self, event):
         if self.update_timer.isActive():
@@ -377,22 +398,6 @@ class SettingsWindow(Window):
         layout = QGridLayout(widget)
         widget.setLayout(layout)
 
-        # ---- orientation setting ------------------------------------------------------------------------------------
-        @Slot(Rotation)
-        def on_rotation_changed(_rotation: Rotation):
-            self.modulator.rotation = _rotation
-
-        @Slot(Flip)
-        def on_flip_changed(_flip: Flip):
-            self.modulator.flip = _flip
-
-        orientation_label = QLabel("Orientation", self)
-        orientation_label.setFixedWidth(100)
-        orientation_widget = OrientationWidget(self.modulator.rotation, self.modulator.flip, self)
-        orientation_widget.rotationChanged.connect(on_rotation_changed)
-        orientation_widget.flipChanged.connect(on_flip_changed)
-        # ---- orientation setting ------------------------------------------------------------------------------------
-
         # ---- radius setting -----------------------------------------------------------------------------------------
         @Slot(int)
         def on_set_radius_clicked(_radius: int):
@@ -425,12 +430,6 @@ class SettingsWindow(Window):
         # ---- center setting -----------------------------------------------------------------------------------------
 
         row = 0
-        col = 0
-        layout.addWidget(orientation_label, row, col)
-        col += 1
-        layout.addWidget(orientation_widget, row, col)
-
-        row += 1
         col = 0
         layout.addWidget(center_label, row, col)
         col += 1
@@ -482,7 +481,7 @@ class SettingsWindow(Window):
             image.data[:] = command[:]
 
             preset_figure_widget.figure.get_image().set_data(image)
-            preset_figure_widget.figure.canvas.draw()
+            preset_figure_widget.figure.canvas.draw_idle()
 
         preset_label = QLabel("Preset", self)
         preset_label.setFixedWidth(100)

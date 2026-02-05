@@ -19,6 +19,8 @@ from matplotlib.colors import LogNorm, Normalize
 from matplotlib.ticker import MaxNLocator
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 
+from testbed.function import Flip, Rotation
+
 from .resource import ICON_HOUSE, ICON_MOVE, ICON_MAGNIFY, ICON_DISK, ICON_GEAR
 
 
@@ -95,12 +97,16 @@ class SinkFigureWidget(FigureWidget):
     def __init__(self, frame: np.ndarray, pxmax: float, show_toolbar: bool = False, parent=None):
         super().__init__(Imshow_Colorbar_Preset(frame), show_toolbar, parent)
         self.cmap_name: str = "bwr"
+        self.rotation = Rotation.UP
+        self.flip = Flip.POS
 
         self.figure.get_image().set_clim(0, pxmax)
         self.figure.get_imshow_ax().set_title("Sink", size=10)
         self.setMinimumSize(100, 100)
 
         self.set_cmap(self.cmap_name)
+        self.set_rotation(self.rotation)
+        self.set_flip(self.flip)
 
     @property
     def cmap_name(self) -> str:
@@ -115,6 +121,28 @@ class SinkFigureWidget(FigureWidget):
     def set_cmap(self, cmap_name: str):
         self.cmap_name = cmap_name
         self.figure.get_image().set_cmap(self._cmap)
+
+    @property
+    def rotation(self) -> Rotation:
+        return self._rotation
+
+    @rotation.setter
+    def rotation(self, value: Rotation):
+        self._rotation = value
+
+    def set_rotation(self, rotation: Rotation):
+        self.rotation = rotation
+
+    @property
+    def flip(self) -> Flip:
+        return self._flip
+
+    @flip.setter
+    def flip(self, value: Flip):
+        self._flip = value
+
+    def set_flip(self, flip: Flip):
+        self.flip = flip
 
 
 class MirrorFigureWidget(SinkFigureWidget):
@@ -167,6 +195,8 @@ class SourceFigureWidget(FigureWidget):
         super().__init__(Imshow_Colorbar_Preset(frame), show_toolbar, parent)
         self.cmap_name: str = "hot"
         self.cmap_log: bool = True
+        self.rotation = Rotation.UP
+        self.flip = Flip.POS
 
         self.figure.get_image().set_clim(0, pxmax)
         self.figure.get_imshow_ax().set_title("Source", size=10)
@@ -180,6 +210,8 @@ class SourceFigureWidget(FigureWidget):
 
         self.set_cmap(self.cmap_name)
         self.set_cmap_norm(self.cmap_log)
+        self.set_rotation(self.rotation)
+        self.set_flip(self.flip)
 
     @property
     def cmap_name(self) -> str:
@@ -209,6 +241,28 @@ class SourceFigureWidget(FigureWidget):
             self.figure.get_image().set_norm(LogNorm(vmin=1, vmax=2**12 - 1))
         else:
             self.figure.get_image().set_norm(Normalize(vmin=1, vmax=2**12 - 1))
+
+    @property
+    def rotation(self) -> Rotation:
+        return self._rotation
+
+    @rotation.setter
+    def rotation(self, value: Rotation):
+        self._rotation = value
+
+    def set_rotation(self, rotation: Rotation):
+        self.rotation = rotation
+
+    @property
+    def flip(self) -> Flip:
+        return self._flip
+
+    @flip.setter
+    def flip(self, value: Flip):
+        self._flip = value
+
+    def set_flip(self, flip: Flip):
+        self.flip = flip
 
 
 class ContrastFigureWidget(FigureWidget):

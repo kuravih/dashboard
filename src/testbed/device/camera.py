@@ -2,7 +2,6 @@ import numpy as np
 from datetime import datetime
 
 from . import Device, Stream, ZMQLink, SourceSample
-from ..function import Flip, Rotation
 
 from pykato.log import setup_logger
 
@@ -14,13 +13,11 @@ class Camera(Device):
     Camera
     """
 
-    __slots__ = ("_stream", "_shape", "_link", "_rotation", "_flip", "_sample", "wait_for_request", "post_response", "_settings")
+    __slots__ = ("_stream", "_shape", "_link", "_sample", "wait_for_request", "post_response", "_settings")
 
     def __init__(self, stream: Stream):
         super().__init__(stream.name)
         self._stream = stream
-        self._rotation = Rotation.UP  # UP for 0deg, RIGHT for 90deg, DOWN for 180deg, LEFT for 270deg
-        self._flip = Flip.NEG
         self._shape = (self._stream.keywords["HEIGHT"].value, self._stream.keywords["WIDTH"].value)
         self._link = None
         if self._stream.port != -1:
@@ -82,22 +79,6 @@ class Camera(Device):
     @property
     def last_access_time(self) -> datetime:
         return self._stream.last_access_time
-
-    @property
-    def rotation(self) -> Rotation:
-        return self._rotation
-
-    @rotation.setter
-    def rotation(self, value: Rotation):
-        self._rotation = value
-
-    @property
-    def flip(self) -> Flip:
-        return self._flip
-
-    @flip.setter
-    def flip(self, value: Flip):
-        self._flip = value
 
     def pull_capture(self) -> SourceSample:
         capture = self._stream.get_data().reshape(self.shape)
