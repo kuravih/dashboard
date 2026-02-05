@@ -1,17 +1,13 @@
-from PySide6.QtWidgets import QWidget, QVBoxLayout, QLabel, QRadioButton, QSpacerItem, QButtonGroup, QSizePolicy, QGridLayout, QHBoxLayout, QPushButton, QCheckBox, QComboBox
+from PySide6.QtWidgets import QWidget, QVBoxLayout, QLabel, QRadioButton, QSpacerItem, QButtonGroup, QSizePolicy, QGridLayout, QHBoxLayout, QCheckBox, QComboBox
 from PySide6.QtCore import Slot, QTimer, Qt
-from PySide6.QtGui import QIcon
 from matplotlib import colormaps
-from matplotlib.colors import LogNorm, Normalize
 
 from pykato.log import setup_logger
 from pykato.plotfunction.preset import Histogram_Colorbar_Preset
-from pykato.function import timestamp_string
 
 from ..device.camera import Camera, SourceSample
-from ..function import write_source_sample_header, write_source_sample_data, Flip, Rotation  # , flip_rotate
+from ..function import Flip, Rotation  # , flip_rotate
 from ..widget import Window, OrientationWidget, ROIWidget, DoubleValueSetWidget
-from ..widget.resource import ICON_CAMERA
 from ..widget.figure_widget import FigureWidget, SourceFigureWidget
 
 logger = setup_logger("camera_window", terminator="\n")
@@ -20,11 +16,14 @@ logger = setup_logger("camera_window", terminator="\n")
 # ==== PreviewSettingsWindow ==========================================================================================
 class PreviewSettingsWindow(Window):
     """
-    Preview Settings Window
+    Settings for the camera preview window
     """
 
-    def __init__(self, parent=None):
+    def __init__(self, cmap: str, cmap_log: bool, parent=None):
         super().__init__(parent, Qt.WindowType.Dialog)
+        self.cmap = cmap
+        self.cmap_log = cmap_log
+
         self.setWindowModality(Qt.WindowModality.WindowModal)
         self.setWindowTitle("Preview Settings")
         layout = QVBoxLayout()
@@ -40,10 +39,12 @@ class PreviewSettingsWindow(Window):
         scale_label = QLabel("Scale", self)
         self.log_checkbox = QCheckBox("Log", self)
         self.log_checkbox.setToolTip("Log Scale")
+        self.log_checkbox.setChecked(self.cmap_log)
 
         cmap_label = QLabel("Colormap", self)
         self.cmap_combobox = QComboBox(self)
         self.cmap_combobox.addItems(list(colormaps))
+        self.cmap_combobox.setCurrentIndex(list(colormaps).index(self.cmap))
 
         row = 0
         col = 0
@@ -63,7 +64,7 @@ class PreviewSettingsWindow(Window):
 # ==== PreviewWindow ==================================================================================================
 class PreviewWindow(Window):
     """
-    Camera Preview Window
+    Camera preview window
     """
 
     def __init__(self, _camera: Camera, parent: QWidget | None = None):
@@ -111,24 +112,23 @@ class PreviewWindow(Window):
 
     @Slot()
     def on_preview_settings_clicked(self):
-        preview_settings_window = PreviewSettingsWindow(self)
+        preview_settings_window = PreviewSettingsWindow(cmap=self.preview_figure_widget.cmap_name, cmap_log=self.preview_figure_widget.cmap_log, parent=self)
         preview_settings_window.show()
         preview_settings_window.raise_()
         preview_settings_window.activateWindow()
-        preview_settings_window.log_checkbox.checkStateChanged.connect(self.on_log_changed)
+        preview_settings_window.log_checkbox.checkStateChanged.connect(self.on_cmap_log_changed)
         preview_settings_window.cmap_combobox.currentTextChanged.connect(self.on_cmap_changed)
 
     @Slot(str)
     def on_cmap_changed(self, colormap: str):
-        self.preview_figure_widget.figure.get_image().set_cmap(colormap)
+        self.preview_figure_widget.set_cmap(colormap)
 
     @Slot(bool)
-    def on_log_changed(self, checked: bool):
-        if checked:
-            self.preview_figure_widget.figure.get_image().set_norm(LogNorm(vmin=1, vmax=self._camera.pxmax))
+    def on_cmap_log_changed(self, checked: bool):
+        if checked == Qt.CheckState.Checked:
+            self.preview_figure_widget.set_cmap_norm(True)
         else:
-            self.preview_figure_widget.figure.get_image().set_norm(Normalize(vmin=1, vmax=self._camera.pxmax))
-
+            self.preview_figure_widget.set_cmap_norm(False)
     @Slot()
     def on_update_timer_tick(self):
         # self.preview_figure_widget.figure.get_image().set_data(flip_rotate(self.sample.capture, self.camera.flip, self.camera.rotation))
@@ -145,7 +145,7 @@ class PreviewWindow(Window):
 # ==== InfoWindow ===============================================================================================
 class InfoWindow(Window):
     """
-    Camera Info Window
+    Camera info window
     """
 
     def __init__(self, camera: Camera, parent=None):
@@ -378,6 +378,9 @@ class InfoWindow(Window):
 
 # ==== SettingsWindow ===========================================================================================
 class SettingsWindow(Window):
+    """
+    Camera settings window
+    """
 
     def __init__(self, camera: Camera, parent=None):
         super().__init__(parent, Qt.WindowType.Dialog)

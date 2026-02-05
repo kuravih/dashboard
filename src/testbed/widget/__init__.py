@@ -64,8 +64,6 @@ class DevicesSetupWidget(QWidget):
             Show the sink selection combobox
         setup_source: bool = True
             Show the source selection combobox
-        setup_source_settings: bool = True,
-            Show the source settings button?
 
     Signals:
         sinkChanged: Signal()
@@ -83,7 +81,6 @@ class DevicesSetupWidget(QWidget):
         self.devices = devices
         self.setup_sink = setup_sink
         self.setup_source = setup_source
-        # self._setup_source_settings = setup_source_settings
 
         sink_device_label = QLabel("Sink", self)
         sink_device_label.hide()
@@ -100,17 +97,20 @@ class DevicesSetupWidget(QWidget):
 
         self.sink_info_button = QPushButton(QIcon(ICON_INFO), "")
         self.sink_info_button.setEnabled(False)
-        self.sink_info_button.setFixedWidth(self.sink_info_button.sizeHint().height())
+        self.sink_info_button.setFixedWidth(sink_device_combobox.sizeHint().height())
+        self.sink_info_button.setFixedHeight(sink_device_combobox.sizeHint().height())
         self.sink_info_button.setToolTip("Information")
 
         self.sink_settings_button = QPushButton(QIcon(ICON_GEAR), "")
         self.sink_settings_button.setEnabled(False)
-        self.sink_settings_button.setFixedWidth(self.sink_settings_button.sizeHint().height())
+        self.sink_settings_button.setFixedWidth(sink_device_combobox.sizeHint().height())
+        self.sink_settings_button.setFixedHeight(sink_device_combobox.sizeHint().height())
         self.sink_settings_button.setToolTip("Settings")
 
         self.sink_preview_button = QPushButton(QIcon(ICON_EYE), "")
         self.sink_preview_button.setEnabled(False)
-        self.sink_preview_button.setFixedWidth(self.sink_preview_button.sizeHint().height())
+        self.sink_preview_button.setFixedWidth(sink_device_combobox.sizeHint().height())
+        self.sink_preview_button.setFixedHeight(sink_device_combobox.sizeHint().height())
         self.sink_preview_button.setToolTip("Sink Preview")
 
         source_device_label = QLabel("Source")
@@ -129,17 +129,20 @@ class DevicesSetupWidget(QWidget):
 
         self.source_info_button = QPushButton(QIcon(ICON_INFO), "")
         self.source_info_button.setEnabled(False)
-        self.source_info_button.setFixedWidth(self.source_info_button.sizeHint().height())
+        self.source_info_button.setFixedWidth(source_device_combobox.sizeHint().height())
+        self.source_info_button.setFixedHeight(source_device_combobox.sizeHint().height())
         self.source_info_button.setToolTip("Information")
 
         self.source_settings_button = QPushButton(QIcon(ICON_GEAR), "")
         self.source_settings_button.setEnabled(False)
-        self.source_settings_button.setFixedWidth(self.source_settings_button.sizeHint().height())
+        self.source_settings_button.setFixedWidth(source_device_combobox.sizeHint().height())
+        self.source_settings_button.setFixedHeight(source_device_combobox.sizeHint().height())
         self.source_settings_button.setToolTip("Settings")
 
         self.source_preview_button = QPushButton(QIcon(ICON_EYE), "")
         self.source_preview_button.setEnabled(False)
-        self.source_preview_button.setFixedWidth(self.source_preview_button.sizeHint().height())
+        self.source_preview_button.setFixedWidth(source_device_combobox.sizeHint().height())
+        self.source_preview_button.setFixedHeight(source_device_combobox.sizeHint().height())
         self.source_preview_button.setToolTip("Source Preview")
 
         layout = QGridLayout()
@@ -179,6 +182,10 @@ class DevicesSetupWidget(QWidget):
 
 
 class ProgressBar(QWidget):
+    """
+    Progress bar widget with time text
+    """
+
     def __init__(self, parent=None):
         super().__init__(parent)
         grid = QGridLayout()
@@ -217,6 +224,10 @@ class LinspaceWidget(QWidget):
     Function:
         value(): np.ndarray
             Array of np.linspace values.
+
+    Signals:
+        valueChanged: Signal(np.ndarray)
+            Signal changing values
     """
 
     valueChanged = Signal(np.ndarray)
@@ -245,7 +256,8 @@ class LinspaceWidget(QWidget):
         self.num_spinbox.valueChanged.connect(self._on_value_changed)
 
         self.help_button = QPushButton("?", self)
-        self.help_button.setFixedWidth(self.help_button.sizeHint().height())
+        self.help_button.setFixedWidth(self.num_spinbox.sizeHint().height())
+        self.help_button.setFixedHeight(self.num_spinbox.sizeHint().height())
         self.help_button.clicked.connect(lambda: QToolTip.showText(QCursor.pos(), f"{np.array2string(self.value(), precision=4, separator=', ')}"))
 
         layout = QHBoxLayout()
@@ -342,6 +354,35 @@ class NSpinBoxesWidget(QWidget):
 
 
 class OrientationWidget(QWidget):
+    """
+    Widget for rotation and mirroring
+
+    Parameter:
+        rotation: Rotation = Rotation.UP
+            Rotation radio buttons.
+        flip: Flip = Flip.NEG
+            Flip checkboxes
+
+    Function:
+        get_flip(self) -> Flip:
+            flip
+        
+        set_flip(self, flip: Flip):
+            set flip
+
+        get_rotation(self) -> Rotation:
+            get orientation
+        
+        set_rotation(self, rotation: Rotation):
+            set orientation
+
+    Signals:
+        rotationChanged = Signal(Rotation)
+            Signal changing rotation
+
+        flipChanged = Signal(Flip)
+            Signal changing flip
+    """
 
     rotationChanged = Signal(Rotation)
     flipChanged = Signal(Flip)
@@ -376,7 +417,7 @@ class OrientationWidget(QWidget):
         self.flip_checkbox.stateChanged.connect(self._on_flip_change)
 
     @Slot()
-    def _on_rotation_changed(self, index:int):
+    def _on_rotation_changed(self, index: int):
         mapping = [Rotation.UP, Rotation.RIGHT, Rotation.DOWN, Rotation.LEFT]
         self._rotation = mapping[index]
         self.rotationChanged.emit(self._rotation)
@@ -402,73 +443,26 @@ class OrientationWidget(QWidget):
         self.rotate_buttons[rotation].setChecked(True)
 
 
-class SquareROIWidget(QWidget):
-    roiMoveClicked = Signal(int, int)  # (dx, dy)
-
-    def __init__(self, roi: dict[str, tuple[int, int]], parent=None):
-        super().__init__(parent)
-
-        # --- spinbox ---
-        Δ_spinbox = QSpinBox(self)
-        Δ_spinbox.setRange(1, 100)
-        Δ_spinbox.setSingleStep(8)
-        Δ_spinbox.setSuffix(" px")
-        Δ_spinbox.setFixedWidth(75)
-
-        # --- directional buttons ---
-        up_button = QPushButton("", self)
-        up_button.setFixedWidth(up_button.sizeHint().height())
-        up_button.setIcon(QIcon(ICON_UP_ARROW))
-        up_button.setToolTip("Move ROI up")
-
-        down_button = QPushButton("", self)
-        down_button.setFixedWidth(down_button.sizeHint().height())
-        down_button.setIcon(QIcon(ICON_DOWN_ARROW))
-        down_button.setToolTip("Move ROI down")
-
-        left_button = QPushButton("", self)
-        left_button.setFixedWidth(left_button.sizeHint().height())
-        left_button.setIcon(QIcon(ICON_LEFT_ARROW))
-        left_button.setToolTip("Move ROI left")
-
-        right_button = QPushButton("", self)
-        right_button.setFixedWidth(right_button.sizeHint().height())
-        right_button.setIcon(QIcon(ICON_RIGHT_ARROW))
-        right_button.setToolTip("Move ROI right")
-
-        # --- ROI value label ---
-        self.value_label = QLabel("", self)
-        self.value_label.setToolTip("Region of interest [(x1,y1),(x2,y2)]")
-
-        self.set_roi(roi)
-
-        # --- layout ---
-        layout = QHBoxLayout()
-        layout.addWidget(Δ_spinbox)
-        layout.addWidget(up_button)
-        layout.addWidget(down_button)
-        layout.addWidget(left_button)
-        layout.addWidget(right_button)
-        layout.addWidget(self.value_label)
-        layout.addItem(QSpacerItem(10, 10, QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Maximum))
-        layout.setContentsMargins(0, 0, 0, 0)
-        self.setLayout(layout)
-
-        # --- connect handlers ---
-        up_button.clicked.connect(lambda: self._emit_moved(0, -Δ_spinbox.value()))
-        down_button.clicked.connect(lambda: self._emit_moved(0, Δ_spinbox.value()))
-        left_button.clicked.connect(lambda: self._emit_moved(-Δ_spinbox.value(), 0))
-        right_button.clicked.connect(lambda: self._emit_moved(Δ_spinbox.value(), 0))
-
-    def _emit_moved(self, dx: int, dy: int):
-        self.roiMoveClicked.emit(dx, dy)
-
-    def set_roi(self, roi):
-        br, tl = roi["br"], roi["tl"]
-        self.value_label.setText(f"[({br[0]}, {br[1]}),({tl[0]}, {tl[1]})]")
-
-
 class ROIWidget(QWidget):
+    """
+    Widget for Region of interest
+
+    Parameter:
+        roi: dict[str, tuple[int, int]]
+            Region of interest
+        step: int = 8
+            step
+
+    Function:
+        set_roi(self, roi: dict[str, tuple[int, int]])
+            set roi
+
+    Signals:
+        roiMoveClicked = Signal(int, int)
+            Signal moving roi
+
+    """
+
     roiMoveClicked = Signal(int, int)  # (dx, dy)
 
     def __init__(self, roi: dict[str, tuple[int, int]], step: int = 8, parent=None):
@@ -483,22 +477,26 @@ class ROIWidget(QWidget):
 
         # --- directional buttons ---
         up_button = QPushButton("", self)
-        up_button.setFixedWidth(up_button.sizeHint().height())
+        up_button.setFixedWidth(Δ_spinbox.sizeHint().height())
+        up_button.setFixedHeight(Δ_spinbox.sizeHint().height())
         up_button.setIcon(QIcon(ICON_UP_ARROW))
         up_button.setToolTip("Move ROI up")
 
         down_button = QPushButton("", self)
-        down_button.setFixedWidth(down_button.sizeHint().height())
+        down_button.setFixedWidth(Δ_spinbox.sizeHint().height())
+        down_button.setFixedHeight(Δ_spinbox.sizeHint().height())
         down_button.setIcon(QIcon(ICON_DOWN_ARROW))
         down_button.setToolTip("Move ROI down")
 
         left_button = QPushButton("", self)
-        left_button.setFixedWidth(left_button.sizeHint().height())
+        left_button.setFixedWidth(Δ_spinbox.sizeHint().height())
+        left_button.setFixedHeight(Δ_spinbox.sizeHint().height())
         left_button.setIcon(QIcon(ICON_LEFT_ARROW))
         left_button.setToolTip("Move ROI left")
 
         right_button = QPushButton("", self)
-        right_button.setFixedWidth(right_button.sizeHint().height())
+        right_button.setFixedWidth(Δ_spinbox.sizeHint().height())
+        right_button.setFixedHeight(Δ_spinbox.sizeHint().height())
         right_button.setIcon(QIcon(ICON_RIGHT_ARROW))
         right_button.setToolTip("Move ROI right")
 
@@ -535,6 +533,25 @@ class ROIWidget(QWidget):
 
 
 class CenterWidget(QWidget):
+    """
+    Widget for center
+
+    Parameter:
+        center: tuple[int, int]
+            center
+        step: int = 8
+            step size
+
+    Function:
+        set_center(self, center: tuple[int, int]):
+            set center
+
+    Signals:
+        centerMoveClicked = Signal(int, int)
+            Signal moving center
+
+    """
+
     centerMoveClicked = Signal(int, int)  # (dx, dy)
 
     def __init__(self, center: tuple[int, int], step: int = 8, parent=None):
@@ -549,22 +566,26 @@ class CenterWidget(QWidget):
 
         # --- directional buttons ---
         up_button = QPushButton("", self)
-        up_button.setFixedWidth(up_button.sizeHint().height())
+        up_button.setFixedWidth(Δ_spinbox.sizeHint().height())
+        up_button.setFixedHeight(Δ_spinbox.sizeHint().height())
         up_button.setIcon(QIcon(ICON_UP_ARROW))
         up_button.setToolTip("Move ROI up")
 
         down_button = QPushButton("", self)
-        down_button.setFixedWidth(down_button.sizeHint().height())
+        down_button.setFixedWidth(Δ_spinbox.sizeHint().height())
+        down_button.setFixedHeight(Δ_spinbox.sizeHint().height())
         down_button.setIcon(QIcon(ICON_DOWN_ARROW))
         down_button.setToolTip("Move ROI down")
 
         left_button = QPushButton("", self)
-        left_button.setFixedWidth(left_button.sizeHint().height())
+        left_button.setFixedWidth(Δ_spinbox.sizeHint().height())
+        left_button.setFixedHeight(Δ_spinbox.sizeHint().height())
         left_button.setIcon(QIcon(ICON_LEFT_ARROW))
         left_button.setToolTip("Move ROI left")
 
         right_button = QPushButton("", self)
-        right_button.setFixedWidth(right_button.sizeHint().height())
+        right_button.setFixedWidth(Δ_spinbox.sizeHint().height())
+        right_button.setFixedHeight(Δ_spinbox.sizeHint().height())
         right_button.setIcon(QIcon(ICON_RIGHT_ARROW))
         right_button.setToolTip("Move ROI right")
 
@@ -600,6 +621,19 @@ class CenterWidget(QWidget):
 
 
 class ValueSetWidget(QWidget):
+    """
+    Widget for changing an integer value
+
+    Function:
+        setValue(self, value: int):
+            set value
+
+    Signals:
+        valueSetClicked = Signal(int)
+            Signal changing value
+
+    """
+
     valueSetClicked = Signal(int)
 
     def __init__(self, parent=None):
@@ -630,9 +664,22 @@ class ValueSetWidget(QWidget):
 
 
 class DoubleValueSetWidget(QWidget):
+    """
+    Widget for changing an float value
+
+    Function:
+        setValue(self, value: float):
+            set value
+
+    Signals:
+        valueSetClicked = Signal(float)
+            Signal changing value
+
+    """
+
     valueSetClicked = Signal(float)
 
-    def __init__(self, suffix:str="", parent=None):
+    def __init__(self, suffix: str = "", parent=None):
         super().__init__(parent)
         self.suffix = suffix
         self.spinbox = QDoubleSpinBox(self)
@@ -765,20 +812,23 @@ class TaskControlsWidget(QWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
 
+        self.progressbar = ProgressBar(self)
+
         self.play_pause_button = QPushButton(QIcon(ICON_RUN), "", parent=self)
-        self.play_pause_button.setFixedWidth(self.play_pause_button.sizeHint().height())
+        self.play_pause_button.setFixedHeight(self.progressbar.bar.sizeHint().height())
+        self.play_pause_button.setFixedWidth(self.progressbar.bar.sizeHint().height())
         self.play_pause_button.setToolTip("Run Process")
         self.play_pause_button.setEnabled(False)
 
-        self.progressbar = ProgressBar(self)
-
         self.preview_button = QPushButton(QIcon(ICON_EYE), "", parent=self)
-        self.preview_button.setFixedWidth(self.preview_button.sizeHint().height())
+        self.preview_button.setFixedHeight(self.progressbar.bar.sizeHint().height())
+        self.preview_button.setFixedWidth(self.progressbar.bar.sizeHint().height())
         self.preview_button.setToolTip("Preview")
         self.preview_button.setEnabled(False)
 
         self.info_button = QPushButton(QIcon(ICON_INFO), "", parent=self)
-        self.info_button.setFixedWidth(self.play_pause_button.sizeHint().height())
+        self.info_button.setFixedHeight(self.progressbar.bar.sizeHint().height())
+        self.info_button.setFixedWidth(self.progressbar.bar.sizeHint().height())
         self.info_button.setToolTip("Info")
         self.info_button.setEnabled(False)
 

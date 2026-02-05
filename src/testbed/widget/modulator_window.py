@@ -22,11 +22,13 @@ PRESETS = ["Constant", "Gradient", "Checker", "Sinusoid", "Box", "Polka", "Regis
 # ==== PreviewSettingsWindow ==========================================================================================
 class PreviewSettingsWindow(Window):
     """
-    Preview Settings Window
+    Settings for the modulator preview window
     """
 
-    def __init__(self, parent=None):
+    def __init__(self, cmap: str, parent=None):
         super().__init__(parent, Qt.WindowType.Dialog)
+        self.cmap = cmap
+
         self.setWindowModality(Qt.WindowModality.WindowModal)
         self.setWindowTitle("Preview Settings")
         layout = QVBoxLayout()
@@ -42,6 +44,7 @@ class PreviewSettingsWindow(Window):
         cmap_label = QLabel("Colormap", self)
         self.cmap_combobox = QComboBox(self)
         self.cmap_combobox.addItems(list(colormaps))
+        self.cmap_combobox.setCurrentIndex(list(colormaps).index(self.cmap))
 
         row = 0
         col = 0
@@ -55,7 +58,7 @@ class PreviewSettingsWindow(Window):
 # ==== PreviewWindow ==================================================================================================
 class PreviewWindow(Window):
     """
-    Modulator Preview Window
+    Modulator preview window
     """
 
     def __init__(self, modulator: Modulator, parent: QWidget | None = None):
@@ -103,7 +106,7 @@ class PreviewWindow(Window):
 
     @Slot()
     def on_preview_settings_clicked(self):
-        preview_settings_window = PreviewSettingsWindow(self)
+        preview_settings_window = PreviewSettingsWindow(cmap=self.preview_figure_widget.cmap_name, parent=self)
         preview_settings_window.show()
         preview_settings_window.raise_()
         preview_settings_window.activateWindow()
@@ -111,7 +114,7 @@ class PreviewWindow(Window):
 
     @Slot(str)
     def on_cmap_changed(self, colormap: str):
-        self.preview_figure_widget.figure.get_image().set_cmap(colormap)
+        self.preview_figure_widget.set_cmap(colormap)
 
     @Slot()
     def on_update_timer_tick(self):
@@ -129,7 +132,7 @@ class PreviewWindow(Window):
 # ==== InfoWindow =====================================================================================================
 class InfoWindow(Window):
     """
-    Modulator Info Window
+    Modulator info window
     """
 
     def __init__(self, modulator: Modulator, parent: QWidget | None = None):
@@ -339,6 +342,9 @@ class InfoWindow(Window):
 
 # ==== SettingsWindow =================================================================================================
 class SettingsWindow(Window):
+    """
+    Modulator settings window
+    """
 
     def __init__(self, modulator: Modulator, parent: QWidget | None = None):
         super().__init__(parent, Qt.WindowType.Dialog)
@@ -396,7 +402,7 @@ class SettingsWindow(Window):
 
         radius_label = QLabel("Radius", self)
         radius_label.setFixedWidth(100)
-        radius_widget = DoubleValueSetWidget(self.modulator.radius, self)
+        radius_widget = DoubleValueSetWidget(suffix=" px", parent=self)
         radius_widget.spinbox.setRange(1, self.modulator.max_radius)
         radius_widget.spinbox.setSingleStep(1)
         radius_widget.spinbox.setDecimals(1)

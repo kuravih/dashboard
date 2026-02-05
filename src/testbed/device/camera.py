@@ -26,10 +26,10 @@ class Camera(Device):
         if self._stream.port != -1:
             self._link = ZMQLink(port=self._stream.port)
             self._link.connect()
+            self._settings = self.sync_settings()
         self._sample = SourceSample(self.last_access_time, self.exposure_time_s, self.gain, self.frame_rate_fps, self.temperature_c, self.roi, self.blank)
         self.wait_for_request = self._stream.wait_for_request
         self.post_response = self._stream.post_response
-        self._settings = self.sync_settings()
 
     @property
     def kind(self) -> Stream.Kind:

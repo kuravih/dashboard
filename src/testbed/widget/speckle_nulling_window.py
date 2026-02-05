@@ -94,13 +94,15 @@ class ProcessSettingsWidget(QWidget):
         self.speckle_calibration_lineedit.setToolTip("Speckle calibration file")
 
         self.speckle_calibration_browse_button = QPushButton("", self)
-        self.speckle_calibration_browse_button.setFixedWidth(self.speckle_calibration_browse_button.sizeHint().height())
+        self.speckle_calibration_browse_button.setFixedWidth(self.speckle_calibration_lineedit.sizeHint().height())
+        self.speckle_calibration_browse_button.setFixedHeight(self.speckle_calibration_lineedit.sizeHint().height())
         self.speckle_calibration_browse_button.setIcon(QIcon(ICON_FOLDER))
         self.speckle_calibration_browse_button.setToolTip("Open calibration file")
 
         self.speckle_calibration_clear_button = QPushButton("", self)
         self.speckle_calibration_clear_button.setIcon(QIcon(ICON_BACKSPACE))
-        self.speckle_calibration_clear_button.setFixedWidth(self.speckle_calibration_clear_button.sizeHint().height())
+        self.speckle_calibration_clear_button.setFixedWidth(self.speckle_calibration_lineedit.sizeHint().height())
+        self.speckle_calibration_clear_button.setFixedHeight(self.speckle_calibration_lineedit.sizeHint().height())
         self.speckle_calibration_clear_button.setToolTip("Remove calibration file")
 
         self.speckle_calibration_clear_button.hide()

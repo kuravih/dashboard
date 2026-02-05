@@ -10,6 +10,7 @@ from pykato.log import setup_logger
 from skimage.feature import peak_local_max
 from skimage.morphology import disk, dilation
 from skimage.measure import label, regionprops
+from astropy.io import fits
 
 logger = setup_logger("function", terminator="\n")
 
@@ -237,13 +238,35 @@ def is_speckle_calibration_file_valid(speck_cal_filepath: str) -> bool:
     return True
 
 
-def sin_fit_fn(x, amplitude, frequency, phase, offset):
+def sin_fit_fn(x, amplitude:float, frequency:float, phase:float, offset:float):
     return amplitude * np.sin(frequency * x + phase) + offset
 
 
-def constrained_sin_fit_fn(x, amplitude, phase, offset):
+def constrained_sin_fit_fn(x, amplitude:float, phase:float, offset:float):
     return sin_fit_fn(x, amplitude, 1, phase, offset)
 
 
-def quadratic_fit_fn(x, a, b, c):
+def quadratic_fit_fn(x, a:float, b:float, c:float):
     return a * x * x + b * x + c
+
+
+def linear_fit_fn(x, m:float, c:float):
+    return m * x + c
+
+
+def write_camera_calibration_file(filename: str, dark_rate: np.ndarray, bias: np.ndarray, read_noise: np.ndarray):
+    fits_dr_rn = np.stack([dark_rate, bias, read_noise], axis=0)
+    fits_dr_rn_hdu = fits.PrimaryHDU(fits_dr_rn)
+    fits_dr_rn_hdu.header["NFRAME"] = 3
+    fits_dr_rn_hdu.header["FRAME0"] = "dark_rate"
+    fits_dr_rn_hdu.header["FRAME1"] = "bias"
+    fits_dr_rn_hdu.header["FRAME2"] = "read_noise"
+    fits_dr_rn_hdu.writeto(filename, overwrite=True)
+
+
+def read_camera_calibration_file(filename: str):
+    with fits.open(filename) as hdul:
+        dark_rate_data = hdul[0].data[0]
+        bias_data = hdul[0].data[1]
+        read_noise_data = hdul[0].data[2]
+    return dark_rate_data, bias_data, read_noise_data

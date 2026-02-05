@@ -34,7 +34,7 @@ logger = setup_logger(f"{_PROCESS_}_window", terminator="\n")
 
 class ProcessSettingsWidget(QWidget):
     """
-    Re-centering Process Settings
+    Re-centering process settings window
     """
 
     def __init__(self, parent=None):
@@ -89,7 +89,7 @@ class ProcessSettingsWidget(QWidget):
 
 class ProcessInfoSettingsWindow(Window):
     """
-    Process Info Settings Window
+    Settings for the re-centering process info window
     """
 
     def __init__(self, src_cmap: str, src_cmap_log: bool, snk_cmap: str, parent=None):
@@ -97,6 +97,7 @@ class ProcessInfoSettingsWindow(Window):
         self.src_cmap = src_cmap
         self.src_cmap_log = src_cmap_log
         self.snk_cmap = snk_cmap
+
         self.setWindowModality(Qt.WindowModality.WindowModal)
         self.setWindowTitle("Process Info Settings")
         layout = QVBoxLayout()
@@ -147,7 +148,7 @@ class ProcessInfoSettingsWindow(Window):
 
 class ProcessInfoWindow(Window):
     """
-    Re-centering Process Information Window
+    Re-centering process info window
     """
 
     def __init__(self, source_sample: SourceSample, sink_sample: SinkSample, parent: QWidget | None = None):
@@ -238,7 +239,7 @@ class ProcessInfoWindow(Window):
 
 class ProcessWindow(Window):
     """
-    Simple Process Window
+    Re-centering process window
     """
 
     def __init__(self, parent=None):

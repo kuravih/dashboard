@@ -94,9 +94,27 @@ class SinkFigureWidget(FigureWidget):
 
     def __init__(self, frame: np.ndarray, pxmax: float, show_toolbar: bool = False, parent=None):
         super().__init__(Imshow_Colorbar_Preset(frame), show_toolbar, parent)
+        self.cmap_name: str = "bwr"
+
         self.figure.get_image().set_clim(0, pxmax)
         self.figure.get_imshow_ax().set_title("Sink", size=10)
         self.setMinimumSize(100, 100)
+
+        self.set_cmap(self.cmap_name)
+
+    @property
+    def cmap_name(self) -> str:
+        return self._cmap_name
+
+    @cmap_name.setter
+    def cmap_name(self, value: str):
+        self._cmap_name = value
+        self._cmap = mpl.colormaps[value].copy()
+        self._cmap.set_bad(color="black")
+
+    def set_cmap(self, cmap_name: str):
+        self.cmap_name = cmap_name
+        self.figure.get_image().set_cmap(self._cmap)
 
 
 class MirrorFigureWidget(SinkFigureWidget):
@@ -109,7 +127,6 @@ class MirrorFigureWidget(SinkFigureWidget):
         self.figure.get_imshow_ax().set_title("DM")
         self.figure.get_imshow_ax().set_xlabel("act", size=10)
         self.figure.get_imshow_ax().set_ylabel("act", size=10)
-        self.figure.get_image().set_cmap("bwr")
         self.figure.get_imshow_ax().axhline(4.5, alpha=0.25, linewidth=0.5, color="white")
         self.figure.get_imshow_ax().axhline(10.5, alpha=0.25, linewidth=0.5, color="white")
         self.figure.get_imshow_ax().axhline(16.5, alpha=0.25, linewidth=0.5, color="white")
@@ -134,7 +151,6 @@ class ModulatorFigureWidget(SinkFigureWidget):
         self.figure.get_imshow_ax().set_title("SLM", size=10)
         self.figure.get_imshow_ax().set_xlabel("px", size=10)
         self.figure.get_imshow_ax().set_ylabel("px", size=10)
-        self.figure.get_image().set_cmap("bwr")
         self.figure.get_cbar_ax().set_title("adu", size=10)
         self.figure.get_imshow_ax().axhline(frame.shape[0] / 2 - 0.5, alpha=0.25, linewidth=0.5, color="white")
         self.figure.get_imshow_ax().axvline(frame.shape[1] / 2 - 0.5, alpha=0.25, linewidth=0.5, color="white")
@@ -149,16 +165,50 @@ class SourceFigureWidget(FigureWidget):
 
     def __init__(self, frame: np.ndarray, pxmax: float, show_toolbar: bool = False, parent=None):
         super().__init__(Imshow_Colorbar_Preset(frame), show_toolbar, parent)
+        self.cmap_name: str = "hot"
+        self.cmap_log: bool = True
+
         self.figure.get_image().set_clim(0, pxmax)
         self.figure.get_imshow_ax().set_title("Source", size=10)
         self.figure.get_imshow_ax().set_xlabel("px", size=10)
         self.figure.get_imshow_ax().set_ylabel("px", size=10)
-        self.figure.get_image().set_cmap("hot")
         self.figure.get_cbar_ax().set_title("adu", size=10)
         self.figure.get_imshow_ax().axhline(frame.shape[0] / 2, alpha=0.25, linewidth=0.5, color="white")
         self.figure.get_imshow_ax().axvline(frame.shape[1] / 2, alpha=0.25, linewidth=0.5, color="white")
         self.figure.get_imshow_ax().add_patch(patches.Circle((frame.shape[0] / 2, frame.shape[1] / 2), radius=225, fill=False, alpha=0.25, linewidth=0.5, color="white", transform=self.figure.get_imshow_ax().transData))
         self.setMinimumSize(100, 100)
+
+        self.set_cmap(self.cmap_name)
+        self.set_cmap_norm(self.cmap_log)
+
+    @property
+    def cmap_name(self) -> str:
+        return self._cmap_name
+
+    @cmap_name.setter
+    def cmap_name(self, value: str):
+        self._cmap_name = value
+        self._cmap = mpl.colormaps[value].copy()
+        self._cmap.set_bad(color="black")
+
+    def set_cmap(self, cmap_name: str):
+        self.cmap_name = cmap_name
+        self.figure.get_image().set_cmap(self._cmap)
+
+    @property
+    def cmap_log(self) -> bool:
+        return self._cmap_log
+
+    @cmap_log.setter
+    def cmap_log(self, value: bool):
+        self._cmap_log = value
+
+    def set_cmap_norm(self, checked: bool):
+        self.cmap_log = checked
+        if self.cmap_log:
+            self.figure.get_image().set_norm(LogNorm(vmin=1, vmax=2**12 - 1))
+        else:
+            self.figure.get_image().set_norm(Normalize(vmin=1, vmax=2**12 - 1))
 
 
 class ContrastFigureWidget(FigureWidget):
@@ -465,7 +515,6 @@ class RecenteringFigureWidget(FigureWidget):
         imshow_ax_snk.axhline(command.shape[0] / 2 - 0.5, alpha=0.25, linewidth=0.5, color="white")
         imshow_ax_snk.axvline(command.shape[1] / 2 - 0.5, alpha=0.25, linewidth=0.5, color="white")
         imshow_ax_snk.add_patch(patches.Circle((command.shape[0] / 2 - 0.5, command.shape[1] / 2 - 0.5), radius=command.shape[1] / 2, fill=False, alpha=0.25, linewidth=0.5, color="white", transform=imshow_ax_snk.transData))
-        imshow_ax_snk.invert_yaxis()
         self.image_snk.set_data(command)
 
         cbar_ax_snk.set_title("adu", size=10)
@@ -480,7 +529,6 @@ class RecenteringFigureWidget(FigureWidget):
         self.center_circle = imshow_ax_src.add_patch(patches.Circle((capture.shape[0] / 2, capture.shape[1] / 2), radius=capture.shape[1] / 2, fill=False, alpha=0.25, linewidth=0.5, color="white", transform=imshow_ax_src.transData))
         self.image_src.set_data(capture)
         imshow_ax_src.set_facecolor("black")
-        imshow_ax_src.invert_yaxis()
 
         cbar_ax_src.set_title("adu", size=10)
 
