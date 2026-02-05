@@ -30,10 +30,10 @@ class PreviewSettingsWindow(Window):
         self.setWindowTitle("Preview Settings")
         layout = QVBoxLayout()
         layout.setContentsMargins(2, 2, 2, 2)
-        layout.addWidget(self.setup_settings_widget())
+        layout.addWidget(self.setup_preview_settings_widget())
         self.setLayout(layout)
 
-    def setup_settings_widget(self) -> QWidget:
+    def setup_preview_settings_widget(self) -> QWidget:
         widget = QWidget(self)
         layout = QGridLayout(widget)
         widget.setLayout(layout)
@@ -413,7 +413,7 @@ class SettingsWindow(Window):
 
         layout = QVBoxLayout()
         layout.setContentsMargins(2, 2, 2, 2)
-        layout.addWidget(self.setup_control_widget())
+        layout.addWidget(self.setup_settings_widget())
         self.setLayout(layout)
 
     @property
@@ -428,7 +428,7 @@ class SettingsWindow(Window):
     def on_sampled(self, _sample: SourceSample):
         self._sample = _sample
 
-    def setup_control_widget(self):
+    def setup_settings_widget(self):
         widget = QWidget(self)
         layout = QGridLayout(widget)
         widget.setLayout(layout)
