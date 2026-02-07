@@ -1,15 +1,15 @@
-from enum import Enum, auto
-from collections.abc import Iterator
+from collections.abc import Iterator, Callable
 import numpy as np
 import time
-from PySide6.QtWidgets import QWidget, QHBoxLayout, QVBoxLayout, QDoubleSpinBox, QSpinBox, QComboBox, QPushButton, QLabel, QProgressBar, QGridLayout, QSpacerItem, QSizePolicy, QToolTip, QRadioButton, QButtonGroup, QCheckBox
-from PySide6.QtCore import Signal, Slot, Qt
+from PySide6.QtWidgets import QWidget, QHBoxLayout, QVBoxLayout, QDoubleSpinBox, QSpinBox, QComboBox, QPushButton, QLabel, QProgressBar, QGridLayout, QSpacerItem, QSizePolicy, QToolTip, QRadioButton, QButtonGroup, QCheckBox, QLineEdit, QFileDialog, QMessageBox
+from PySide6.QtCore import Signal, Slot, Qt, QFileInfo
 from PySide6.QtGui import QIcon, QCursor
 
 from ..device import Device
 from ..device.camera import Camera
 from ..device.modulator import Modulator
-from ..widget.resource import ICON_RUN, ICON_EYE, ICON_UP_ARROW, ICON_DOWN_ARROW, ICON_LEFT_ARROW, ICON_RIGHT_ARROW, ICON_INFO, ICON_GEAR
+from ..widget.resource import ICON_RUN, ICON_EYE, ICON_UP_ARROW, ICON_DOWN_ARROW, ICON_LEFT_ARROW, ICON_RIGHT_ARROW, ICON_INFO, ICON_GEAR, ICON_FOLDER, ICON_BACKSPACE
+from ..widget.dialog import MessageDialog
 from ..function import Rotation, Flip
 
 
@@ -840,3 +840,77 @@ class TaskControlsWidget(QWidget):
         layout.addStretch()
 
         self.setLayout(layout)
+
+class FileLoadWidget(QWidget):
+    """
+    File load widget
+    """
+    fileChanged = Signal()
+
+    def __init__(self, caption:str="", directory:str=".", file_filter="", validator: Callable[[str], bool] = lambda _: True, parent=None):
+        super().__init__(parent)
+        self.filepath: str | None = None
+
+        self.file_lineedit = QLineEdit(self)
+        self.file_lineedit.setEnabled(False)
+        self.file_lineedit.setText("")
+        self.file_lineedit.setToolTip("File")
+
+        self.file_browse_button = QPushButton("", self)
+        self.file_browse_button.setFixedWidth(self.file_lineedit.sizeHint().height())
+        self.file_browse_button.setFixedHeight(self.file_lineedit.sizeHint().height())
+        self.file_browse_button.setIcon(QIcon(ICON_FOLDER))
+        self.file_browse_button.setToolTip("Browse")
+
+        self.file_clear_button = QPushButton("", self)
+        self.file_clear_button.setIcon(QIcon(ICON_BACKSPACE))
+        self.file_clear_button.setFixedWidth(self.file_lineedit.sizeHint().height())
+        self.file_clear_button.setFixedHeight(self.file_lineedit.sizeHint().height())
+        self.file_clear_button.setToolTip("Clear")
+        self.file_clear_button.hide()
+
+        @Slot()
+        def on_browse_clicked():
+            dialog_filename, _ = QFileDialog.getOpenFileName(self, caption, directory, file_filter, options=QFileDialog.Option.DontUseNativeDialog | QFileDialog.Option.ReadOnly)
+            if dialog_filename:
+                file_info = QFileInfo(dialog_filename)
+                filename = file_info.fileName()
+                self.filepath = f"{file_info.absolutePath()}/{filename}"
+                if validator(self.filepath):
+                    self.file_lineedit.setText(filename)
+                    self.file_browse_button.hide()
+                    self.file_clear_button.show()
+                else:
+                    message_dialog = MessageDialog("Invalid Calibration", "File invalid.", icon=QMessageBox.Icon.Information, buttons=QMessageBox.StandardButton.Ok)
+                    message_dialog.exec()
+                self.fileChanged.emit()
+
+        self.file_browse_button.clicked.connect(on_browse_clicked)
+
+        @Slot()
+        def on_clear_clicked():
+            self.filepath = None
+            self.file_lineedit.setText("")
+            self.file_browse_button.show()
+            self.file_clear_button.hide()
+            self.fileChanged.emit()
+
+        self.file_clear_button.clicked.connect(on_clear_clicked)
+
+        layout = QHBoxLayout()
+        layout.addWidget(self.file_lineedit, stretch=1)
+        layout.addWidget(self.file_browse_button)
+        layout.addWidget(self.file_clear_button)
+        layout.addStretch()
+
+        self.setLayout(layout)
+
+    def setFilepath(self, filepath: str| None):
+        self.filepath = filepath
+        self.file_lineedit.setText(self.filepath)
+        if self.filepath is None:
+            self.file_browse_button.show()
+            self.file_clear_button.hide()
+        else:
+            self.file_browse_button.hide()
+            self.file_clear_button.show()

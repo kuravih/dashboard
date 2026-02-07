@@ -20,6 +20,7 @@ from testbed.widget.speckle_calibration_window import ProcessWindow as SpeckleCa
 from testbed.widget.speckle_nulling_window import ProcessWindow as SpeckleNullingWindow
 from testbed.widget.recenter_window import ProcessWindow as RecenterWindow
 from testbed.widget.camera_calibration_window import ProcessWindow as CameraCalibrationWindow
+from testbed.widget.dotf_sense_window import ProcessWindow as DOTFSenseWindow
 
 from testbed.widget.dialog import MessageDialog
 from testbed.widget.resource import ICON_EYE, ICON_GEAR, ICON_INFO, ICON_PLAY, ICON_PAUSE
@@ -55,16 +56,19 @@ class MainWindow(QMainWindow):
         simple_loop_button.clicked.connect(self.on_simple_loop_clicked)
 
         speckle_calibration_button = QPushButton("Speckle Calibration Process")
-        speckle_calibration_button.clicked.connect(self.open_speckle_calibration_clicked)
+        speckle_calibration_button.clicked.connect(self.on_open_speckle_calibration_clicked)
 
         speckle_nulling_button = QPushButton("Speckle Nulling Process")
-        speckle_nulling_button.clicked.connect(self.open_speckle_nulling_clicked)
+        speckle_nulling_button.clicked.connect(self.on_open_speckle_nulling_clicked)
 
         recenter_button = QPushButton("Recenter Process")
-        recenter_button.clicked.connect(self.open_recenter_clicked)
+        recenter_button.clicked.connect(self.on_open_recenter_clicked)
 
         camera_calibration_button = QPushButton("Camera Calibration Process")
-        camera_calibration_button.clicked.connect(self.open_camera_calibration_clicked)
+        camera_calibration_button.clicked.connect(self.on_open_camera_calibration_clicked)
+
+        dotf_sense_button = QPushButton("DOTF sense Process")
+        dotf_sense_button.clicked.connect(self.on_open_dotf_sense_clicked)
 
         device_button_layout = QHBoxLayout()
         device_button_layout.addWidget(add_device_button)
@@ -80,6 +84,7 @@ class MainWindow(QMainWindow):
         layout.addWidget(speckle_nulling_button)
         layout.addWidget(recenter_button)
         layout.addWidget(camera_calibration_button)
+        layout.addWidget(dotf_sense_button)
         self.setCentralWidget(container)
 
     def open_device_preview_window(self, _device: Camera | Modulator):
@@ -290,7 +295,7 @@ class MainWindow(QMainWindow):
             testbed.data.windows[simple_loop_window_id] = simple_loop_window
 
     @Slot()
-    def open_speckle_calibration_clicked(self):
+    def on_open_speckle_calibration_clicked(self):
 
         speckle_calibration_window_id = f"{testbed.SPECKLE_CALIBRATION}_window"
 
@@ -307,7 +312,7 @@ class MainWindow(QMainWindow):
             testbed.data.windows[speckle_calibration_window_id] = speckle_calibration_window
 
     @Slot()
-    def open_speckle_nulling_clicked(self):
+    def on_open_speckle_nulling_clicked(self):
 
         speckle_nulling_window_id = f"{testbed.SPECKLE_NULLING}_window"
 
@@ -324,7 +329,7 @@ class MainWindow(QMainWindow):
             testbed.data.windows[speckle_nulling_window_id] = speckle_nulling_window
 
     @Slot()
-    def open_recenter_clicked(self):
+    def on_open_recenter_clicked(self):
 
         recenter_window_id = f"{testbed.RECENTER}_window"
 
@@ -341,7 +346,7 @@ class MainWindow(QMainWindow):
             testbed.data.windows[recenter_window_id] = recenter_window
 
     @Slot()
-    def open_camera_calibration_clicked(self):
+    def on_open_camera_calibration_clicked(self):
 
         camera_calibration_window_id = f"{testbed.CAMERA_CALIBRATION}_window"
 
@@ -356,6 +361,23 @@ class MainWindow(QMainWindow):
             camera_calibration_window.raise_()
             camera_calibration_window.activateWindow()
             testbed.data.windows[camera_calibration_window_id] = camera_calibration_window
+
+    @Slot()
+    def on_open_dotf_sense_clicked(self):
+
+        dotf_sense_window_id = f"{testbed.DOTF_SENSE}_window"
+
+        @Slot()
+        def on_window_closed():
+            testbed.data.windows.pop(dotf_sense_window_id, None)
+
+        if dotf_sense_window_id not in testbed.data.windows:
+            dotf_sense_window = DOTFSenseWindow(self)
+            dotf_sense_window.destroyed.connect(on_window_closed)
+            dotf_sense_window.show()
+            dotf_sense_window.raise_()
+            dotf_sense_window.activateWindow()
+            testbed.data.windows[dotf_sense_window_id] = dotf_sense_window
 
     def closeEvent(self, event):
         if testbed.data.windows:

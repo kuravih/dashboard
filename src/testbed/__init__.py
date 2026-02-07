@@ -25,6 +25,10 @@ CAMERA_CALIBRATION = "camera_calibration"
 from .widget.camera_calibration_window import ProcessWindow as CameraCalibrationWindow
 from .worker.camera_calibration_worker import ProcessWorker as CameraCalibrationWorker
 
+DOTF_SENSE = "dotf_sense"
+from .widget.dotf_sense_window import ProcessWindow as DOTFSenseWindow
+from .worker.dotf_sense_worker import ProcessWorker as DOTFSenseWorker
+
 from .worker.camera_worker import UpdateWorker as CameraUpdateWorker
 from .worker.modulator_worker import UpdateWorker as ModulatorUpdateWorker
 from .worker.storage_worker import SourceStorageWorker, SinkStorageWorker
@@ -33,8 +37,8 @@ from .worker.storage_worker import SourceStorageWorker, SinkStorageWorker
 class Data:
     threadpool = QThreadPool.globalInstance()
     devices: dict[str, Camera | Modulator] = {}
-    windows: dict[str, CameraPreviewWindow | CameraInfoWindow | CameraSettingsWindow | ModulatorPreviewWindow | ModulatorInfoWindow | ModulatorSettingsWindow | SimpleLoopWindow | SpeckleCalibrationWindow | SpeckleNullingWindow | SpeckleNullingPreviewWindow | SpeckleNullingInfoWindow | RecenterWindow | CameraCalibrationWindow] = {}
-    workers: dict[str, CameraUpdateWorker | ModulatorUpdateWorker | SourceStorageWorker | SinkStorageWorker | SimpleLoopWorker | SpeckleCalibrationWorker | SpeckleNullingWorker | RecenterWorker | CameraCalibrationWorker] = {}
+    windows: dict[str, CameraPreviewWindow | CameraInfoWindow | CameraSettingsWindow | ModulatorPreviewWindow | ModulatorInfoWindow | ModulatorSettingsWindow | SimpleLoopWindow | SpeckleCalibrationWindow | SpeckleNullingWindow | SpeckleNullingPreviewWindow | SpeckleNullingInfoWindow | RecenterWindow | CameraCalibrationWindow | DOTFSenseWindow] = {}
+    workers: dict[str, CameraUpdateWorker | ModulatorUpdateWorker | SourceStorageWorker | SinkStorageWorker | SimpleLoopWorker | SpeckleCalibrationWorker | SpeckleNullingWorker | RecenterWorker | CameraCalibrationWorker | DOTFSenseWorker] = {}
 
 
 data = Data()

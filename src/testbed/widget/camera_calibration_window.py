@@ -1,5 +1,3 @@
-import pickle
-
 import numpy as np
 from pykato.function import timestamp_string
 from pykato.log import setup_logger

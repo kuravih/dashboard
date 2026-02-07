@@ -1,6 +1,5 @@
 from dataclasses import dataclass
 from enum import Enum, auto
-from venv import logger
 import zmq
 import toml
 import numpy as np

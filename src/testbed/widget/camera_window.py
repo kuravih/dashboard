@@ -6,8 +6,8 @@ from pykato.log import setup_logger
 from pykato.plotfunction.preset import Histogram_Colorbar_Preset
 
 from ..device.camera import Camera, SourceSample
-from ..function import Flip, Rotation, flip_rotate
-from ..widget import Window, OrientationWidget, ROIWidget, DoubleValueSetWidget
+from ..function import Flip, Rotation, flip_rotate, is_camera_calibration_file_valid
+from ..widget import Window, OrientationWidget, ROIWidget, DoubleValueSetWidget, FileLoadWidget
 from ..widget.figure_widget import FigureWidget, SourceFigureWidget
 
 logger = setup_logger("camera_window", terminator="\n")
@@ -436,102 +436,119 @@ class SettingsWindow(Window):
         row = 0
         col = 0
 
-        if "temperature_C" in self.camera.settings:
-            # ---- temperature setting --------------------------------------------------------------------------------
-            @Slot(float)
-            def on_temperature_set_clicked(_temperature: float):
-                reply = self.camera.set_temperature_c(_temperature)
-                logger.info("reply = %s", reply)
+        if self.camera.settings is not None: 
+            if "temperature_C" in self.camera.settings:
+                # ---- temperature setting --------------------------------------------------------------------------------
+                @Slot(float)
+                def on_temperature_set_clicked(_temperature: float):
+                    reply = self.camera.set_temperature_c(_temperature)
+                    logger.info("reply = %s", reply)
+                    temperature_widget.setValue(self.camera.temperature_c)
+
+                temperature_label = QLabel("Temperature", self)
+                temperature_label.setFixedWidth(100)
+                temperature_widget = DoubleValueSetWidget(suffix=" \u00b0C", parent=self)
+                temperature_widget.spinbox.setRange(10, 30)
+                temperature_widget.spinbox.setDecimals(1)
+                temperature_widget.spinbox.setSingleStep(0.1)
                 temperature_widget.setValue(self.camera.temperature_c)
+                temperature_widget.spinbox.setToolTip("Temperature (\u00b0C)")
+                temperature_widget.valueSetClicked.connect(on_temperature_set_clicked)
+                # ---- temperature setting --------------------------------------------------------------------------------
 
-            temperature_label = QLabel("Temperature", self)
-            temperature_label.setFixedWidth(100)
-            temperature_widget = DoubleValueSetWidget(suffix=" \u00b0C", parent=self)
-            temperature_widget.spinbox.setRange(10, 30)
-            temperature_widget.spinbox.setDecimals(1)
-            temperature_widget.spinbox.setSingleStep(0.1)
-            temperature_widget.setValue(self.camera.temperature_c)
-            temperature_widget.spinbox.setToolTip("Temperature (\u00b0C)")
-            temperature_widget.valueSetClicked.connect(on_temperature_set_clicked)
-            # ---- temperature setting --------------------------------------------------------------------------------
+                row += 1
+                col = 0
+                layout.addWidget(temperature_label, row, col)
+                col += 1
+                layout.addWidget(temperature_widget, row, col)
 
-            row += 1
-            col = 0
-            layout.addWidget(temperature_label, row, col)
-            col += 1
-            layout.addWidget(temperature_widget, row, col)
+            if "exposureTime_s" in self.camera.settings:
+                # ---- exposure time setting ------------------------------------------------------------------------------
+                @Slot(int)
+                def on_exposure_time_set_clicked(_expTime: float):
+                    reply = self.camera.set_exposure_time_s(_expTime)
+                    logger.info("reply = %s", reply)
+                    expTime_widget.setValue(self.camera.exposure_time_s)
 
-        if "exposureTime_s" in self.camera.settings:
-            # ---- exposure time setting ------------------------------------------------------------------------------
-            @Slot(int)
-            def on_exposure_time_set_clicked(_expTime: float):
-                reply = self.camera.set_exposure_time_s(_expTime)
-                logger.info("reply = %s", reply)
+                expTime_label = QLabel("Exposure Time", self)
+                expTime_label.setFixedWidth(100)
+                expTime_widget = DoubleValueSetWidget(suffix=" s", parent=self)
+                expTime_widget.spinbox.setRange(0, 30000000)
+                expTime_widget.spinbox.setDecimals(6)
+                expTime_widget.spinbox.setSingleStep(0.001)
                 expTime_widget.setValue(self.camera.exposure_time_s)
+                expTime_widget.spinbox.setToolTip("Exposure time (s)")
+                expTime_widget.valueSetClicked.connect(on_exposure_time_set_clicked)
+                # ---- exposure time setting ------------------------------------------------------------------------------
 
-            expTime_label = QLabel("Exposure Time", self)
-            expTime_label.setFixedWidth(100)
-            expTime_widget = DoubleValueSetWidget(suffix=" s", parent=self)
-            expTime_widget.spinbox.setRange(0, 30000000)
-            expTime_widget.spinbox.setDecimals(6)
-            expTime_widget.spinbox.setSingleStep(0.001)
-            expTime_widget.setValue(self.camera.exposure_time_s)
-            expTime_widget.spinbox.setToolTip("Exposure time (s)")
-            expTime_widget.valueSetClicked.connect(on_exposure_time_set_clicked)
-            # ---- exposure time setting ------------------------------------------------------------------------------
+                row += 1
+                col = 0
+                layout.addWidget(expTime_label, row, col)
+                col += 1
+                layout.addWidget(expTime_widget, row, col)
 
-            row += 1
-            col = 0
-            layout.addWidget(expTime_label, row, col)
-            col += 1
-            layout.addWidget(expTime_widget, row, col)
+            if "gain" in self.camera.settings:
 
-        if "gain" in self.camera.settings:
+                # ---- gain setting ---------------------------------------------------------------------------------------
+                @Slot(int)
+                def on_gain_set_clicked(_gain: float):
+                    reply = self.camera.set_gain(_gain)
+                    logger.info("reply = %s", reply)
+                    gain_widget.setValue(self.camera.gain)
 
-            # ---- gain setting ---------------------------------------------------------------------------------------
-            @Slot(int)
-            def on_gain_set_clicked(_gain: float):
-                reply = self.camera.set_gain(_gain)
-                logger.info("reply = %s", reply)
+                gain_label = QLabel("Gain", self)
+                gain_label.setFixedWidth(100)
+                gain_widget = DoubleValueSetWidget(parent=self)
+                gain_widget.spinbox.setRange(0, 10)
+                gain_widget.spinbox.setDecimals(1)
+                gain_widget.spinbox.setSingleStep(0.1)
                 gain_widget.setValue(self.camera.gain)
+                gain_widget.spinbox.setToolTip("gain")
+                gain_widget.valueSetClicked.connect(on_gain_set_clicked)
+                # ---- gain setting ---------------------------------------------------------------------------------------
 
-            gain_label = QLabel("Gain", self)
-            gain_label.setFixedWidth(100)
-            gain_widget = DoubleValueSetWidget(parent=self)
-            gain_widget.spinbox.setRange(0, 10)
-            gain_widget.spinbox.setDecimals(1)
-            gain_widget.spinbox.setSingleStep(0.1)
-            gain_widget.setValue(self.camera.gain)
-            gain_widget.spinbox.setToolTip("gain")
-            gain_widget.valueSetClicked.connect(on_gain_set_clicked)
-            # ---- gain setting ---------------------------------------------------------------------------------------
+                row += 1
+                col = 0
+                layout.addWidget(gain_label, row, col)
+                col += 1
+                layout.addWidget(gain_widget, row, col)
 
-            row += 1
-            col = 0
-            layout.addWidget(gain_label, row, col)
-            col += 1
-            layout.addWidget(gain_widget, row, col)
+            if "roi" in self.camera.settings:
 
-        if "roi" in self.camera.settings:
+                # ---- roi setting --------------------------------------------------------------------------------------------
+                @Slot(int, int)
+                def on_roi_move_clicked(x: int, y: int):
+                    reply = self.camera.move_roi(x, y)
+                    logger.info("reply = %s", reply)
+                    roi_widget.set_roi(self.camera.roi)
 
-            # ---- roi setting --------------------------------------------------------------------------------------------
-            @Slot(int, int)
-            def on_roi_move_clicked(x: int, y: int):
-                reply = self.camera.move_roi(x, y)
-                logger.info("reply = %s", reply)
-                roi_widget.set_roi(self.camera.roi)
+                roi_label = QLabel("Move ROI", self)
+                roi_label.setFixedWidth(100)
+                roi_widget = ROIWidget(self.camera.roi, step=8, parent=self)
+                roi_widget.roiMoveClicked.connect(on_roi_move_clicked)
+                # ---- roi setting --------------------------------------------------------------------------------------------
 
-            roi_label = QLabel("Move ROI", self)
-            roi_label.setFixedWidth(100)
-            roi_widget = ROIWidget(self.camera.roi, step=8, parent=self)
-            roi_widget.roiMoveClicked.connect(on_roi_move_clicked)
-            # ---- roi setting --------------------------------------------------------------------------------------------
+                row += 1
+                col = 0
+                layout.addWidget(roi_label, row, col)
+                col += 1
+                layout.addWidget(roi_widget, row, col)
 
-            row += 1
-            col = 0
-            layout.addWidget(roi_label, row, col)
-            col += 1
-            layout.addWidget(roi_widget, row, col)
+        camera_calibration_label = QLabel("Camera Calibration", self)
+        self.calibration_widget = FileLoadWidget(caption="Open Calibration File", directory="./data/output", file_filter="Fits file (*.fits)", validator=lambda _filename : is_camera_calibration_file_valid(_filename, self.camera.full_shape), parent=self)
+        self.calibration_widget.setFilepath(self.camera.calibration_file)
+
+        @Slot()
+        def on_calibration_change():
+            self.camera.set_calibration(self.calibration_widget.filepath)
+
+        self.calibration_widget.fileChanged.connect(on_calibration_change)
+
+        row += 1
+        col = 0
+        layout.addWidget(camera_calibration_label, row, col)
+        col += 1
+        layout.addWidget(self.calibration_widget, row, col)
 
         row += 1
         layout.setRowStretch(row, 1)

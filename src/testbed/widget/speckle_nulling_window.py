@@ -1,11 +1,9 @@
-import pickle
-
 import numpy as np
 from pykato.function import chord, timestamp_string
 from pykato.log import setup_logger
-from PySide6.QtCore import QFileInfo, Qt, QTimer, Signal, Slot
+from PySide6.QtCore import Qt, QTimer, Slot
 from PySide6.QtGui import QIcon
-from PySide6.QtWidgets import QCheckBox, QFileDialog, QGridLayout, QHBoxLayout, QLabel, QLineEdit, QMessageBox, QPushButton, QSpinBox, QVBoxLayout, QWidget, QComboBox
+from PySide6.QtWidgets import QCheckBox, QGridLayout, QHBoxLayout, QLabel, QMessageBox, QSpinBox, QVBoxLayout, QWidget, QComboBox
 from matplotlib import colormaps
 
 import testbed
@@ -13,7 +11,7 @@ import testbed
 from ..device import SinkSample, SourceSample
 from ..device.camera import Camera
 from ..device.modulator import Modulator
-from ..function import is_speckle_calibration_file_valid, constrained_sin_fit_fn, quadratic_fit_fn
+from ..function import is_speckle_calibration_file_valid, read_speckle_calibration_file, constrained_sin_fit_fn, quadratic_fit_fn
 from ..worker.speckle_nulling_worker import ProcessWorker
 from ..worker.storage_worker import SinkStorageWorker, SourceStorageWorker
 from .camera_window import InfoWindow as CameraInfoWindow
@@ -24,9 +22,9 @@ from .modulator_window import PreviewWindow as ModulatorPreviewWindow
 from .modulator_window import SettingsWindow as ModulatorSettingsWindow
 from .dialog import MessageDialog
 from .figure_widget import ContrastFigureWidget, SpeckleNullingFigureWidget
-from .resource import ICON_BACKSPACE, ICON_FOLDER, ICON_PAUSE, ICON_RUN
+from .resource import ICON_PAUSE, ICON_RUN
 
-from . import DevicesSetupWidget, LinspaceWidget, TaskControlsWidget, Window
+from . import DevicesSetupWidget, LinspaceWidget, TaskControlsWidget, Window, FileLoadWidget
 
 _PROCESS_ = testbed.SPECKLE_NULLING
 process_worker_id = f"{_PROCESS_}_worker"
@@ -43,7 +41,7 @@ class ProcessSettingsWidget(QWidget):
     Speckle Nulling Process Settings
     """
 
-    calibration_changed = Signal()
+    # calibration_changed = Signal()
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -88,55 +86,7 @@ class ProcessSettingsWidget(QWidget):
         speckle_calibration_label = QLabel("Speckle Calibration", self)
         speckle_calibration_label.setFixedWidth(100)
 
-        self.speckle_calibration_lineedit = QLineEdit(self)
-        self.speckle_calibration_lineedit.setEnabled(False)
-        self.speckle_calibration_lineedit.setText("")
-        self.speckle_calibration_lineedit.setToolTip("Speckle calibration file")
-
-        self.speckle_calibration_browse_button = QPushButton("", self)
-        self.speckle_calibration_browse_button.setFixedWidth(self.speckle_calibration_lineedit.sizeHint().height())
-        self.speckle_calibration_browse_button.setFixedHeight(self.speckle_calibration_lineedit.sizeHint().height())
-        self.speckle_calibration_browse_button.setIcon(QIcon(ICON_FOLDER))
-        self.speckle_calibration_browse_button.setToolTip("Open calibration file")
-
-        self.speckle_calibration_clear_button = QPushButton("", self)
-        self.speckle_calibration_clear_button.setIcon(QIcon(ICON_BACKSPACE))
-        self.speckle_calibration_clear_button.setFixedWidth(self.speckle_calibration_lineedit.sizeHint().height())
-        self.speckle_calibration_clear_button.setFixedHeight(self.speckle_calibration_lineedit.sizeHint().height())
-        self.speckle_calibration_clear_button.setToolTip("Remove calibration file")
-
-        self.speckle_calibration_clear_button.hide()
-        # ---- speckle calibration file -------------------------------------------------------------------------------
-
-        @Slot()
-        def on_speckle_calibration_browse_clicked():
-            dialog_filename, _ = QFileDialog.getOpenFileName(self, "Open Calibration File", "./data/output", "Pickle file (*.pkl)", options=QFileDialog.Option.DontUseNativeDialog | QFileDialog.Option.ReadOnly)
-            if dialog_filename:
-                file_info = QFileInfo(dialog_filename)
-                filename = file_info.fileName()
-                filepath = f"{file_info.absolutePath()}/{filename}"
-                if is_speckle_calibration_file_valid(filepath):
-                    self.speckle_calibration_lineedit.setText(filename)
-                    with open(filepath, "rb") as _input:
-                        self.speckle_calibration = pickle.load(_input)
-                    self.speckle_calibration_browse_button.hide()
-                    self.speckle_calibration_clear_button.show()
-                else:
-                    message_dialog = MessageDialog("Invalid Calibration", "Calibration file invalid.", icon=QMessageBox.Icon.Information, buttons=QMessageBox.StandardButton.Ok)
-                    message_dialog.exec()
-                self.calibration_changed.emit()
-
-        self.speckle_calibration_browse_button.clicked.connect(on_speckle_calibration_browse_clicked)
-
-        @Slot()
-        def on_speckle_calibration_clear_clicked():
-            self.speckle_calibration = None
-            self.speckle_calibration_lineedit.setText("")
-            self.speckle_calibration_browse_button.show()
-            self.speckle_calibration_clear_button.hide()
-            self.calibration_changed.emit()
-
-        self.speckle_calibration_clear_button.clicked.connect(on_speckle_calibration_clear_clicked)
+        self.calibration_widget = FileLoadWidget(caption="Open Calibration File", directory="./data/output", file_filter="Pickle file (*.pkl)", validator=is_speckle_calibration_file_valid, parent=self)
 
         n_iterations_layout = QHBoxLayout()
         n_iterations_layout.addWidget(self._n_iterations_spinbox)
@@ -179,10 +129,11 @@ class ProcessSettingsWidget(QWidget):
         col = 0
         widget_layout.addWidget(speckle_calibration_label, row, col)
         col += 1
-        widget_layout.addWidget(self.speckle_calibration_lineedit, row, col)
-        col += 1
-        widget_layout.addWidget(self.speckle_calibration_browse_button, row, col)
-        widget_layout.addWidget(self.speckle_calibration_clear_button, row, col)
+        widget_layout.addWidget(self.calibration_widget, row, col)
+        # widget_layout.addWidget(self.speckle_calibration_lineedit, row, col)
+        # col += 1
+        # widget_layout.addWidget(self.speckle_calibration_browse_button, row, col)
+        # widget_layout.addWidget(self.speckle_calibration_clear_button, row, col)
 
         row += 1
         col = 0
@@ -594,8 +545,9 @@ class ProcessWindow(Window):
         super().__init__(parent, Qt.WindowType.Dialog)
         self.setWindowModality(Qt.WindowModality.WindowModal)
         self.setWindowTitle("Speckle Nulling Process")
-        self._sink = None
-        self._source = None
+        self.sink = None
+        self.source = None
+        self.speckle_calibration = None
 
         layout = QVBoxLayout()
         layout.setContentsMargins(2, 2, 2, 2)
@@ -605,16 +557,33 @@ class ProcessWindow(Window):
     @property
     def source(self) -> Camera | None:
         return self._source
+    
+    @source.setter
+    def source(self, value: Camera | None):
+        self._source = value
 
     @property
     def sink(self) -> Modulator | None:
         return self._sink
+    
+    @sink.setter
+    def sink(self, value: Modulator | None):
+        self._sink = value
+    
+    @property
+    def speckle_calibration(self) -> dict[str, np.ndarray] | None:
+        return self._speckle_calibration
+    
+    @speckle_calibration.setter
+    def speckle_calibration(self, value: dict[str, np.ndarray] | None):
+        self._speckle_calibration = value
 
     @Slot()
     def on_calibration_change(self):
-        if self._source is not None and self._sink is not None:
+        if self.source is not None and self.sink is not None:
             self.controls_widget.preview_button.setEnabled(True)
-            if self.settings_widget.speckle_calibration is not None:
+            if self.settings_widget.calibration_widget.filepath is not None:
+                self.speckle_calibration = read_speckle_calibration_file(self.settings_widget.calibration_widget.filepath)
                 self.controls_widget.play_pause_button.setEnabled(True)
 
     @Slot()
@@ -622,7 +591,7 @@ class ProcessWindow(Window):
         self.devices_widget.source_info_button.setEnabled(True)
         self.devices_widget.source_settings_button.setEnabled(True)
         self.devices_widget.source_preview_button.setEnabled(True)
-        self._source = _device
+        self.source = _device
         device_preview_window_id = f"{_device.name}_preview_window"
         if device_preview_window_id in testbed.data.windows:
             testbed.data.windows.pop(device_preview_window_id).close()
@@ -635,11 +604,12 @@ class ProcessWindow(Window):
         self.devices_widget.source_info_button.clicked.connect(lambda _, _device=_device: self.open_device_info_window(_device))
         self.devices_widget.source_settings_button.clicked.connect(lambda _, _device=_device: self.open_device_settings_window(_device))
         self.devices_widget.source_preview_button.clicked.connect(lambda _, _device=_device: self.open_device_preview_window(_device))
-        if self._source is not None and self._sink is not None:
+        if self.source is not None and self.sink is not None:
             self.controls_widget.preview_button.setEnabled(True)
             self.controls_widget.info_button.setEnabled(True)
-            self.settings_widget.dark_hole_mask = chord(self._source.shape, self._source.shape[0] * 7 / 16, 0.65)
-            if self.settings_widget.speckle_calibration is not None:
+            self.settings_widget.dark_hole_mask = chord(self.source.shape, self.source.shape[0] * 7 / 16, 0.65)
+            if self.settings_widget.calibration_widget.filepath is not None:
+                self.speckle_calibration = read_speckle_calibration_file(self.settings_widget.calibration_widget.filepath)
                 self.controls_widget.play_pause_button.setEnabled(True)
 
     @Slot()
@@ -647,7 +617,7 @@ class ProcessWindow(Window):
         self.devices_widget.sink_info_button.setEnabled(True)
         self.devices_widget.sink_settings_button.setEnabled(True)
         self.devices_widget.sink_preview_button.setEnabled(True)
-        self._sink = _device
+        self.sink = _device
         device_preview_window_id = f"{_device.name}_preview_window"
         if device_preview_window_id in testbed.data.windows:
             testbed.data.windows.pop(device_preview_window_id).close()
@@ -660,10 +630,11 @@ class ProcessWindow(Window):
         self.devices_widget.sink_info_button.clicked.connect(lambda _, _device=_device: self.open_device_info_window(_device))
         self.devices_widget.sink_settings_button.clicked.connect(lambda _, _device=_device: self.open_device_settings_window(_device))
         self.devices_widget.sink_preview_button.clicked.connect(lambda _, _device=_device: self.open_device_preview_window(_device))
-        if self._source is not None and self._sink is not None:
+        if self.source is not None and self.sink is not None:
             self.controls_widget.preview_button.setEnabled(True)
             self.controls_widget.info_button.setEnabled(True)
-            if self.settings_widget.speckle_calibration is not None:
+            if self.settings_widget.calibration_widget.filepath is not None:
+                self.speckle_calibration = read_speckle_calibration_file(self.settings_widget.calibration_widget.filepath)
                 self.controls_widget.play_pause_button.setEnabled(True)
 
     def open_device_info_window(self, _device: Camera | Modulator):
@@ -794,7 +765,8 @@ class ProcessWindow(Window):
             else:
                 self.controls_widget.progressbar.setMaximum(self.settings_widget.n_iterations)
 
-            worker = ProcessWorker(self.source, self.sink, self.settings_widget.dark_hole_mask, self.settings_widget.speckle_calibration, self.settings_widget.phs_array, self.settings_widget.amp_array, self.settings_widget.n_iterations)
+
+            worker = ProcessWorker(self.source, self.sink, self.settings_widget.dark_hole_mask, self.speckle_calibration, self.settings_widget.phs_array, self.settings_widget.amp_array, self.settings_widget.n_iterations)
             worker.signals.progressTicked.connect(self.on_progress_tick)
             worker.signals.finished.connect(self.on_finish)
 
@@ -845,8 +817,8 @@ class ProcessWindow(Window):
         def on_window_closed():
             testbed.data.windows.pop(process_preview_window_id, None)
 
-        if process_preview_window_id not in testbed.data.windows and self._source is not None and self._sink is not None:
-            process_preview_window = ProcessPreviewWindow(self._source.sample.capture, self.settings_widget.n_iterations, self.settings_widget.dark_hole_mask, parent=self)
+        if process_preview_window_id not in testbed.data.windows and self.source is not None and self.sink is not None:
+            process_preview_window = ProcessPreviewWindow(self.source.sample.capture, self.settings_widget.n_iterations, self.settings_widget.dark_hole_mask, parent=self)
             process_preview_window.destroyed.connect(on_window_closed)
             process_preview_window.show()
             process_preview_window.raise_()
@@ -863,8 +835,8 @@ class ProcessWindow(Window):
         def on_window_closed():
             testbed.data.windows.pop(process_info_window_id, None)
 
-        if process_info_window_id not in testbed.data.windows and self._source is not None and self._sink is not None:
-            process_info_window = ProcessInfoWindow(self._source.sample, self._sink.sample, [0, 360], self.settings_widget.phs_array, [self.settings_widget.amp_array[0], self.settings_widget.amp_array[-1]], self.settings_widget.amp_array, self.settings_widget.dark_hole_mask, parent=self)
+        if process_info_window_id not in testbed.data.windows and self.source is not None and self.sink is not None:
+            process_info_window = ProcessInfoWindow(self.source.sample, self.sink.sample, [0, 360], self.settings_widget.phs_array, [self.settings_widget.amp_array[0], self.settings_widget.amp_array[-1]], self.settings_widget.amp_array, self.settings_widget.dark_hole_mask, parent=self)
             process_info_window.destroyed.connect(on_window_closed)
             process_info_window.show()
             process_info_window.raise_()
@@ -892,7 +864,7 @@ class ProcessWindow(Window):
         self.devices_widget.sinkChanged.connect(self.on_sink_changed)
 
         self.settings_widget = ProcessSettingsWidget(self)
-        self.settings_widget.calibration_changed.connect(self.on_calibration_change)
+        self.settings_widget.calibration_widget.fileChanged.connect(self.on_calibration_change)
 
         self.controls_widget = TaskControlsWidget(self)
         self.controls_widget.play_pause_button.clicked.connect(self.on_start_stop_clicked)

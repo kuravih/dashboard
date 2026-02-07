@@ -121,7 +121,7 @@ def read_source_samples(filename: str) -> list[SourceSample]:
             src_header_bytes = fileio.read(src_header_size)
             if len(src_header_bytes) < src_header_size:
                 break  # EOF
-            (timestamp, frame_rate_fps, temperature_c, gain, exposure_time_s, tl_x, tl_y, br_x, br_y) = struct.unpack(SRC_HEADER_FORMAT, src_header_bytes) # double timestamp + double frame_rate_fps + double temperature_c + double gain + double exposure_time_s + unsigned short roi.tl.x + unsigned short roi.tl.y + unsigned short roi.br.x + unsigned short roi.br.y
+            (timestamp, frame_rate_fps, temperature_c, gain, exposure_time_s, tl_x, tl_y, br_x, br_y) = struct.unpack(SRC_HEADER_FORMAT, src_header_bytes)  # double timestamp + double frame_rate_fps + double temperature_c + double gain + double exposure_time_s + unsigned short roi.tl.x + unsigned short roi.tl.y + unsigned short roi.br.x + unsigned short roi.br.y
 
             capture_bytes = fileio.read(capture_size)
             if len(capture_bytes) < capture_size:
@@ -130,9 +130,10 @@ def read_source_samples(filename: str) -> list[SourceSample]:
             capture = np.frombuffer(capture_bytes, dtype=dtype).reshape((h, w))
             timestamp = datetime.fromtimestamp(timestamp)
 
-            sample_list.append(SourceSample(timestamp, exposure_time_s, gain, frame_rate_fps, temperature_c, {"tl":(tl_x, tl_y), "br":(br_x, br_y)}, capture))
+            sample_list.append(SourceSample(timestamp, exposure_time_s, gain, frame_rate_fps, temperature_c, {"tl": (tl_x, tl_y), "br": (br_x, br_y)}, capture))
 
         return sample_list
+
 
 def write_sink_sample_header(fileio: FileIO, sample: SinkSample):
     h, w = sample.command.shape[:2]
@@ -181,7 +182,7 @@ def read_sink_samples(filename: str) -> list[SinkSample]:
             snk_header_bytes = fileio.read(snk_header_size)
             if len(snk_header_bytes) < snk_header_size:
                 break  # EOF
-            (timestamp, frame_rate_fps, radius, center_x, center_y) = struct.unpack(SNK_HEADER_FORMAT, snk_header_bytes) # double timestamp + double frame_rate_fps + unsigned short radius + unsigned short center.x + unsigned short center.y
+            (timestamp, frame_rate_fps, radius, center_x, center_y) = struct.unpack(SNK_HEADER_FORMAT, snk_header_bytes)  # double timestamp + double frame_rate_fps + unsigned short radius + unsigned short center.x + unsigned short center.y
 
             command_bytes = fileio.read(command_size)
             if len(command_bytes) < command_size:
@@ -217,8 +218,8 @@ def speckle_parameters(center: tuple[float, float], speckle_location_px: tuple[f
     return speckle_frequency, speckle_angle
 
 
-def is_speckle_calibration_file_valid(speck_cal_filepath: str) -> bool:
-    with open(speck_cal_filepath, "rb") as _input:
+def is_speckle_calibration_file_valid(filename: str) -> bool:
+    with open(filename, "rb") as _input:
         d = pickle.load(_input)
 
     if "speck_angle_cmd_angle" not in d:
@@ -238,19 +239,41 @@ def is_speckle_calibration_file_valid(speck_cal_filepath: str) -> bool:
     return True
 
 
-def sin_fit_fn(x, amplitude:float, frequency:float, phase:float, offset:float):
+def read_speckle_calibration_file(filename: str) -> dict[str, str|np.ndarray]:
+    with open(filename, "rb") as _input:
+        return pickle.load(_input)
+
+
+def is_camera_calibration_file_valid(filename: str, shape: tuple[int, int]) -> bool:
+    with fits.open(filename) as hdul:
+        if len(hdul[0].data) != 3:
+            return False
+        else:
+            data_shape = (shape[1], shape[0])
+            return (hdul[0].data[0].shape == data_shape) & (hdul[0].data[1].shape == data_shape) & (hdul[0].data[2].shape == data_shape)
+
+
+def read_camera_calibration_file(filename: str) -> dict[str, np.ndarray]:
+    with fits.open(filename) as hdul:
+        dark_rate_data = hdul[0].data[0]
+        bias_data = hdul[0].data[1]
+        read_noise_data = hdul[0].data[2]
+        return {"dark_rate": dark_rate_data, "bias": bias_data, "read_noise": read_noise_data}
+
+
+def sin_fit_fn(x, amplitude: float, frequency: float, phase: float, offset: float):
     return amplitude * np.sin(frequency * x + phase) + offset
 
 
-def constrained_sin_fit_fn(x, amplitude:float, phase:float, offset:float):
+def constrained_sin_fit_fn(x, amplitude: float, phase: float, offset: float):
     return sin_fit_fn(x, amplitude, 1, phase, offset)
 
 
-def quadratic_fit_fn(x, a:float, b:float, c:float):
+def quadratic_fit_fn(x, a: float, b: float, c: float):
     return a * x * x + b * x + c
 
 
-def linear_fit_fn(x, m:float, c:float):
+def linear_fit_fn(x, m: float, c: float):
     return m * x + c
 
 
@@ -263,10 +286,5 @@ def write_camera_calibration_file(filename: str, dark_rate: np.ndarray, bias: np
     fits_dr_rn_hdu.header["FRAME2"] = "read_noise"
     fits_dr_rn_hdu.writeto(filename, overwrite=True)
 
-
-def read_camera_calibration_file(filename: str):
-    with fits.open(filename) as hdul:
-        dark_rate_data = hdul[0].data[0]
-        bias_data = hdul[0].data[1]
-        read_noise_data = hdul[0].data[2]
-    return dark_rate_data, bias_data, read_noise_data
+def apply_calibration(capture: np.ndarray, exp_time_s:float, dark_rate: np.ndarray, bias: np.ndarray) -> np.ndarray:
+    return (capture - bias) - dark_rate*exp_time_s

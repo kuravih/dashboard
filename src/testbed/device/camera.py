@@ -2,6 +2,7 @@ import numpy as np
 from datetime import datetime
 
 from . import Device, Stream, ZMQLink, SourceSample
+from ..function import read_camera_calibration_file, apply_calibration
 
 from pykato.log import setup_logger
 
@@ -13,20 +14,23 @@ class Camera(Device):
     Camera
     """
 
-    __slots__ = ("_stream", "_shape", "_link", "_sample", "wait_for_request", "post_response", "_settings")
+    __slots__ = ("_stream", "_shape", "_link", "_sample", "wait_for_request", "post_response", "_settings", "_calibration_file", "_calibration")
 
     def __init__(self, stream: Stream):
         super().__init__(stream.name)
         self._stream = stream
         self._shape = (self._stream.keywords["HEIGHT"].value, self._stream.keywords["WIDTH"].value)
-        self._link = None
+        self._link : ZMQLink | None = None
+        self._settings : dict[str, float | dict[str, tuple[tuple[int, int], tuple[int, int]]]] | None = None
         if self._stream.port != -1:
             self._link = ZMQLink(port=self._stream.port)
             self._link.connect()
-            self._settings = self.sync_settings()
+            self.sync_settings()
         self._sample = SourceSample(self.last_access_time, self.exposure_time_s, self.gain, self.frame_rate_fps, self.temperature_c, self.roi, self.blank)
         self.wait_for_request = self._stream.wait_for_request
         self.post_response = self._stream.post_response
+        self._calibration_file: str | None = None
+        self._calibration: dict[str, np.ndarray] | None = None
 
     @property
     def kind(self) -> Stream.Kind:
@@ -53,7 +57,7 @@ class Camera(Device):
         return self._shape
 
     @property
-    def settings(self) -> dict[str, float | dict[str, tuple[tuple[int, int], tuple[int, int]]]]:
+    def settings(self) -> dict[str, float | dict[str, tuple[tuple[int, int], tuple[int, int]]]] | None:
         return self._settings
 
     @property
@@ -82,6 +86,18 @@ class Camera(Device):
 
     def pull_capture(self) -> SourceSample:
         capture = self._stream.get_data().reshape(self.shape)
+        if self.calibration_file is not None:
+            logger.info("calibration_file is set %s", self.calibration_file)
+        else:
+            logger.info("no _calibration_file set")
+        if self.calibration is not None:
+            dark_rate_map = self.calibration["dark_rate"][self.roi["tl"][1]:self.roi["br"][1], self.roi["tl"][0]:self.roi["br"][0]]
+            bias_map = self.calibration["bias"][self.roi["tl"][1]:self.roi["br"][1], self.roi["tl"][0]:self.roi["br"][0]]
+            logger.info("calibration is set %s, %s, %s", dark_rate_map.shape, bias_map.shape, capture.shape)
+            capture = apply_calibration(capture, self.exposure_time_s, dark_rate_map, bias_map)
+        else:
+            logger.info("no _calibration_file set")
+
         self._sample = SourceSample(self.last_access_time, self.exposure_time_s, self.gain, self.frame_rate_fps, self.temperature_c, self.roi, capture.copy())
         return self._sample
 
@@ -106,11 +122,34 @@ class Camera(Device):
     def roi(self) -> dict[str, tuple[int, int]]:
         return {"br": (self._stream.keywords["ROI.BR.X"].value, self._stream.keywords["ROI.BR.Y"].value), "tl": (self._stream.keywords["ROI.TL.X"].value, self._stream.keywords["ROI.TL.Y"].value)}
 
+    @property
+    def calibration(self) -> dict[str, np.ndarray] | None:
+        return self._calibration
+
+    @calibration.setter
+    def calibration(self, value: dict[str, np.ndarray] | None):
+        self._calibration = value
+
+    @property
+    def calibration_file(self) -> str | None:
+        return self._calibration_file
+
+    @calibration_file.setter
+    def calibration_file(self, value: str | None):
+        self._calibration_file = value
+
+    def set_calibration(self, calibration_file: str | None):
+        self.calibration_file = calibration_file
+        if self.calibration_file is not None:
+            self.calibration = read_camera_calibration_file(self.calibration_file)
+        else:
+            self.calibration = None
+
     def update_keywords(self):
         self._stream.update_keywords()
 
-    def sync_settings(self) -> dict:
-        return self.link.sync_settings()
+    def sync_settings(self):
+        self._settings = self.link.sync_settings()
 
     def set_exposure_time_s(self, exposure_time_s: float) -> int:
         """
@@ -125,7 +164,8 @@ class Camera(Device):
         """
         command = {"settings": {"exposureTime_s": exposure_time_s}}
         reply = self.link.send_command(command)
-        return reply["settings"]["exposureTime_s"]
+        self._settings = reply["settings"]
+        return self._settings["exposureTime_s"]
 
     def set_gain(self, gain: float) -> float:
         """
@@ -140,7 +180,8 @@ class Camera(Device):
         """
         command = {"settings": {"gain": gain}}
         reply = self.link.send_command(command)
-        return reply["settings"]["gain"]
+        self._settings = reply["settings"]
+        return self._settings["gain"]
 
     def set_temperature_c(self, temperature_c: float) -> float:
         """
@@ -155,7 +196,8 @@ class Camera(Device):
         """
         command = {"settings": {"temperature_C": temperature_c}}
         reply = self.link.send_command(command)
-        return reply["settings"]["temperature_C"]
+        self._settings = reply["settings"]
+        return self._settings["temperature_C"]
 
     def move_roi(self, x: int, y: int):
         """
@@ -164,7 +206,8 @@ class Camera(Device):
         logger.info("nudge roi by (%d, %d)", x, y)
         command = {"settings": {"nudge": {"x": x, "y": y}}}
         reply = self.link.send_command(command)
-        return reply["settings"]["roi"]
+        self._settings = reply["settings"]
+        return self._settings["roi"]
 
     def __del__(self):
         logger.info("Camera object %s removed", self.name)
