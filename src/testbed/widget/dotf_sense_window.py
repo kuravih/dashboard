@@ -1,11 +1,14 @@
+import numpy as np
+from collections.abc import Iterator
 from pykato.function import timestamp_string
 from pykato.log import setup_logger
-from PySide6.QtCore import Qt, Slot
+from PySide6.QtCore import Qt, QTimer, Slot
 from PySide6.QtGui import QIcon
 from PySide6.QtWidgets import QCheckBox, QDoubleSpinBox, QGridLayout, QHBoxLayout, QLabel, QSpinBox, QVBoxLayout, QWidget, QMessageBox
 
 import testbed
 
+from ..device import SinkSample, SourceSample
 from ..device.camera import Camera
 from ..device.modulator import Modulator
 from ..worker.simple_loop_worker import ProcessWorker
@@ -17,21 +20,67 @@ from .modulator_window import InfoWindow as ModulatorInfoWindow
 from .modulator_window import PreviewWindow as ModulatorPreviewWindow
 from .modulator_window import SettingsWindow as ModulatorSettingsWindow
 from .dialog import MessageDialog
+from .figure_widget import DOTFSenseFigureWidget, WavefrontFigureWidget
 from .resource import ICON_PAUSE, ICON_RUN
+from ..function import DOTFProbeDirection
 
 from . import DevicesSetupWidget, TaskControlsWidget, Window
 
 _PROCESS_ = testbed.SIMPLE_LOOP
 process_worker_id = f"{_PROCESS_}_worker"
+process_info_window_id = f"{_PROCESS_}_info_window"
+process_preview_window_id = f"{_PROCESS_}_preview_window"
 source_storage_worker_id = f"{_PROCESS_}_source_storage_worker"
 sink_storage_worker_id = f"{_PROCESS_}_sink_storage_worker"
 
 logger = setup_logger(f"{_PROCESS_}_window", terminator="\n")
 
 
+class DOTFProbeDirectionWidget(QWidget):
+    """
+    Widget with four checkboxes for the four DOTF probes (03, 06, 09 & 12 o'clock).
+
+    Function:
+        value(): list[DOTFProbeDirection]
+            List of DOTFProbeDirection.
+    """
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+
+        layout = QHBoxLayout()
+        layout.setContentsMargins(0, 0, 0, 0)
+
+        self._checkboxes = []
+        for _direction in DOTFProbeDirection:  # pylint: disable=invalid-name
+            checkbox = QCheckBox(_direction.to_str(), self)
+            checkbox.toggled.connect(self._on_checkbox_toggled)
+            self._checkboxes.append(checkbox)
+            layout.addWidget(checkbox)
+
+        self.setLayout(layout)
+
+    def __getitem__(self, index) -> QCheckBox:
+        return self._checkboxes[index]
+
+    def __iter__(self) -> Iterator[QCheckBox]:
+        return iter(self._checkboxes)
+
+    def _on_checkbox_toggled(self):
+        if not any(checkbox.isChecked() for checkbox in self._checkboxes):
+            sender = self.sender()
+            if isinstance(sender, QCheckBox):
+                sender.blockSignals(True)
+                sender.setChecked(True)
+                sender.blockSignals(False)
+
+    def value(self) -> list[DOTFProbeDirection]:
+        return [direction for checkbox, direction in zip(self._checkboxes, DOTFProbeDirection) if checkbox.isChecked()]
+
+
 class ProcessSettingsWidget(QWidget):
     """
-    Simple Process Settings
+    DOTF Sense Process Settings
     """
 
     def __init__(self, parent=None):
@@ -80,6 +129,11 @@ class ProcessSettingsWidget(QWidget):
         self._sleep_s_spinbox.setValue(0.1)
         self._sleep_s_spinbox.setSuffix(" s")
 
+        dotf_probes_label = QLabel("Probe", self)
+        dotf_probes_label.setFixedWidth(100)
+
+        self._dotf_probes = DOTFProbeDirectionWidget(self)
+
         record_label = QLabel("Record", self)
         record_label.setFixedWidth(100)
 
@@ -115,6 +169,12 @@ class ProcessSettingsWidget(QWidget):
 
         row += 1
         col = 0
+        widget_layout.addWidget(dotf_probes_label, row, col)
+        col += 1
+        widget_layout.addWidget(self._dotf_probes, row, col, 1, 3)
+
+        row += 1
+        col = 0
         widget_layout.addWidget(record_label, row, col)
         col += 1
         widget_layout.addLayout(record_layout, row, col, 1, 3)
@@ -145,6 +205,250 @@ class ProcessSettingsWidget(QWidget):
     def sleep_s(self) -> float:
         return self._sleep_s_spinbox.value()
 
+    @property
+    def probes(self) -> list[DOTFProbeDirection]:
+        return self._dotf_probes.value()
+
+class ProcessInfoSettingsWindow(Window):
+    """
+    Process Info Settings Window
+    """
+
+    def __init__(self, src_cmap: str, src_cmap_log: bool, src_mask_show: bool, snk_cmap: str, parent=None):
+        super().__init__(parent, Qt.WindowType.Dialog)
+        self.src_cmap = src_cmap
+        self.src_cmap_log = src_cmap_log
+        self.src_mask_show = src_mask_show
+        self.snk_cmap = snk_cmap
+        self.setWindowModality(Qt.WindowModality.WindowModal)
+        self.setWindowTitle("Process Info Settings")
+        layout = QVBoxLayout()
+        layout.setContentsMargins(2, 2, 2, 2)
+        layout.addWidget(self.setup_settings_widget())
+        self.setLayout(layout)
+
+    def setup_settings_widget(self) -> QWidget:
+        widget = QWidget(self)
+        layout = QGridLayout(widget)
+        widget.setLayout(layout)
+
+        source_scale_label = QLabel("Source Scale", self)
+        self.source_log_checkbox = QCheckBox("Log", self)
+        self.source_log_checkbox.setToolTip("Log Scale")
+        self.source_log_checkbox.setChecked(self.src_cmap_log)
+
+        dark_hole_mask_label = QLabel("Dark Hole Mask", self)
+        self.source_mask_checkbox = QCheckBox("Show", self)
+        self.source_mask_checkbox.setToolTip("Show dark hole mask")
+        self.source_mask_checkbox.setChecked(self.src_mask_show)
+
+        source_cmap_label = QLabel("Source Colormap", self)
+        self.source_cmap_combobox = QComboBox(self)
+        self.source_cmap_combobox.addItems(list(colormaps))
+        self.source_cmap_combobox.setCurrentIndex(list(colormaps).index(self.src_cmap))
+
+        sink_cmap_label = QLabel("Sink Colormap", self)
+        self.sink_cmap_combobox = QComboBox(self)
+        self.sink_cmap_combobox.addItems(list(colormaps))
+        self.sink_cmap_combobox.setCurrentIndex(list(colormaps).index(self.snk_cmap))
+
+        row = 0
+        col = 0
+        layout.addWidget(source_scale_label, row, col)
+        col += 1
+        layout.addWidget(self.source_log_checkbox, row, col)
+
+        row += 1
+        col = 0
+        layout.addWidget(source_cmap_label, row, col)
+        col += 1
+        layout.addWidget(self.source_cmap_combobox, row, col)
+
+        row += 1
+        col = 0
+        layout.addWidget(dark_hole_mask_label, row, col)
+        col += 1
+        layout.addWidget(self.source_mask_checkbox, row, col)
+
+        row += 1
+        col = 0
+        layout.addWidget(sink_cmap_label, row, col)
+        col += 1
+        layout.addWidget(self.sink_cmap_combobox, row, col)
+
+        return widget
+
+
+class ProcessInfoWindow(Window):
+    """
+    Speckle Nulling Process Information Window
+    """
+
+    def __init__(self, source_sample: SourceSample, sink_sample: SinkSample, probes: list[DOTFProbeDirection], parent: QWidget | None = None):
+        super().__init__(parent, Qt.WindowType.Dialog)
+        self.source_sample = source_sample
+        self.sink_sample = sink_sample
+        self.probes = probes
+
+        self.setWindowTitle("Speckle Nulling")
+
+        layout = QVBoxLayout()
+        layout.setContentsMargins(2, 2, 2, 2)
+        layout.addWidget(self.setup_info_widget())
+        self.setLayout(layout)
+
+        self.update_timer = QTimer(self)
+        self.update_timer.timeout.connect(self.on_update_timer_tick)
+        self.update_timer.start(100)  # Update window every 100 ms
+
+    @Slot(SourceSample)
+    def on_src_sampled(self, sample: SourceSample):
+        self.source_sample = sample
+
+    @Slot(SinkSample)
+    def on_snk_sampled(self, sample: SinkSample):
+        self.sink_sample = sample
+
+    def setup_info_widget(self) -> QWidget:
+        widget = QWidget(self)
+        layout = QVBoxLayout(widget)
+        layout.setContentsMargins(2, 2, 2, 2)
+        widget.setLayout(layout)
+        self.process_info_figure = DOTFSenseFigureWidget(self.source_sample.capture, self.sink_sample.command, self.probes, show_toolbar=True, parent=self)
+        if self.process_info_figure.toolbar is not None:
+            self.process_info_figure.toolbar.settingsClicked.connect(self.on_info_settings_clicked)
+        layout.addWidget(self.process_info_figure)
+        return widget
+
+    @Slot()
+    def on_info_settings_clicked(self):
+        process_info_settings_window = ProcessInfoSettingsWindow(snk_cmap=self.process_info_figure.snk_cmap_name, src_cmap_log=self.process_info_figure.src_cmap_log, src_mask_show=self.process_info_figure.src_mask_show, src_cmap=self.process_info_figure.src_cmap_name, parent=self)
+        process_info_settings_window.show()
+        process_info_settings_window.raise_()
+        process_info_settings_window.activateWindow()
+        process_info_settings_window.source_log_checkbox.checkStateChanged.connect(self.on_src_cmap_log_changed)
+        process_info_settings_window.source_cmap_combobox.currentTextChanged.connect(self.on_src_cmap_changed)
+        process_info_settings_window.sink_cmap_combobox.currentTextChanged.connect(self.on_snk_cmap_changed)
+
+    @Slot(str)
+    def on_src_cmap_changed(self, colormap: str):
+        self.process_info_figure.set_src_cmap(colormap)
+
+    @Slot(str)
+    def on_snk_cmap_changed(self, colormap: str):
+        self.process_info_figure.set_snk_cmap(colormap)
+
+    @Slot(bool)
+    def on_src_cmap_log_changed(self, checked: Qt.CheckState):
+        if checked == Qt.CheckState.Checked:
+            self.process_info_figure.set_src_cmap_norm(True)
+        else:
+            self.process_info_figure.set_src_cmap_norm(False)
+
+    @Slot()
+    def on_update_timer_tick(self):
+        self.process_info_figure.set_command(self.sink_sample.command)
+        self.process_info_figure.set_capture(self.source_sample.capture)
+        self.process_info_figure.figure.canvas.draw_idle()
+
+    def closeEvent(self, event):
+        if self.update_timer.isActive():
+            self.update_timer.stop()
+        self.deleteLater()
+        event.accept()
+
+class ProcessPreviewSettingsWindow(Window):
+    """
+    Process Preview Settings Window
+    """
+
+    def __init__(self, cmap: str, parent=None):
+        super().__init__(parent, Qt.WindowType.Dialog)
+        self._cmap = cmap
+        self.setWindowModality(Qt.WindowModality.WindowModal)
+        self.setWindowTitle("Process Preview Settings")
+        layout = QVBoxLayout()
+        layout.setContentsMargins(2, 2, 2, 2)
+        layout.addWidget(self.setup_settings_widget())
+        self.setLayout(layout)
+
+    def setup_settings_widget(self) -> QWidget:
+        widget = QWidget(self)
+        layout = QGridLayout(widget)
+        widget.setLayout(layout)
+
+        cmap_label = QLabel("Wavefront Colormap", self)
+        self.cmap_combobox = QComboBox(self)
+        self.cmap_combobox.addItems(list(colormaps))
+        self.cmap_combobox.setCurrentIndex(list(colormaps).index(self._cmap))
+
+        row = 0
+        col = 0
+        layout.addWidget(cmap_label, row, col)
+        col += 1
+        layout.addWidget(self.cmap_combobox, row, col)
+
+        return widget
+
+class ProcessPreviewWindow(Window):
+    """
+    Speckle Nulling Contrast Result Window
+    """
+
+    def __init__(self, measure_map: np.ndarray, n_iterations: int, parent: QWidget | None = None):
+        super().__init__(parent, Qt.WindowType.Dialog)
+        self.measure_map = measure_map
+        self.n_iterations = n_iterations
+
+        self.setWindowTitle("Wavefront")
+
+        layout = QVBoxLayout()
+        layout.setContentsMargins(2, 2, 2, 2)
+        layout.addWidget(self.setup_preview_widget())
+        self.setLayout(layout)
+
+        self.update_timer = QTimer(self)
+        self.update_timer.timeout.connect(self.on_update_timer_tick)
+        self.update_timer.start(100)  # Update window every 100 ms
+
+    @Slot(np.ndarray, np.ndarray)
+    def on_wavefront_measured(self, measure_map: np.ndarray):
+        self.measure_map = measure_map
+
+    def setup_preview_widget(self) -> QWidget:
+        widget = QWidget(self)
+        layout = QVBoxLayout(widget)
+        layout.setContentsMargins(2, 2, 2, 2)
+        widget.setLayout(layout)
+        self.process_preview_figure = WavefrontFigureWidget(self.measure_map, self.n_iterations, show_toolbar=True, parent=self)
+        if self.process_preview_figure.toolbar is not None:
+            self.process_preview_figure.toolbar.settingsClicked.connect(self.on_preview_settings_clicked)
+        layout.addWidget(self.process_preview_figure)
+        return widget
+
+    @Slot()
+    def on_preview_settings_clicked(self):
+        process_preview_settings_window = ProcessPreviewSettingsWindow(cmap=self.process_preview_figure.cmap_name, parent=self)
+        process_preview_settings_window.show()
+        process_preview_settings_window.raise_()
+        process_preview_settings_window.activateWindow()
+        process_preview_settings_window.cmap_combobox.currentTextChanged.connect(self.on_cmap_changed)
+
+    @Slot(str)
+    def on_cmap_changed(self, colormap: str):
+        self.process_preview_figure.set_cmap(colormap)
+
+    @Slot()
+    def on_update_timer_tick(self):
+        self.process_preview_figure.set_contrast_map(self.measure_map)
+        self.process_preview_figure.figure.canvas.draw_idle()
+
+    def closeEvent(self, event):
+        if self.update_timer.isActive():
+            self.update_timer.stop()
+        self.deleteLater()
+        event.accept()
+
 
 class ProcessWindow(Window):
     """
@@ -154,7 +458,7 @@ class ProcessWindow(Window):
     def __init__(self, parent=None):
         super().__init__(parent, Qt.WindowType.Dialog)
         self.setWindowModality(Qt.WindowModality.WindowModal)
-        self.setWindowTitle("Simple Process")
+        self.setWindowTitle("DOTF Sense Process")
         self._sink = None
         self._source = None
 
@@ -374,6 +678,41 @@ class ProcessWindow(Window):
             testbed.data.workers[process_worker_id] = worker
             testbed.data.threadpool.start(worker)
 
+    def open_process_preview_clicked(self):
+
+        @Slot()
+        def on_window_closed():
+            testbed.data.windows.pop(process_preview_window_id, None)
+
+        if process_preview_window_id not in testbed.data.windows and self.source is not None and self.sink is not None:
+            process_preview_window = ProcessPreviewWindow(self.source.sample.capture, self.settings_widget.n_iterations, parent=self)
+            process_preview_window.destroyed.connect(on_window_closed)
+            process_preview_window.show()
+            process_preview_window.raise_()
+            process_preview_window.activateWindow()
+            testbed.data.windows[process_preview_window_id] = process_preview_window
+
+            if process_worker_id in testbed.data.workers:
+                testbed.data.workers[process_worker_id].signals.contrastMeasured.connect(testbed.data.windows[process_preview_window_id].on_contrast_measured)
+
+    def open_process_info_clicked(self):
+
+        @Slot()
+        def on_window_closed():
+            testbed.data.windows.pop(process_info_window_id, None)
+
+        if process_info_window_id not in testbed.data.windows and self.source is not None and self.sink is not None:
+            process_info_window = ProcessInfoWindow(self.source.sample, self.sink.sample, self.settings_widget.probes, parent=self)
+            process_info_window.destroyed.connect(on_window_closed)
+            process_info_window.show()
+            process_info_window.raise_()
+            process_info_window.activateWindow()
+            testbed.data.windows[process_info_window_id] = process_info_window
+
+            if process_worker_id in testbed.data.workers:
+                testbed.data.workers[process_worker_id].signals.srcSampled.connect(testbed.data.windows[process_info_window_id].on_src_sampled)
+                testbed.data.workers[process_worker_id].signals.snkSampled.connect(testbed.data.windows[process_info_window_id].on_snk_sampled)
+
     def setup_main_widget(self) -> QWidget:
         widget = QWidget(self)
         layout = QVBoxLayout(widget)
@@ -387,8 +726,10 @@ class ProcessWindow(Window):
 
         self.controls_widget = TaskControlsWidget(self)
         self.controls_widget.play_pause_button.clicked.connect(self.on_start_stop_clicked)
-        self.controls_widget.preview_button.hide()
-        self.controls_widget.info_button.hide()
+        self.controls_widget.info_button.clicked.connect(self.open_process_info_clicked)
+        self.controls_widget.info_button.setEnabled(True)
+        self.controls_widget.preview_button.clicked.connect(self.open_process_preview_clicked)
+        self.controls_widget.preview_button.setEnabled(True)
 
         layout.addWidget(self.devices_widget)
         layout.addWidget(self.settings_widget)

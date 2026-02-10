@@ -4,8 +4,9 @@ from astropy.io import fits  # type: ignore
 from PySide6.QtWidgets import QWidget, QGridLayout, QDoubleSpinBox, QLabel, QSpinBox, QRadioButton, QPushButton, QLineEdit, QFileDialog, QSpacerItem, QSizePolicy, QHBoxLayout
 from PySide6.QtCore import QFileInfo, Signal, Slot
 
-from pykato.function import gradient, checkers, sinusoid, vortex, box, polka, register, dotf_probe, DOTFProbeDirection, efc_probe, EFCProbeDirection, text
+from pykato.function import gradient, checkers, sinusoid, vortex, box, polka, register, text
 from ..widget import NSpinBoxesWidget, NDoubleSpinBoxesWidget
+from ..function import dotf_probe, DOTFProbeDirection, efc_probe, EFCProbeDirection
 
 
 class ConstPresetWidget(QWidget):

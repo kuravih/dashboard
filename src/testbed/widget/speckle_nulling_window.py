@@ -41,8 +41,6 @@ class ProcessSettingsWidget(QWidget):
     Speckle Nulling Process Settings
     """
 
-    # calibration_changed = Signal()
-
     def __init__(self, parent=None):
         super().__init__(parent)
 
@@ -130,10 +128,6 @@ class ProcessSettingsWidget(QWidget):
         widget_layout.addWidget(speckle_calibration_label, row, col)
         col += 1
         widget_layout.addWidget(self.calibration_widget, row, col)
-        # widget_layout.addWidget(self.speckle_calibration_lineedit, row, col)
-        # col += 1
-        # widget_layout.addWidget(self.speckle_calibration_browse_button, row, col)
-        # widget_layout.addWidget(self.speckle_calibration_clear_button, row, col)
 
         row += 1
         col = 0
@@ -173,10 +167,10 @@ class ProcessInfoSettingsWindow(Window):
     Process Info Settings Window
     """
 
-    def __init__(self, src_cmap: str, src_cmap_log: bool, src_mask_show: bool, snk_cmap: str, parent=None):
+    def __init__(self, src_cmap: str, src_cmap_norm: bool, src_mask_show: bool, snk_cmap: str, parent=None):
         super().__init__(parent, Qt.WindowType.Dialog)
         self.src_cmap = src_cmap
-        self.src_cmap_log = src_cmap_log
+        self.src_cmap_norm = src_cmap_norm
         self.src_mask_show = src_mask_show
         self.snk_cmap = snk_cmap
         self.setWindowModality(Qt.WindowModality.WindowModal)
@@ -191,20 +185,18 @@ class ProcessInfoSettingsWindow(Window):
         layout = QGridLayout(widget)
         widget.setLayout(layout)
 
-        source_scale_label = QLabel("Source Scale", self)
-        self.source_log_checkbox = QCheckBox("Log", self)
-        self.source_log_checkbox.setToolTip("Log Scale")
-        self.source_log_checkbox.setChecked(self.src_cmap_log)
-
-        dark_hole_mask_label = QLabel("Dark Hole Mask", self)
-        self.source_mask_checkbox = QCheckBox("Show", self)
-        self.source_mask_checkbox.setToolTip("Show dark hole mask")
-        self.source_mask_checkbox.setChecked(self.src_mask_show)
-
         source_cmap_label = QLabel("Source Colormap", self)
         self.source_cmap_combobox = QComboBox(self)
         self.source_cmap_combobox.addItems(list(colormaps))
         self.source_cmap_combobox.setCurrentIndex(list(colormaps).index(self.src_cmap))
+        self.source_log_checkbox = QCheckBox("Log", self)
+        self.source_log_checkbox.setToolTip("Log Scale")
+        self.source_log_checkbox.setChecked(self.src_cmap_norm)
+
+        dark_hole_mask_label = QLabel("Dark Hole Mask", self)
+        self.source_mask_checkbox = QCheckBox("Show", self)
+        self.source_mask_checkbox.setToolTip("Show dark hole mask")
+        # self.source_mask_checkbox.setChecked(self.src_mask_show)
 
         sink_cmap_label = QLabel("Sink Colormap", self)
         self.sink_cmap_combobox = QComboBox(self)
@@ -213,15 +205,11 @@ class ProcessInfoSettingsWindow(Window):
 
         row = 0
         col = 0
-        layout.addWidget(source_scale_label, row, col)
-        col += 1
-        layout.addWidget(self.source_log_checkbox, row, col)
-
-        row += 1
-        col = 0
         layout.addWidget(source_cmap_label, row, col)
         col += 1
         layout.addWidget(self.source_cmap_combobox, row, col)
+        col += 1
+        layout.addWidget(self.source_log_checkbox, row, col)
 
         row += 1
         col = 0
@@ -243,7 +231,7 @@ class ProcessInfoWindow(Window):
     Speckle Nulling Process Information Window
     """
 
-    def __init__(self, source_sample: SourceSample, sink_sample: SinkSample, phs_lim: list[float], phs_array: np.ndarray, amp_lim: list[float], amp_array: np.ndarray, dark_hole_mask: np.ndarray | None = None, parent: QWidget | None = None):
+    def __init__(self, source_sample: SourceSample, sink_sample: SinkSample, phs_lim: tuple[float, float], phs_array: np.ndarray, amp_lim: tuple[float, float], amp_array: np.ndarray, dark_hole_mask: np.ndarray | None = None, parent: QWidget | None = None):
         super().__init__(parent, Qt.WindowType.Dialog)
         self.source_sample = source_sample
         self.sink_sample = sink_sample
@@ -338,7 +326,7 @@ class ProcessInfoWindow(Window):
 
     @Slot()
     def on_info_settings_clicked(self):
-        process_info_settings_window = ProcessInfoSettingsWindow(snk_cmap=self.process_info_figure.snk_cmap_name, src_cmap_log=self.process_info_figure.src_cmap_log, src_mask_show=self.process_info_figure.src_mask_show, src_cmap=self.process_info_figure.src_cmap_name, parent=self)
+        process_info_settings_window = ProcessInfoSettingsWindow(self.process_info_figure.src_cmap_name, self.process_info_figure.src_cmap_norm, self.process_info_figure.src_mask_show, self.process_info_figure.snk_cmap_name, parent=self)
         process_info_settings_window.show()
         process_info_settings_window.raise_()
         process_info_settings_window.activateWindow()
@@ -349,25 +337,19 @@ class ProcessInfoWindow(Window):
 
     @Slot(str)
     def on_src_cmap_changed(self, colormap: str):
-        self.process_info_figure.set_src_cmap(colormap)
+        self.process_info_figure.src_cmap_name = colormap
 
     @Slot(str)
     def on_snk_cmap_changed(self, colormap: str):
-        self.process_info_figure.set_snk_cmap(colormap)
+        self.process_info_figure.snk_cmap_name = colormap
 
     @Slot(bool)
     def on_src_cmap_log_changed(self, checked: Qt.CheckState):
-        if checked == Qt.CheckState.Checked:
-            self.process_info_figure.set_src_cmap_norm(True)
-        else:
-            self.process_info_figure.set_src_cmap_norm(False)
+        self.process_info_figure.src_cmap_norm = (checked == Qt.CheckState.Checked)
 
     @Slot(bool)
     def on_src_mask_show_changed(self, checked: Qt.CheckState):
-        if checked == Qt.CheckState.Checked:
-            self.process_info_figure.set_src_mask_show(True)
-        else:
-            self.process_info_figure.set_src_mask_show(False)
+        self.process_info_figure.src_mask_show = (checked == Qt.CheckState.Checked)
 
     @Slot()
     def on_update_timer_tick(self):
@@ -394,10 +376,10 @@ class ProcessPreviewSettingsWindow(Window):
     Process Preview Settings Window
     """
 
-    def __init__(self, cmap: str, cmap_log: bool, mask_show: bool, parent=None):
+    def __init__(self, cmap: str, cmap_norm: bool, mask_show: bool, parent=None):
         super().__init__(parent, Qt.WindowType.Dialog)
         self._cmap = cmap
-        self._cmap_log = cmap_log
+        self._cmap_norm = cmap_norm
         self._mask_show = mask_show
         self.setWindowModality(Qt.WindowModality.WindowModal)
         self.setWindowTitle("Process Preview Settings")
@@ -414,12 +396,12 @@ class ProcessPreviewSettingsWindow(Window):
         scale_label = QLabel("Contrast Scale", self)
         self.log_checkbox = QCheckBox("Log", self)
         self.log_checkbox.setToolTip("Log Scale")
-        self.log_checkbox.setChecked(self._cmap_log)
+        self.log_checkbox.setChecked(self._cmap_norm)
 
         dark_hole_mask_label = QLabel("Dark Hole Mask", self)
         self.mask_checkbox = QCheckBox("Show", self)
         self.mask_checkbox.setToolTip("Show dark hole mask")
-        self.mask_checkbox.setChecked(self._mask_show)
+        # self.mask_checkbox.setChecked(self._mask_show)
 
         cmap_label = QLabel("Source Colormap", self)
         self.cmap_combobox = QComboBox(self)
@@ -488,7 +470,7 @@ class ProcessPreviewWindow(Window):
         layout = QVBoxLayout(widget)
         layout.setContentsMargins(2, 2, 2, 2)
         widget.setLayout(layout)
-        self.process_preview_figure = ContrastFigureWidget(self.measure_map, self.n_iterations, mask=self.dark_hole_mask, show_toolbar=True, parent=self)
+        self.process_preview_figure = ContrastFigureWidget(self.measure_map, self.n_iterations, dark_hole_mask=self.dark_hole_mask, show_toolbar=True, parent=self)
         if self.process_preview_figure.toolbar is not None:
             self.process_preview_figure.toolbar.settingsClicked.connect(self.on_preview_settings_clicked)
         layout.addWidget(self.process_preview_figure)
@@ -496,7 +478,7 @@ class ProcessPreviewWindow(Window):
 
     @Slot()
     def on_preview_settings_clicked(self):
-        process_preview_settings_window = ProcessPreviewSettingsWindow(cmap=self.process_preview_figure.cmap_name, cmap_log=self.process_preview_figure.cmap_log, mask_show=self.process_preview_figure.mask_show, parent=self)
+        process_preview_settings_window = ProcessPreviewSettingsWindow(cmap=self.process_preview_figure.cmap_name, cmap_norm=self.process_preview_figure.cmap_norm, mask_show=self.process_preview_figure.mask_show, parent=self)
         process_preview_settings_window.show()
         process_preview_settings_window.raise_()
         process_preview_settings_window.activateWindow()
@@ -506,27 +488,21 @@ class ProcessPreviewWindow(Window):
 
     @Slot(str)
     def on_cmap_changed(self, colormap: str):
-        self.process_preview_figure.set_cmap(colormap)
+        self.process_preview_figure.cmap_name = colormap
 
     @Slot(bool)
     def on_cmap_log_changed(self, checked: Qt.CheckState):
-        if checked == Qt.CheckState.Checked:
-            self.process_preview_figure.set_cmap_norm(True)
-        else:
-            self.process_preview_figure.set_cmap_norm(False)
-
+        self.process_preview_figure.cmap_norm = (checked == Qt.CheckState.Checked)
+        
     @Slot(bool)
     def on_mask_show_changed(self, checked: Qt.CheckState):
-        if checked == Qt.CheckState.Checked:
-            self.process_preview_figure.set_mask_show(True)
-        else:
-            self.process_preview_figure.set_mask_show(False)
+        self.process_preview_figure.mask_show = (checked == Qt.CheckState.Checked)
 
     @Slot()
     def on_update_timer_tick(self):
-        self.process_preview_figure.set_contrast_map(self.measure_map)
+        self.process_preview_figure.set_contrast(self.measure_map)
         self.process_preview_figure.set_speckle(self.speckle)
-        self.process_preview_figure.set_contrast_array(self.measure_array)
+        self.process_preview_figure.set_contrast_plot(self.measure_array)
         self.process_preview_figure.figure.canvas.draw_idle()
 
     def closeEvent(self, event):

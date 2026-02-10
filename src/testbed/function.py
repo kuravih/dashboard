@@ -1,11 +1,12 @@
 import pickle
-from enum import Enum, auto
+from enum import Enum, IntEnum, auto
 import struct
 import numpy as np
 from datetime import datetime
 from .device import SinkSample, SourceSample
 from io import FileIO
 from pykato.log import setup_logger
+from pykato.function import box, generate_coordinates
 
 from skimage.feature import peak_local_max
 from skimage.morphology import disk, dilation
@@ -239,7 +240,7 @@ def is_speckle_calibration_file_valid(filename: str) -> bool:
     return True
 
 
-def read_speckle_calibration_file(filename: str) -> dict[str, str|np.ndarray]:
+def read_speckle_calibration_file(filename: str) -> dict[str, str | np.ndarray]:
     with open(filename, "rb") as _input:
         return pickle.load(_input)
 
@@ -286,5 +287,95 @@ def write_camera_calibration_file(filename: str, dark_rate: np.ndarray, bias: np
     fits_dr_rn_hdu.header["FRAME2"] = "read_noise"
     fits_dr_rn_hdu.writeto(filename, overwrite=True)
 
-def apply_calibration(capture: np.ndarray, exp_time_s:float, dark_rate: np.ndarray, bias: np.ndarray) -> np.ndarray:
-    return (capture - bias) - dark_rate*exp_time_s
+
+def apply_calibration(capture: np.ndarray, exp_time_s: float, dark_rate: np.ndarray, bias: np.ndarray) -> np.ndarray:
+    return (capture - bias) - dark_rate * exp_time_s
+
+
+class DOTFProbeDirection(IntEnum):
+    RIGHT = 3
+    BOTTOM = 6
+    LEFT = 9
+    TOP = 12
+
+    def to_str(self) -> str:
+        return f"{self.value:02d}"
+
+
+def dotf_probe(shape: tuple[int, int], size: tuple[int, int], direction: DOTFProbeDirection) -> np.ndarray:
+    """
+    Create a DOTF probe pattern image.
+
+    Example:
+        image_dotf_probe = dotf_probe((200,200), (4,11), DOTFProbeDirection.TOP)
+
+    Parameters:
+        shape: tuple[int, int]
+            Image shape.
+        size: tuple[int, int]
+            Size of the box.
+        direction: DOTFProbeDirection
+            direction of the probe.
+
+    Returns: np.ndarray
+        Image of the dotf probe pattern.
+    """
+    width, height = shape
+    a, b = size
+    if direction == DOTFProbeDirection.RIGHT:
+        _center = (-width, -height // 2)
+        _size = a, b
+    elif direction == DOTFProbeDirection.BOTTOM:
+        _center = (-width // 2, 0)
+        _size = b, a
+    elif direction == DOTFProbeDirection.LEFT:
+        _center = (0, -height // 2)
+        _size = a, b
+    else:  # DOTFProbeDirection.TOP
+        _center = (-width // 2, -height)
+        _size = b, a
+    return box(shape, _size, _center)
+
+
+class EFCProbeDirection(Enum):
+    HORIZONTAL = auto()
+    VERTICAL = auto()
+
+    def to_str(self) -> str:
+        return self.name.lower()
+
+
+def efc_probe(shape: tuple[int, int], dξ: float, dη: float, ξc: float, θ: float, direction: EFCProbeDirection) -> np.ndarray:
+    """
+    Create a EFC probe pattern image.
+
+    Example:
+        image_efc_probe = efc_probe((200,200), 0.01, 0.01, 90, 0, EFCProbeDirection.HORIZONTAL)
+
+    Parameters:
+        shape: tuple[int, int]
+            Image shape.
+        dξ: float
+            Probe rectangle size in (along the EFCProbeDirection).
+        dη: float
+            Probe rectangle size in (perpendicular to the EFCProbeDirection).
+        ξc: float
+            Period of the sinusoid (along the EFCProbeDirection).
+        θ: float
+            Phase of the sinusoid (along the EFCProbeDirection) in radians.
+
+    Returns: np.ndarray
+        Image of the EFC probe pattern.
+    """
+
+    def _efc_probe(shape: tuple[int, int], dξ: float, dη: float, ξc: float, θ: float) -> np.ndarray:
+        xx, yy = generate_coordinates(shape, cartesian=True, offset=(-shape[0] / 2 + 0.5, -shape[1] / 2 + 0.5))
+        _2pi_xx = 2 * np.pi * xx
+        _2pi_yy = 2 * np.pi * yy
+        _invξc_2pi_xx = (1 / ξc) * _2pi_xx
+        return (np.sinc(dξ * _2pi_xx) * np.sinc(dη * _2pi_yy) * np.sin(_invξc_2pi_xx + θ) + 1) / 2
+
+    if direction == EFCProbeDirection.HORIZONTAL:
+        return _efc_probe(shape, dξ, dη, ξc, θ)
+    else:
+        return np.rot90(_efc_probe(shape, dξ, dη, ξc, θ))

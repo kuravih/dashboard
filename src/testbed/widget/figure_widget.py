@@ -1,11 +1,11 @@
 import numpy as np
+from numpy.typing import NDArray
 
 from PySide6.QtCore import Signal
 from PySide6.QtWidgets import QWidget, QVBoxLayout
 from PySide6.QtGui import QAction, QIcon
 
-from pykato.plotfunction.preset import Imshow_Colorbar_Preset, Imshow_Colorbar_Imshow_Colorbar_Preset
-from pykato.plotfunction.gridspec_layout import GridSpec_Layout
+from pykato.plotfunction.preset import Imshow_Colorbar_Preset, Imshow_Colorbar_Imshow_Colorbar_Preset, Complex_ImageGrid_TwoColorbars_Preset, Complex_Imshow_TwoColorbars_Preset
 from pykato.log import setup_logger
 
 import matplotlib as mpl
@@ -14,12 +14,10 @@ import matplotlib.patches as patches
 from matplotlib.figure import Figure
 from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.backends.backend_qtagg import NavigationToolbar2QT
-from matplotlib.gridspec import GridSpecFromSubplotSpec
 from matplotlib.colors import LogNorm, Normalize
-from matplotlib.ticker import MaxNLocator
-from mpl_toolkits.axes_grid1 import make_axes_locatable
 
 from testbed.function import Flip, Rotation
+from testbed.plot.preset import Speckle_Nulling_Process_Plot_Preset, Contrast_Evolution_Plot_Preset
 
 from .resource import ICON_HOUSE, ICON_MOVE, ICON_MAGNIFY, ICON_DISK, ICON_GEAR
 
@@ -270,104 +268,45 @@ class ContrastFigureWidget(FigureWidget):
     Contrast Figure widget
     """
 
-    def __init__(self, measurement: np.ndarray, n_iteration: int, mask: np.ndarray | None = None, show_toolbar: bool = False, parent=None):
-        super().__init__(GridSpec_Layout(1, 1, aspect_ratios=(8,)), show_toolbar=show_toolbar, parent=parent)
-        self.mask = mask
+    def __init__(self, contrast: np.ndarray, n_iteration: int, dark_hole_mask: NDArray[np.bool] | None = None, show_toolbar: bool = False, parent=None):
+        super().__init__(Contrast_Evolution_Plot_Preset(contrast, n_iteration, dark_hole_mask), show_toolbar, parent)
         self.cmap_name: str = "jet"
-        self.cmap_log: bool = True
+        self.cmap_norm: bool = True
         self.mask_show: bool = True
-
-        (self.image_ax,) = self.figure.get_axes()
-
-        self.image_ax.set_title("Speckles", size=10)
-        self.image_ax.set_xlabel("px", size=10)
-        self.image_ax.set_ylabel("px", size=10)
-        self.image_ax.axhline(measurement.shape[0] / 2 - 0.5, alpha=0.25, linewidth=0.5, color="white")
-        self.image_ax.axvline(measurement.shape[1] / 2 - 0.5, alpha=0.25, linewidth=0.5, color="white")
-        self.speckle = (self.image_ax.axvline(np.nan, alpha=0.5, linewidth=0.5, color="red"), self.image_ax.axhline(np.nan, alpha=0.5, linewidth=0.5, color="red"))
-        self.image_ax.add_patch(patches.Circle((measurement.shape[0] / 2 - 0.5, measurement.shape[1] / 2 - 0.5), radius=measurement.shape[1] / 2, fill=False, alpha=0.25, linewidth=0.5, color="white", transform=self.image_ax.transData))
-        self.imshow_image = self.image_ax.imshow(measurement)
-        self.image_ax.set_facecolor("black")
-        self.image_ax.invert_yaxis()
-
-        divider = make_axes_locatable(self.image_ax)
-
-        self.colorbar_ax = divider.append_axes("right", size="5%", pad=0.1)
-        self.figure.colorbar(self.imshow_image, cax=self.colorbar_ax)
-        self.colorbar_ax.set_title("Contrast", size=10)
-
-        self.plot_ax = divider.append_axes("right", size="200%", pad=0.5)
-        self.plot_ax.set_title("Evolution", size=10)
-        self.plot_ax.set_xlabel("Iteration", size=10)
-        self.plot_ax.set_ylabel("", size=10)
-        self.plot_ax.set_xlim((0, n_iteration))
-        self.plot_ax.set_yticklabels([])
-        (self.data_plot,) = self.plot_ax.plot([], [], marker="+", linestyle="None")
-
-        self.set_cmap(self.cmap_name)
-        self.set_cmap_norm(self.cmap_log)
-        self.set_mask_show(self.mask_show)
-
         self.setMinimumHeight(512)
 
-    def set_contrast_map(self, contrast_map: np.ndarray):
-        self.imshow_image.set_data(contrast_map)
+    def set_contrast(self, contrast: np.ndarray):
+        self.figure.set_contrast(contrast)
 
-    def set_contrast_array(self, contrast_array: np.ndarray):
-        self.data_plot.set_xdata(np.arange(contrast_array.size))
-        self.data_plot.set_ydata(contrast_array["avg"])
+    def set_contrast_plot(self, contrast_array: np.ndarray):
+        self.figure.set_contrast_plot(contrast_array)
 
     def set_speckle(self, xy: list[float]):
-        self.speckle[0].set_xdata([xy[0], xy[0]])
-        self.speckle[1].set_ydata([xy[1], xy[1]])
+        self.figure.set_speckle(xy)
 
     @property
     def cmap_name(self) -> str:
-        return self._cmap_name
+        return self.figure.get_cmap_name()
 
     @cmap_name.setter
     def cmap_name(self, value: str):
-        self._cmap_name = value
-        self.cmap = mpl.colormaps[value].copy()
-        self.cmap.set_bad(color="black")
-
-    def set_cmap(self, cmap_name: str):
-        self.cmap_name = cmap_name
-        self.imshow_image.set_cmap(self.cmap)
+        self.figure.set_cmap_name(value)
 
     @property
-    def cmap_log(self) -> bool:
-        return self._cmap_log
+    def cmap_norm(self) -> bool:
+        return self.figure.get_cmap_norm()
 
-    @cmap_log.setter
-    def cmap_log(self, value: bool):
-        self._cmap_log = value
-
-    def set_cmap_norm(self, checked: bool):
-        self.cmap_log = checked
-        if self.cmap_log:
-            self.imshow_image.set_norm(LogNorm(vmin=1e-5, vmax=1))
-            self.plot_ax.set_yscale("log")
-        else:
-            self.imshow_image.set_norm(Normalize(vmin=1e-5, vmax=1))
-            self.plot_ax.set_yscale("linear")
-        self.plot_ax.set_ylim(1e-5, 1)
-        self.plot_ax.set_yticklabels([])
+    @cmap_norm.setter
+    def cmap_norm(self, value: bool):
+        self.figure.set_cmap_norm(value)
 
     @property
     def mask_show(self) -> bool:
-        return self._mask_show
+        self.figure.get_mask_show()
 
     @mask_show.setter
     def mask_show(self, value: bool):
-        self._mask_show = value
-
-    def set_mask_show(self, checked: bool):
-        self.mask_show = checked
-        if self.mask_show:
-            self.imshow_image._alpha = np.where(self.mask, 1.0, 0.9)
-        else:
-            self.imshow_image._alpha = None
+        self.figure.set_mask_show(value)
 
 
 class SpeckleNullingFigureWidget(FigureWidget):
@@ -375,176 +314,80 @@ class SpeckleNullingFigureWidget(FigureWidget):
     Speckle Nulling Figure widget
     """
 
-    def __init__(self, capture: np.ndarray, command: np.ndarray, phs_lim: list[float], amp_lim: list[float], src_mask: np.ndarray | None = None, show_toolbar: bool = False, parent=None):
-        super().__init__(GridSpec_Layout(nrows=3, ncols=1, height_ratios=(1, 0.2, 0.2), hspace=0.5), show_toolbar, parent)
-        self.src_mask = src_mask
+    def __init__(self, capture: NDArray[np.float64], command: NDArray[np.float64], phs_lim: tuple[float, float], amp_lim: tuple[float, float], dark_hole_mask: NDArray[np.bool] | None = None, show_toolbar: bool = False, parent=None):
+        super().__init__(Speckle_Nulling_Process_Plot_Preset(capture, command, phs_lim, amp_lim, dark_hole_mask), show_toolbar, parent)
         self.src_cmap_name: str = "hot"
         self.snk_cmap_name: str = "bwr"
-        self.src_cmap_log: bool = True
-        self.src_mask_show: bool = False
-
-        _image_axes, self.plot_ax_phs, self.plot_ax_amp = self.figure.get_axes()
-        _image_axes.remove()
-
-        self.plot_ax_phs.set_title("Phase modulation", size=10)
-        self.plot_ax_phs.set_xlabel("Phase", size=10)
-        self.plot_ax_phs.set_ylabel("Intensity", size=10)
-        self.plot_ax_phs.set_xlim((phs_lim[0], phs_lim[1]))
-        self.plot_ax_phs.xaxis.set_major_locator(MaxNLocator(nbins=7))
-        (self.phs_data_plot,) = self.plot_ax_phs.plot([], [], marker="+", linestyle="None")
-        (self.phs_fit_plot,) = self.plot_ax_phs.plot([], [], color="red")
-        self.phs_solve_line = self.plot_ax_phs.axvline(np.nan, color="red")
-
-        self.plot_ax_amp.set_title("Amplitude modulation", size=10)
-        self.plot_ax_amp.set_xlabel("Amplitude", size=10)
-        self.plot_ax_amp.set_ylabel("Intensity", size=10)
-        self.plot_ax_amp.set_xlim((amp_lim[0], amp_lim[-1]))
-        (self.amp_data_plot,) = self.plot_ax_amp.plot([], [], marker="+", linestyle="None")
-        (self.amp_fit_plot,) = self.plot_ax_amp.plot([], [], color="red")
-        self.amp_solve_line = self.plot_ax_amp.axvline(np.nan, color="red")
-
-        gs1 = self.figure.get_gridspec()
-        gs2 = GridSpecFromSubplotSpec(nrows=1, ncols=2, subplot_spec=gs1[0])
-
-        imshow_ax_sink = self.figure.add_subplot(gs2[0])
-        imshow_ax_sink.set_title("SLM", size=10)
-        imshow_ax_sink.set_xlabel("px", size=10)
-        imshow_ax_sink.set_ylabel("px", size=10)
-        imshow_ax_sink.axhline(command.shape[0] / 2 - 0.5, alpha=0.25, linewidth=0.5, color="white")
-        imshow_ax_sink.axvline(command.shape[1] / 2 - 0.5, alpha=0.25, linewidth=0.5, color="white")
-        imshow_ax_sink.add_patch(patches.Circle((command.shape[0] / 2 - 0.5, command.shape[1] / 2 - 0.5), radius=command.shape[1] / 2, fill=False, alpha=0.25, linewidth=0.5, color="white", transform=imshow_ax_sink.transData))
-        self.imshow_image_sink = imshow_ax_sink.imshow(command)
-        self.imshow_image_sink.set_clim(0, 2**16 - 1)
-        imshow_ax_sink.invert_yaxis()
-
-        divider_sink = make_axes_locatable(imshow_ax_sink)
-
-        self.colorbar_ax_sink = divider_sink.append_axes("right", size="5%", pad=0.1)
-        self.figure.colorbar(self.imshow_image_sink, cax=self.colorbar_ax_sink)
-        self.colorbar_ax_sink.set_title("adu", size=10)
-
-        imshow_ax_source = self.figure.add_subplot(gs2[1])
-        imshow_ax_source.set_title("Source", size=10)
-        imshow_ax_source.set_xlabel("px", size=10)
-        imshow_ax_source.set_ylabel("px", size=10)
-        imshow_ax_source.axhline(capture.shape[0] / 2, alpha=0.25, linewidth=0.5, color="white")
-        imshow_ax_source.axvline(capture.shape[1] / 2, alpha=0.25, linewidth=0.5, color="white")
-        self.speckle = (imshow_ax_source.axvline(np.nan, alpha=0.5, linewidth=0.5, color="red"), imshow_ax_source.axhline(np.nan, alpha=0.5, linewidth=0.5, color="red"))
-        imshow_ax_source.add_patch(patches.Circle((capture.shape[0] / 2, capture.shape[1] / 2), radius=225, fill=False, alpha=0.25, linewidth=0.5, color="white", transform=imshow_ax_source.transData))
-        self.imshow_image_source = imshow_ax_source.imshow(capture)
-        imshow_ax_source.set_facecolor("black")
-        imshow_ax_source.invert_yaxis()
-
-        divider_source = make_axes_locatable(imshow_ax_source)
-
-        self.colorbar_ax_source = divider_source.append_axes("right", size="5%", pad=0.1)
-        self.figure.colorbar(self.imshow_image_source, cax=self.colorbar_ax_source)
-        self.colorbar_ax_source.set_title("adu", size=10)
-
-        self.set_src_cmap(self.src_cmap_name)
-        self.set_src_cmap_norm(self.src_cmap_log)
-        self.set_src_mask_show(self.src_mask_show)
-        self.set_snk_cmap(self.snk_cmap_name)
-
+        self.src_cmap_norm: bool = True
+        self.src_mask_show: bool = True
         self.setMinimumHeight(512)
 
     def set_command(self, command: np.ndarray):
-        self.imshow_image_sink.set_data(command)
+        self.figure.set_command(command)
 
     @property
     def src_cmap_name(self) -> str:
-        return self._src_cmap_name
+        return self.figure.get_src_cmap_name()
 
     @src_cmap_name.setter
     def src_cmap_name(self, value: str):
-        self._src_cmap_name = value
-        self._src_cmap = mpl.colormaps[value].copy()
-        self._src_cmap.set_bad(color="black")
-
-    def set_src_cmap(self, cmap_name: str):
-        self.src_cmap_name = cmap_name
-        self.imshow_image_source.set_cmap(self._src_cmap)
+        self.figure.set_src_cmap_name(value)
 
     @property
-    def src_cmap_log(self) -> bool:
-        return self._src_cmap_log
+    def src_cmap_norm(self) -> bool:
+        return self.figure.get_src_cmap_norm()
 
-    @src_cmap_log.setter
-    def src_cmap_log(self, value: bool):
-        self._src_cmap_log = value
-
-    def set_src_cmap_norm(self, checked: bool):
-        self.src_cmap_log = checked
-        if self.src_cmap_log:
-            self.imshow_image_source.set_norm(LogNorm(vmin=1, vmax=2**12 - 1))
-        else:
-            self.imshow_image_source.set_norm(Normalize(vmin=1, vmax=2**12 - 1))
+    @src_cmap_norm.setter
+    def src_cmap_norm(self, value: bool):
+        self.figure.set_src_cmap_norm(value)
 
     @property
     def src_mask_show(self) -> bool:
-        return self._src_mask_show
+        self.figure.get_src_mask_show()
 
     @src_mask_show.setter
     def src_mask_show(self, value: bool):
-        self._src_mask_show = value
-
-    def set_src_mask_show(self, checked: bool):
-        self.src_mask_show = checked
-        if self.src_mask_show:
-            self.imshow_image_source._alpha = np.where(self.src_mask, 1.0, 0.9)
-        else:
-            self.imshow_image_source._alpha = None
+        self.figure.set_src_mask_show(value)
 
     @property
     def snk_cmap_name(self) -> str:
-        return self._snk_cmap_name
+        return self.figure.get_snk_cmap_name()
 
     @snk_cmap_name.setter
     def snk_cmap_name(self, value: str):
-        self._snk_cmap_name = value
-        self._snk_cmap = mpl.colormaps[value].copy()
-        self._snk_cmap.set_bad(color="black")
-
-    def set_snk_cmap(self, cmap_name: str):
-        self.snk_cmap_name = cmap_name
-        self.imshow_image_sink.set_cmap(self._snk_cmap)
+        self.figure.set_snk_cmap_name(value)
 
     def set_capture(self, capture: np.ndarray):
-        self.imshow_image_source.set_data(capture)
+        self.figure.set_capture(capture)
 
     def set_speckle(self, xy: list[float]):
-        self.speckle[0].set_xdata([xy[0], xy[0]])
-        self.speckle[1].set_ydata([xy[1], xy[1]])
+        self.figure.set_speckle(xy)
 
     def set_phs_data_plot(self, phs_array: np.ndarray, phs_intensity_data_array: np.ndarray):
-        self.phs_data_plot.set_xdata(phs_array)
-        self.phs_data_plot.set_ydata(phs_intensity_data_array)
+        self.figure.set_phs_data_plot(phs_array, phs_intensity_data_array)
 
     def set_phs_fit_plot(self, phs_intensity_fit_x_data: np.ndarray, phs_intensity_fit_y_data: np.ndarray):
-        self.phs_fit_plot.set_xdata(phs_intensity_fit_x_data)
-        self.phs_fit_plot.set_ydata(phs_intensity_fit_y_data)
+        self.figure.set_phs_fit_plot(phs_intensity_fit_x_data, phs_intensity_fit_y_data)
 
     def set_amp_data_plot(self, amp_array: np.ndarray, amp_intensity_data_array: np.ndarray):
-        self.amp_data_plot.set_xdata(amp_array)
-        self.amp_data_plot.set_ydata(amp_intensity_data_array)
+        self.figure.set_amp_data_plot(amp_array, amp_intensity_data_array)
 
     def set_amp_fit_plot(self, amp_intensity_fit_x_data: np.ndarray, amp_intensity_fit_y_data: np.ndarray):
-        self.amp_fit_plot.set_xdata(amp_intensity_fit_x_data)
-        self.amp_fit_plot.set_ydata(amp_intensity_fit_y_data)
+        self.figure.set_amp_fit_plot(amp_intensity_fit_x_data, amp_intensity_fit_y_data)
 
     def set_phs_solve(self, solve: float):
-        return self.phs_solve_line.set_xdata([solve, solve])
+        self.figure.set_phs_solve(solve)
 
     def set_amp_solve(self, solve: float):
-        return self.amp_solve_line.set_xdata([solve, solve])
+        self.figure.set_amp_solve(solve)
 
     @property
     def phs_ax(self):
-        return self.plot_ax_phs
+        return self.figure.phs_ax()
 
     @property
     def amp_ax(self):
-        return self.plot_ax_amp
+        return self.figure.amp_ax()
 
 
 class RecenteringFigureWidget(FigureWidget):
@@ -597,46 +440,27 @@ class RecenteringFigureWidget(FigureWidget):
 
     @property
     def src_cmap_name(self) -> str:
-        return self._src_cmap_name
+        return self.figure.get_src_cmap_name()
 
     @src_cmap_name.setter
     def src_cmap_name(self, value: str):
-        self._src_cmap_name = value
-        self._src_cmap = mpl.colormaps[value].copy()
-        self._src_cmap.set_bad(color="black")
-
-    def set_src_cmap(self, cmap_name: str):
-        self.src_cmap_name = cmap_name
-        self.image_src.set_cmap(self._src_cmap)
+        self.figure.set_src_cmap_name(value)
 
     @property
     def src_cmap_log(self) -> bool:
-        return self._src_cmap_log
+        return self.figure.get_src_cmap_log()
 
     @src_cmap_log.setter
     def src_cmap_log(self, value: bool):
-        self._src_cmap_log = value
-
-    def set_src_cmap_norm(self, checked: bool):
-        self.src_cmap_log = checked
-        if self.src_cmap_log:
-            self.image_src.set_norm(LogNorm(vmin=1, vmax=2**12 - 1))
-        else:
-            self.image_src.set_norm(Normalize(vmin=1, vmax=2**12 - 1))
+        self.figure.set_src_cmap_log(value)
 
     @property
     def snk_cmap_name(self) -> str:
-        return self._snk_cmap_name
+        return self.figure.get_snk_cmap_name()
 
     @snk_cmap_name.setter
     def snk_cmap_name(self, value: str):
-        self._snk_cmap_name = value
-        self._snk_cmap = mpl.colormaps[value].copy()
-        self._snk_cmap.set_bad(color="black")
-
-    def set_snk_cmap(self, cmap_name: str):
-        self.snk_cmap_name = cmap_name
-        self.image_snk.set_cmap(self._snk_cmap)
+        self.figure.set_snk_cmap_name(value)
 
     def set_capture(self, capture: np.ndarray):
         self.image_src.set_data(capture)
@@ -651,3 +475,31 @@ class RecenteringFigureWidget(FigureWidget):
         self.center[0].set_xdata([xy[0], xy[0]])
         self.center[1].set_ydata([xy[1], xy[1]])
         self.center_circle.set_center(xy)
+
+class DOTFSenseFigureWidget(FigureWidget):
+    """
+    DOTF Figure widget
+    """
+
+    def __init__(self, captures: list[np.ndarray], commands: list[np.ndarray], toolbar: bool = False, parent=None):
+        super().__init__(Complex_ImageGrid_TwoColorbars_Preset(captures, commands), toolbar, parent)
+        # self.figure.set_xlim((shape[0] * 5 // 16, shape[1] * 11 // 16))
+        # self.figure.set_ylim((shape[0] * 5 // 16, shape[1] * 11 // 16))
+        # self.title = self.figure.suptitle("DOTF", y=0.9, size=10)
+        # self.setMinimumSize(100, 100)
+
+        # self.actuator_plots = self.figure.get_plots
+
+        # for index, imshow_ax in enumerate(self.figure.get_imshow_axes()):
+        #     imshow_ax.set_xlabel("px", size=10)
+        #     if index == 0:
+        #         imshow_ax.set_ylabel("px", size=10)
+
+
+class WavefrontFigureWidget(FigureWidget):
+    """
+    Wavefront Figure widget
+    """
+
+    def __init__(self, shape: tuple[int, int], toolbar: bool = False, parent=None):
+        super().__init__(Complex_Imshow_TwoColorbars_Preset(np.zeros(shape, dtype=np.complex64)), toolbar, parent)
