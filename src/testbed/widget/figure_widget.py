@@ -5,7 +5,7 @@ from PySide6.QtCore import Signal
 from PySide6.QtWidgets import QWidget, QVBoxLayout
 from PySide6.QtGui import QAction, QIcon
 
-from pykato.plotfunction.preset import Imshow_Colorbar_Preset, Imshow_Colorbar_Imshow_Colorbar_Preset, Complex_ImageGrid_TwoColorbars_Preset, Complex_Imshow_TwoColorbars_Preset
+from pykato.plotfunction.preset import Imshow_Colorbar_Preset, Imshow_Colorbar_Imshow_Colorbar_Preset
 from pykato.log import setup_logger
 
 import matplotlib as mpl
@@ -475,31 +475,3 @@ class RecenteringFigureWidget(FigureWidget):
         self.center[0].set_xdata([xy[0], xy[0]])
         self.center[1].set_ydata([xy[1], xy[1]])
         self.center_circle.set_center(xy)
-
-class DOTFSenseFigureWidget(FigureWidget):
-    """
-    DOTF Figure widget
-    """
-
-    def __init__(self, captures: list[np.ndarray], commands: list[np.ndarray], toolbar: bool = False, parent=None):
-        super().__init__(Complex_ImageGrid_TwoColorbars_Preset(captures, commands), toolbar, parent)
-        # self.figure.set_xlim((shape[0] * 5 // 16, shape[1] * 11 // 16))
-        # self.figure.set_ylim((shape[0] * 5 // 16, shape[1] * 11 // 16))
-        # self.title = self.figure.suptitle("DOTF", y=0.9, size=10)
-        # self.setMinimumSize(100, 100)
-
-        # self.actuator_plots = self.figure.get_plots
-
-        # for index, imshow_ax in enumerate(self.figure.get_imshow_axes()):
-        #     imshow_ax.set_xlabel("px", size=10)
-        #     if index == 0:
-        #         imshow_ax.set_ylabel("px", size=10)
-
-
-class WavefrontFigureWidget(FigureWidget):
-    """
-    Wavefront Figure widget
-    """
-
-    def __init__(self, shape: tuple[int, int], toolbar: bool = False, parent=None):
-        super().__init__(Complex_Imshow_TwoColorbars_Preset(np.zeros(shape, dtype=np.complex64)), toolbar, parent)

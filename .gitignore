@@ -5,3 +5,5 @@
 **/data/
 uv.lock
 data
+temp/
+tests/output/
