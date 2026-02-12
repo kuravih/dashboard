@@ -7,11 +7,13 @@ from matplotlib.gridspec import GridSpecFromSubplotSpec
 from matplotlib.ticker import MaxNLocator
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 from matplotlib.colors import LogNorm, Normalize
+from matplotlib.ticker import FuncFormatter, LinearLocator
 
 import numpy as np
 from numpy.typing import NDArray
 
 from pykato.plotfunction.gridspec_layout import GridSpec_Layout
+from pykato.plotfunction.preset import _pi_formatter
 from pykato.log import setup_logger
 
 logger = setup_logger("preset", terminator="\n")
@@ -104,12 +106,9 @@ def Speckle_Nulling_Process_Plot_Preset(capture: NDArray[np.float64], command: N
 
     """
 
-    if figure is None:
-        figure = plt.figure()
+    _figure = GridSpec_Layout(nrows=3, ncols=1, height_ratios=(1, 0.2, 0.2), hspace=0.5, figure=figure)
 
-    figure = GridSpec_Layout(nrows=3, ncols=1, height_ratios=(1, 0.2, 0.2), hspace=0.5)
-
-    _image_axes, plot_ax_phs, plot_ax_amp = figure.get_axes()
+    _image_axes, plot_ax_phs, plot_ax_amp = _figure.get_axes()
     _image_axes.remove()
 
     plot_ax_phs.set_title("Phase modulation", size=10)
@@ -129,10 +128,10 @@ def Speckle_Nulling_Process_Plot_Preset(capture: NDArray[np.float64], command: N
     (amp_fit_plot,) = plot_ax_amp.plot([], [], color="red")
     amp_solve_line = plot_ax_amp.axvline(np.nan, color="red")
 
-    gs1 = figure.get_gridspec()
+    gs1 = _figure.get_gridspec()
     gs2 = GridSpecFromSubplotSpec(nrows=1, ncols=2, subplot_spec=gs1[0])
 
-    imshow_ax_sink = figure.add_subplot(gs2[0])
+    imshow_ax_sink = _figure.add_subplot(gs2[0])
     imshow_ax_sink.set_title("SLM", size=10)
     imshow_ax_sink.set_xlabel("px", size=10)
     imshow_ax_sink.set_ylabel("px", size=10)
@@ -146,10 +145,10 @@ def Speckle_Nulling_Process_Plot_Preset(capture: NDArray[np.float64], command: N
     divider_sink = make_axes_locatable(imshow_ax_sink)
 
     colorbar_ax_sink = divider_sink.append_axes("right", size="5%", pad=0.1)
-    figure.colorbar(imshow_image_sink, cax=colorbar_ax_sink)
+    _figure.colorbar(imshow_image_sink, cax=colorbar_ax_sink)
     colorbar_ax_sink.set_title("adu", size=10)
 
-    imshow_ax_source = figure.add_subplot(gs2[1])
+    imshow_ax_source = _figure.add_subplot(gs2[1])
     imshow_ax_source.set_title("Source", size=10)
     imshow_ax_source.set_xlabel("px", size=10)
     imshow_ax_source.set_ylabel("px", size=10)
@@ -164,91 +163,91 @@ def Speckle_Nulling_Process_Plot_Preset(capture: NDArray[np.float64], command: N
     divider_source = make_axes_locatable(imshow_ax_source)
 
     colorbar_ax_source = divider_source.append_axes("right", size="5%", pad=0.1)
-    figure.colorbar(imshow_image_source, cax=colorbar_ax_source)
+    _figure.colorbar(imshow_image_source, cax=colorbar_ax_source)
     colorbar_ax_source.set_title("adu", size=10)
 
     # -----------------------------------------------------------------------------------------------------------------
     def _set_command(command: np.ndarray):
         imshow_image_sink.set_data(command)
 
-    figure.set_command = _set_command
+    _figure.set_command = _set_command
     # -----------------------------------------------------------------------------------------------------------------
 
     # -----------------------------------------------------------------------------------------------------------------
-    figure._src_cmap_name: str = "hot"
+    _figure._src_cmap_name: str = "hot"
 
     def _get_src_cmap_name() -> str:
-        return figure._src_cmap_name
+        return _figure._src_cmap_name
 
-    figure.get_src_cmap_name = _get_src_cmap_name
+    _figure.get_src_cmap_name = _get_src_cmap_name
 
     def _set_src_cmap_name(value: str):
-        figure._src_cmap_name = value
-        _src_cmap = mpl.colormaps[figure._src_cmap_name].copy()
+        _figure._src_cmap_name = value
+        _src_cmap = mpl.colormaps[_figure._src_cmap_name].copy()
         _src_cmap.set_bad(color="black")
         imshow_image_source.set_cmap(_src_cmap)
 
-    figure.set_src_cmap_name = _set_src_cmap_name
+    _figure.set_src_cmap_name = _set_src_cmap_name
     # -----------------------------------------------------------------------------------------------------------------
 
     # -----------------------------------------------------------------------------------------------------------------
-    figure._src_cmap_norm: bool = True
+    _figure._src_cmap_norm: bool = True
 
     def _get_src_cmap_norm() -> bool:
-        return figure._src_cmap_norm
+        return _figure._src_cmap_norm
 
-    figure.get_src_cmap_norm = _get_src_cmap_norm
+    _figure.get_src_cmap_norm = _get_src_cmap_norm
 
     def _set_src_cmap_norm(value: bool):
-        figure._src_cmap_norm = value
-        if figure._src_cmap_norm:
+        _figure._src_cmap_norm = value
+        if _figure._src_cmap_norm:
             imshow_image_source.set_norm(LogNorm(vmin=1, vmax=2**12 - 1))
         else:
             imshow_image_source.set_norm(Normalize(vmin=1, vmax=2**12 - 1))
 
-    figure.set_src_cmap_norm = _set_src_cmap_norm
+    _figure.set_src_cmap_norm = _set_src_cmap_norm
     # -----------------------------------------------------------------------------------------------------------------
 
     # -----------------------------------------------------------------------------------------------------------------
-    figure._src_mask_show: bool = False
+    _figure._src_mask_show: bool = False
 
     def _get_src_mask_show() -> bool:
-        return figure._src_mask_show
+        return _figure._src_mask_show
 
-    figure.get_src_mask_show = _get_src_mask_show
+    _figure.get_src_mask_show = _get_src_mask_show
 
     def _set_src_mask_show(value: bool):
-        figure._src_mask_show = value
-        if figure._src_mask_show & (dark_hole_mask is not None):
+        _figure._src_mask_show = value
+        if _figure._src_mask_show & (dark_hole_mask is not None):
             imshow_image_source._alpha = np.where(dark_hole_mask, 1.0, 0.9)
         else:
             imshow_image_source._alpha = None
 
-    figure.set_src_mask_show = _set_src_mask_show
+    _figure.set_src_mask_show = _set_src_mask_show
     # -----------------------------------------------------------------------------------------------------------------
 
     # -----------------------------------------------------------------------------------------------------------------
-    figure._snk_cmap_name: str = "bwr"
+    _figure._snk_cmap_name: str = "bwr"
 
     def _get_snk_cmap_name() -> str:
-        return figure._snk_cmap_name
+        return _figure._snk_cmap_name
 
-    figure.get_snk_cmap_name = _get_snk_cmap_name
+    _figure.get_snk_cmap_name = _get_snk_cmap_name
 
     def _set_snk_cmap_name(value: str):
-        figure._snk_cmap_name = value
-        _snk_cmap = mpl.colormaps[figure._snk_cmap_name].copy()
+        _figure._snk_cmap_name = value
+        _snk_cmap = mpl.colormaps[_figure._snk_cmap_name].copy()
         _snk_cmap.set_bad(color="black")
         imshow_image_sink.set_cmap(_snk_cmap)
 
-    figure.set_snk_cmap_name = _set_snk_cmap_name
+    _figure.set_snk_cmap_name = _set_snk_cmap_name
     # -----------------------------------------------------------------------------------------------------------------
 
     # -----------------------------------------------------------------------------------------------------------------
     def _set_capture(capture: np.ndarray):
         imshow_image_source.set_data(capture)
 
-    figure.set_capture = _set_capture
+    _figure.set_capture = _set_capture
     # -----------------------------------------------------------------------------------------------------------------
 
     # -----------------------------------------------------------------------------------------------------------------
@@ -256,7 +255,7 @@ def Speckle_Nulling_Process_Plot_Preset(capture: NDArray[np.float64], command: N
         speckle[0].set_xdata([xy[0], xy[0]])
         speckle[1].set_ydata([xy[1], xy[1]])
 
-    figure.set_speckle = _set_speckle
+    _figure.set_speckle = _set_speckle
     # -----------------------------------------------------------------------------------------------------------------
 
     # -----------------------------------------------------------------------------------------------------------------
@@ -264,7 +263,7 @@ def Speckle_Nulling_Process_Plot_Preset(capture: NDArray[np.float64], command: N
         phs_data_plot.set_xdata(phs_array)
         phs_data_plot.set_ydata(phs_intensity_data_array)
 
-    figure.set_phs_data_plot = _set_phs_data_plot
+    _figure.set_phs_data_plot = _set_phs_data_plot
     # -----------------------------------------------------------------------------------------------------------------
 
     # -----------------------------------------------------------------------------------------------------------------
@@ -272,7 +271,7 @@ def Speckle_Nulling_Process_Plot_Preset(capture: NDArray[np.float64], command: N
         phs_fit_plot.set_xdata(phs_intensity_fit_x_data)
         phs_fit_plot.set_ydata(phs_intensity_fit_y_data)
 
-    figure.set_phs_fit_plot = _set_phs_fit_plot
+    _figure.set_phs_fit_plot = _set_phs_fit_plot
     # -----------------------------------------------------------------------------------------------------------------
 
     # -----------------------------------------------------------------------------------------------------------------
@@ -280,7 +279,7 @@ def Speckle_Nulling_Process_Plot_Preset(capture: NDArray[np.float64], command: N
         amp_data_plot.set_xdata(amp_array)
         amp_data_plot.set_ydata(amp_intensity_data_array)
 
-    figure.set_amp_data_plot = _set_amp_data_plot
+    _figure.set_amp_data_plot = _set_amp_data_plot
     # -----------------------------------------------------------------------------------------------------------------
 
     # -----------------------------------------------------------------------------------------------------------------
@@ -288,45 +287,50 @@ def Speckle_Nulling_Process_Plot_Preset(capture: NDArray[np.float64], command: N
         amp_fit_plot.set_xdata(amp_intensity_fit_x_data)
         amp_fit_plot.set_ydata(amp_intensity_fit_y_data)
 
-    figure.set_amp_fit_plot = _set_amp_fit_plot
+    _figure.set_amp_fit_plot = _set_amp_fit_plot
     # -----------------------------------------------------------------------------------------------------------------
 
     # -----------------------------------------------------------------------------------------------------------------
     def _set_phs_solve(solve: float):
         phs_solve_line.set_xdata([solve, solve])
 
-    figure.set_phs_solve = _set_phs_solve
+    _figure.set_phs_solve = _set_phs_solve
     # -----------------------------------------------------------------------------------------------------------------
 
     # -----------------------------------------------------------------------------------------------------------------
     def _set_amp_solve(solve: float):
         amp_solve_line.set_xdata([solve, solve])
 
-    figure.set_amp_solve = _set_amp_solve
+    _figure.set_amp_solve = _set_amp_solve
     # -----------------------------------------------------------------------------------------------------------------
 
     # -----------------------------------------------------------------------------------------------------------------
     def _phs_ax() -> Axes:
         return plot_ax_phs
 
-    figure.phs_ax = _phs_ax
+    _figure.phs_ax = _phs_ax
     # -----------------------------------------------------------------------------------------------------------------
 
     # -----------------------------------------------------------------------------------------------------------------
     def _amp_ax() -> Axes:
         return plot_ax_amp
 
-    figure.amp_ax = _amp_ax
+    _figure.amp_ax = _amp_ax
     # -----------------------------------------------------------------------------------------------------------------
 
     # -----------------------------------------------------------------------------------------------------------------
     def _close():
-        plt.close(figure)
+        plt.close(_figure)
 
-    figure.close = _close
+    _figure.close = _close
     # -----------------------------------------------------------------------------------------------------------------
 
-    return figure
+    _figure.set_src_cmap_name("hot")
+    _figure.set_src_cmap_norm(True)
+    _figure.set_src_mask_show(True)
+    _figure.set_snk_cmap_name("bwr")
+
+    return _figure
 
 
 def Contrast_Evolution_Plot_Preset(contrast: NDArray[np.float64], n_iteration: int, dark_hole_mask: NDArray[np.bool] | None = None, figure: Figure | None = None) -> Figure:
@@ -386,12 +390,9 @@ def Contrast_Evolution_Plot_Preset(contrast: NDArray[np.float64], n_iteration: i
 
     """
 
-    if figure is None:
-        figure = plt.figure()
+    _figure = GridSpec_Layout(nrows=1, ncols=1, aspect_ratios=(8,), figure=figure)
 
-    figure = GridSpec_Layout(nrows=1, ncols=1, aspect_ratios=(8,))
-
-    (image_ax,) = figure.get_axes()
+    (image_ax,) = _figure.get_axes()
 
     image_ax.set_title("Speckles", size=10)
     image_ax.set_xlabel("px", size=10)
@@ -407,7 +408,7 @@ def Contrast_Evolution_Plot_Preset(contrast: NDArray[np.float64], n_iteration: i
     divider = make_axes_locatable(image_ax)
 
     colorbar_ax = divider.append_axes("right", size="5%", pad=0.1)
-    figure.colorbar(imshow_image, cax=colorbar_ax)
+    _figure.colorbar(imshow_image, cax=colorbar_ax)
     colorbar_ax.set_title("Contrast", size=10)
 
     plot_ax = divider.append_axes("right", size="200%", pad=0.5)
@@ -422,7 +423,7 @@ def Contrast_Evolution_Plot_Preset(contrast: NDArray[np.float64], n_iteration: i
     def _set_contrast(contrast: np.ndarray):
         imshow_image.set_data(contrast)
 
-    figure.set_contrast = _set_contrast
+    _figure.set_contrast = _set_contrast
     # -----------------------------------------------------------------------------------------------------------------
 
     # -----------------------------------------------------------------------------------------------------------------
@@ -430,7 +431,7 @@ def Contrast_Evolution_Plot_Preset(contrast: NDArray[np.float64], n_iteration: i
         data_plot.set_xdata(np.arange(contrast_array.size))
         data_plot.set_ydata(contrast_array["avg"])
 
-    figure.set_contrast_plot = _set_contrast_plot
+    _figure.set_contrast_plot = _set_contrast_plot
     # -----------------------------------------------------------------------------------------------------------------
 
     # -----------------------------------------------------------------------------------------------------------------
@@ -438,37 +439,37 @@ def Contrast_Evolution_Plot_Preset(contrast: NDArray[np.float64], n_iteration: i
         speckle[0].set_xdata([xy[0], xy[0]])
         speckle[1].set_ydata([xy[1], xy[1]])
 
-    figure.set_speckle = _set_speckle
+    _figure.set_speckle = _set_speckle
     # -----------------------------------------------------------------------------------------------------------------
 
     # -----------------------------------------------------------------------------------------------------------------
-    figure._cmap_name: str = "jet"
+    _figure._cmap_name: str = "jet"
 
     def _get_cmap_name() -> str:
-        return figure._cmap_name
+        return _figure._cmap_name
 
-    figure.get_cmap_name = _get_cmap_name
+    _figure.get_cmap_name = _get_cmap_name
 
     def _set_cmap_name(value: str):
-        figure._cmap_name = value
-        _src_cmap = mpl.colormaps[figure._cmap_name].copy()
+        _figure._cmap_name = value
+        _src_cmap = mpl.colormaps[_figure._cmap_name].copy()
         _src_cmap.set_bad(color="black")
         imshow_image.set_cmap(_src_cmap)
 
-    figure.set_cmap_name = _set_cmap_name
+    _figure.set_cmap_name = _set_cmap_name
     # -----------------------------------------------------------------------------------------------------------------
 
     # -----------------------------------------------------------------------------------------------------------------
-    figure._cmap_norm: bool = True
+    _figure._cmap_norm: bool = True
 
     def _get_cmap_norm() -> bool:
-        return figure._cmap_norm
+        return _figure._cmap_norm
 
-    figure.get_cmap_norm = _get_cmap_norm
+    _figure.get_cmap_norm = _get_cmap_norm
 
     def _set_cmap_norm(value: bool):
-        figure._cmap_norm = value
-        if figure._cmap_norm:
+        _figure._cmap_norm = value
+        if _figure._cmap_norm:
             imshow_image.set_norm(LogNorm(vmin=1e-5, vmax=1))
             plot_ax.set_yscale("log")
         else:
@@ -477,32 +478,198 @@ def Contrast_Evolution_Plot_Preset(contrast: NDArray[np.float64], n_iteration: i
         plot_ax.set_ylim(1e-5, 1)
         plot_ax.set_yticklabels([])
 
-    figure.set_cmap_norm = _set_cmap_norm
+    _figure.set_cmap_norm = _set_cmap_norm
     # -----------------------------------------------------------------------------------------------------------------
 
     # -----------------------------------------------------------------------------------------------------------------
-    figure._mask_show: bool = False
+    _figure._mask_show: bool = False
 
     def _get_mask_show() -> bool:
-        return figure._mask_show
+        return _figure._mask_show
 
-    figure.get_mask_show = _get_mask_show
+    _figure.get_mask_show = _get_mask_show
 
     def _set_mask_show(value: bool):
-        figure._mask_show = value
-        if figure._mask_show & (dark_hole_mask is not None):
+        _figure._mask_show = value
+        if _figure._mask_show & (dark_hole_mask is not None):
             imshow_image._alpha = np.where(dark_hole_mask, 1.0, 0.9)
         else:
             imshow_image._alpha = None
 
-    figure.set_mask_show = _set_mask_show
+    _figure.set_mask_show = _set_mask_show
     # -----------------------------------------------------------------------------------------------------------------
 
     # -----------------------------------------------------------------------------------------------------------------
     def _close():
-        plt.close(figure)
+        plt.close(_figure)
 
-    figure.close = _close
+    _figure.close = _close
     # -----------------------------------------------------------------------------------------------------------------
 
-    return figure
+    _figure.set_cmap_name("jet")
+
+    return _figure
+
+
+def DOTF_Sensing_Process_Plot_Preset(capture: NDArray[np.float64], command: NDArray[np.float64], figure: Figure | None = None) -> Figure:
+
+    _figure = GridSpec_Layout(nrows=1, ncols=1, init=False, figure=figure)
+
+    gs = _figure.get_gridspec()
+
+    # ---- sink -------------------------------------------------------------------------------------------------------
+    imshow_ax_sink = _figure.add_subplot(gs[0])
+    imshow_ax_sink.set_title("Command", size=10)
+    imshow_ax_sink.set_xlabel("px", size=10)
+    imshow_ax_sink.set_ylabel("px", size=10)
+    imshow_ax_sink.axhline(command.shape[0] / 2 - 0.5, alpha=0.25, linewidth=0.5, color="white")
+    imshow_ax_sink.axvline(command.shape[1] / 2 - 0.5, alpha=0.25, linewidth=0.5, color="white")
+    imshow_ax_sink.add_patch(patches.Circle((command.shape[0] / 2 - 0.5, command.shape[1] / 2 - 0.5), radius=command.shape[1] / 2, fill=False, alpha=0.25, linewidth=0.5, color="white", transform=imshow_ax_sink.transData))
+    imshow_image_sink = imshow_ax_sink.imshow(command)
+    imshow_image_sink.set_clim(0, 2**16 - 1)
+    imshow_ax_sink.invert_yaxis()
+
+    divider = make_axes_locatable(imshow_ax_sink)
+
+    colorbar_ax_sink = divider.append_axes("right", size="5%", pad=0.1)
+    _figure.colorbar(imshow_image_sink, cax=colorbar_ax_sink)
+    colorbar_ax_sink.set_title("adu", size=10)
+    # ---- sink -------------------------------------------------------------------------------------------------------
+
+    # ---- source -----------------------------------------------------------------------------------------------------
+    imshow_ax_source = divider.append_axes("right", size="100%", pad=0.5)
+    imshow_ax_source.set_title("Capture", size=10)
+    imshow_ax_source.set_xlabel("px", size=10)
+    imshow_ax_source.set_ylabel("px", size=10)
+    imshow_ax_source.axhline(capture.shape[0] / 2, alpha=0.25, linewidth=0.5, color="white")
+    imshow_ax_source.axvline(capture.shape[1] / 2, alpha=0.25, linewidth=0.5, color="white")
+    imshow_ax_source.add_patch(patches.Circle((capture.shape[0] / 2, capture.shape[1] / 2), radius=225, fill=False, alpha=0.25, linewidth=0.5, color="white", transform=imshow_ax_source.transData))
+    imshow_image_source = imshow_ax_source.imshow(capture)
+    imshow_ax_source.set_facecolor("black")
+    imshow_ax_source.invert_yaxis()
+
+    colorbar_ax_source = divider.append_axes("right", size="5%", pad=0.1)
+    _figure.colorbar(imshow_image_source, cax=colorbar_ax_source)
+    colorbar_ax_source.set_title("adu", size=10)
+    # ---- source -----------------------------------------------------------------------------------------------------
+
+    # ---- dotf -------------------------------------------------------------------------------------------------------
+    imshow_ax_dotf = divider.append_axes("right", size="100%", pad=0.5)
+    imshow_ax_dotf.set_title("DOTF", size=10)
+    imshow_ax_dotf.set_xlabel("px", size=10)
+    imshow_ax_dotf.set_ylabel("px", size=10)
+    imshow_ax_dotf.axhline(capture.shape[0] / 2, alpha=0.25, linewidth=0.5, color="white")
+    imshow_ax_dotf.axvline(capture.shape[1] / 2, alpha=0.25, linewidth=0.5, color="white")
+    bg_imshow_image_dotf = imshow_ax_dotf.imshow(capture, "gray", vmin=0, vmax=1)
+    imshow_image_dotf = imshow_ax_dotf.imshow(capture, alpha=capture, cmap="hsv", vmin=-1, vmax=1)
+    imshow_ax_dotf.set_facecolor("black")
+    imshow_ax_dotf.invert_yaxis()
+
+    arg_colorbar_ax_dotf = divider.append_axes("right", size="5%", pad=0.1)
+    _figure.colorbar(imshow_image_dotf, cax=arg_colorbar_ax_dotf)
+    arg_colorbar_ax_dotf.yaxis.set_major_locator(LinearLocator(numticks=9))
+    arg_colorbar_ax_dotf.yaxis.set_major_formatter(FuncFormatter(_pi_formatter))
+    arg_colorbar_ax_dotf.set_title("arg", size=10)
+
+    mod_colorbar_ax_dotf = divider.append_axes("right", size="5%", pad=0.4)
+    _figure.colorbar(bg_imshow_image_dotf, cax=mod_colorbar_ax_dotf)
+    mod_colorbar_ax_dotf.set_title("mod", size=10)
+    # ---- source -----------------------------------------------------------------------------------------------------
+
+
+    # ---- wavefront --------------------------------------------------------------------------------------------------
+    imshow_ax_wf = divider.append_axes("right", size="100%", pad=0.5)
+    imshow_ax_wf.set_title("Wavefront", size=10)
+    imshow_ax_wf.set_xlabel("px", size=10)
+    imshow_ax_wf.set_ylabel("px", size=10)
+    imshow_ax_wf.axhline(capture.shape[0] / 2, alpha=0.25, linewidth=0.5, color="white")
+    imshow_ax_wf.axvline(capture.shape[1] / 2, alpha=0.25, linewidth=0.5, color="white")
+    imshow_ax_wf.add_patch(patches.Circle((capture.shape[0] / 2, capture.shape[1] / 2), radius=225, fill=False, alpha=0.25, linewidth=0.5, color="white", transform=imshow_ax_wf.transData))
+    bg_imshow_image_wf = imshow_ax_wf.imshow(np.zeros_like(capture, dtype=float), "gray", vmin=0, vmax=1)
+    imshow_image_wf = imshow_ax_wf.imshow(np.zeros_like(capture, dtype=float), alpha=np.zeros_like(capture, dtype=float), cmap="hsv", vmin=-np.pi, vmax=np.pi)
+    imshow_ax_wf.set_facecolor("black")
+    imshow_ax_wf.invert_yaxis()
+
+    arg_colorbar_ax_wf = divider.append_axes("right", size="5%", pad=0.1)
+    _figure.colorbar(imshow_image_wf, cax=arg_colorbar_ax_wf)
+    arg_colorbar_ax_wf.yaxis.set_major_locator(LinearLocator(numticks=9))
+    arg_colorbar_ax_wf.yaxis.set_major_formatter(FuncFormatter(_pi_formatter))
+    arg_colorbar_ax_wf.set_title("arg", size=10)
+
+    mod_colorbar_ax_wf = divider.append_axes("right", size="5%", pad=0.4)
+    _figure.colorbar(bg_imshow_image_wf, cax=mod_colorbar_ax_wf)
+    mod_colorbar_ax_wf.set_title("mod", size=10)
+    # ---- wavefront --------------------------------------------------------------------------------------------------
+
+    return _figure
+
+
+def Pairwise_FPWFS_Process_Plot_Preset(capture: NDArray[np.float64], command: NDArray[np.float64], figure: Figure | None = None) -> Figure:
+
+    _figure = GridSpec_Layout(nrows=1, ncols=1, init=False, figure=figure)
+
+    gs = _figure.get_gridspec()
+
+    # ---- sink -------------------------------------------------------------------------------------------------------
+    imshow_ax_sink = _figure.add_subplot(gs[0])
+    imshow_ax_sink.set_title("Command", size=10)
+    imshow_ax_sink.set_xlabel("px", size=10)
+    imshow_ax_sink.set_ylabel("px", size=10)
+    imshow_ax_sink.axhline(command.shape[0] / 2 - 0.5, alpha=0.25, linewidth=0.5, color="white")
+    imshow_ax_sink.axvline(command.shape[1] / 2 - 0.5, alpha=0.25, linewidth=0.5, color="white")
+    imshow_ax_sink.add_patch(patches.Circle((command.shape[0] / 2 - 0.5, command.shape[1] / 2 - 0.5), radius=command.shape[1] / 2, fill=False, alpha=0.25, linewidth=0.5, color="white", transform=imshow_ax_sink.transData))
+    imshow_image_sink = imshow_ax_sink.imshow(command)
+    imshow_image_sink.set_clim(0, 2**16 - 1)
+    imshow_ax_sink.invert_yaxis()
+
+    divider = make_axes_locatable(imshow_ax_sink)
+
+    colorbar_ax_sink = divider.append_axes("right", size="5%", pad=0.1)
+    _figure.colorbar(imshow_image_sink, cax=colorbar_ax_sink)
+    colorbar_ax_sink.set_title("adu", size=10)
+    # ---- sink -------------------------------------------------------------------------------------------------------
+
+    # ---- source -----------------------------------------------------------------------------------------------------
+    imshow_ax_source = divider.append_axes("right", size="100%", pad=0.5)
+    imshow_ax_source.set_title("Capture", size=10)
+    imshow_ax_source.set_xlabel("px", size=10)
+    imshow_ax_source.set_ylabel("px", size=10)
+    imshow_ax_source.axhline(capture.shape[0] / 2, alpha=0.25, linewidth=0.5, color="white")
+    imshow_ax_source.axvline(capture.shape[1] / 2, alpha=0.25, linewidth=0.5, color="white")
+    imshow_ax_source.add_patch(patches.Circle((capture.shape[0] / 2, capture.shape[1] / 2), radius=225, fill=False, alpha=0.25, linewidth=0.5, color="white", transform=imshow_ax_source.transData))
+    imshow_image_source = imshow_ax_source.imshow(capture)
+    imshow_ax_source.set_facecolor("black")
+    imshow_ax_source.invert_yaxis()
+
+    colorbar_ax_source = divider.append_axes("right", size="5%", pad=0.1)
+    _figure.colorbar(imshow_image_source, cax=colorbar_ax_source)
+    colorbar_ax_source.set_title("adu", size=10)
+    # ---- source -----------------------------------------------------------------------------------------------------
+
+    # ---- wavefront --------------------------------------------------------------------------------------------------
+    imshow_ax_wf = divider.append_axes("right", size="100%", pad=0.5)
+    imshow_ax_wf.set_title("Wavefront", size=10)
+    imshow_ax_wf.set_xlabel("px", size=10)
+    imshow_ax_wf.set_ylabel("px", size=10)
+    imshow_ax_wf.axhline(capture.shape[0] / 2, alpha=0.25, linewidth=0.5, color="white")
+    imshow_ax_wf.axvline(capture.shape[1] / 2, alpha=0.25, linewidth=0.5, color="white")
+    imshow_ax_wf.add_patch(patches.Circle((capture.shape[0] / 2, capture.shape[1] / 2), radius=225, fill=False, alpha=0.25, linewidth=0.5, color="white", transform=imshow_ax_wf.transData))
+    bg_imshow_image_wf = imshow_ax_wf.imshow(np.zeros_like(capture, dtype=float), "gray", vmin=0, vmax=1)
+    imshow_image_wf = imshow_ax_wf.imshow(np.zeros_like(capture, dtype=float), alpha=np.zeros_like(capture, dtype=float), cmap="hsv", vmin=-np.pi, vmax=np.pi)
+    imshow_ax_wf.set_facecolor("black")
+    imshow_ax_wf.invert_yaxis()
+
+    arg_colorbar_ax_wf = divider.append_axes("right", size="5%", pad=0.1)
+    _figure.colorbar(imshow_image_wf, cax=arg_colorbar_ax_wf)
+    arg_colorbar_ax_wf.yaxis.set_major_locator(LinearLocator(numticks=9))
+    arg_colorbar_ax_wf.yaxis.set_major_formatter(FuncFormatter(_pi_formatter))
+    arg_colorbar_ax_wf.set_title("arg", size=10)
+
+    mod_colorbar_ax_wf = divider.append_axes("right", size="5%", pad=0.4)
+    _figure.colorbar(bg_imshow_image_wf, cax=mod_colorbar_ax_wf)
+    mod_colorbar_ax_wf.set_title("mod", size=10)
+    # ---- wavefront --------------------------------------------------------------------------------------------------
+
+    return _figure
+
+

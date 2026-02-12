@@ -302,7 +302,7 @@ class ContrastFigureWidget(FigureWidget):
 
     @property
     def mask_show(self) -> bool:
-        self.figure.get_mask_show()
+        return self.figure.get_mask_show()
 
     @mask_show.setter
     def mask_show(self, value: bool):
@@ -316,10 +316,6 @@ class SpeckleNullingFigureWidget(FigureWidget):
 
     def __init__(self, capture: NDArray[np.float64], command: NDArray[np.float64], phs_lim: tuple[float, float], amp_lim: tuple[float, float], dark_hole_mask: NDArray[np.bool] | None = None, show_toolbar: bool = False, parent=None):
         super().__init__(Speckle_Nulling_Process_Plot_Preset(capture, command, phs_lim, amp_lim, dark_hole_mask), show_toolbar, parent)
-        self.src_cmap_name: str = "hot"
-        self.snk_cmap_name: str = "bwr"
-        self.src_cmap_norm: bool = True
-        self.src_mask_show: bool = True
         self.setMinimumHeight(512)
 
     def set_command(self, command: np.ndarray):
@@ -343,7 +339,7 @@ class SpeckleNullingFigureWidget(FigureWidget):
 
     @property
     def src_mask_show(self) -> bool:
-        self.figure.get_src_mask_show()
+        return self.figure.get_src_mask_show()
 
     @src_mask_show.setter
     def src_mask_show(self, value: bool):

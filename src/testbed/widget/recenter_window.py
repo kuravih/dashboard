@@ -92,12 +92,11 @@ class ProcessInfoSettingsWindow(Window):
     Settings for the re-centering process info window
     """
 
-    def __init__(self, src_cmap: str, src_cmap_log: bool, snk_cmap: str, parent=None):
+    def __init__(self, src_cmap: str, src_cmap_norm: bool, snk_cmap: str, parent=None):
         super().__init__(parent, Qt.WindowType.Dialog)
         self.src_cmap = src_cmap
-        self.src_cmap_log = src_cmap_log
+        self.src_cmap_norm = src_cmap_norm
         self.snk_cmap = snk_cmap
-
         self.setWindowModality(Qt.WindowModality.WindowModal)
         self.setWindowTitle("Process Info Settings")
         layout = QVBoxLayout()
@@ -110,15 +109,13 @@ class ProcessInfoSettingsWindow(Window):
         layout = QGridLayout(widget)
         widget.setLayout(layout)
 
-        source_scale_label = QLabel("Source Scale", self)
-        self.source_log_checkbox = QCheckBox("Log", self)
-        self.source_log_checkbox.setToolTip("Log Scale")
-        self.source_log_checkbox.setChecked(self.src_cmap_log)
-
         source_cmap_label = QLabel("Source Colormap", self)
         self.source_cmap_combobox = QComboBox(self)
         self.source_cmap_combobox.addItems(list(colormaps))
         self.source_cmap_combobox.setCurrentIndex(list(colormaps).index(self.src_cmap))
+        self.source_log_checkbox = QCheckBox("Log", self)
+        self.source_log_checkbox.setToolTip("Log Scale")
+        self.source_log_checkbox.setChecked(self.src_cmap_norm)
 
         sink_cmap_label = QLabel("Sink Colormap", self)
         self.sink_cmap_combobox = QComboBox(self)
@@ -127,16 +124,12 @@ class ProcessInfoSettingsWindow(Window):
 
         row = 0
         col = 0
-        layout.addWidget(source_scale_label, row, col)
-        col += 1
-        layout.addWidget(self.source_log_checkbox, row, col)
-
-        row += 1
-        col = 0
         layout.addWidget(source_cmap_label, row, col)
         col += 1
         layout.addWidget(self.source_cmap_combobox, row, col)
-
+        col += 1
+        layout.addWidget(self.source_log_checkbox, row, col)
+ 
         row += 1
         col = 0
         layout.addWidget(sink_cmap_label, row, col)

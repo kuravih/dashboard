@@ -51,7 +51,7 @@ class TestModel(unittest.TestCase):
         logger.info("slm.port                         : %s", slm.port)
         logger.info("slm.metadata.creation_time       : %s", slm.creation_time)
         logger.info("slm.metadata.last_access_time    : %s", slm.last_access_time)
-        # # Properties specific to slm streams
+        # Properties specific to slm streams
         logger.info("slm.max_radius                   : %s", slm.max_radius)
         logger.info("slm.radius                       : %s", slm.radius)
         logger.info("slm.center                       : %s", slm.center)

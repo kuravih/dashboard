@@ -167,12 +167,12 @@ class ProcessInfoSettingsWindow(Window):
     Process Info Settings Window
     """
 
-    def __init__(self, src_cmap: str, src_cmap_norm: bool, src_mask_show: bool, snk_cmap: str, parent=None):
+    def __init__(self, src_cmap_name: str, src_cmap_norm: bool, src_mask_show: bool, snk_cmap_name: str, parent=None):
         super().__init__(parent, Qt.WindowType.Dialog)
-        self.src_cmap = src_cmap
+        self.src_cmap_name = src_cmap_name
         self.src_cmap_norm = src_cmap_norm
         self.src_mask_show = src_mask_show
-        self.snk_cmap = snk_cmap
+        self.snk_cmap_name = snk_cmap_name
         self.setWindowModality(Qt.WindowModality.WindowModal)
         self.setWindowTitle("Process Info Settings")
         layout = QVBoxLayout()
@@ -188,7 +188,7 @@ class ProcessInfoSettingsWindow(Window):
         source_cmap_label = QLabel("Source Colormap", self)
         self.source_cmap_combobox = QComboBox(self)
         self.source_cmap_combobox.addItems(list(colormaps))
-        self.source_cmap_combobox.setCurrentIndex(list(colormaps).index(self.src_cmap))
+        self.source_cmap_combobox.setCurrentIndex(list(colormaps).index(self.src_cmap_name))
         self.source_log_checkbox = QCheckBox("Log", self)
         self.source_log_checkbox.setToolTip("Log Scale")
         self.source_log_checkbox.setChecked(self.src_cmap_norm)
@@ -196,12 +196,12 @@ class ProcessInfoSettingsWindow(Window):
         dark_hole_mask_label = QLabel("Dark Hole Mask", self)
         self.source_mask_checkbox = QCheckBox("Show", self)
         self.source_mask_checkbox.setToolTip("Show dark hole mask")
-        # self.source_mask_checkbox.setChecked(self.src_mask_show)
+        self.source_mask_checkbox.setChecked(self.src_mask_show)
 
         sink_cmap_label = QLabel("Sink Colormap", self)
         self.sink_cmap_combobox = QComboBox(self)
         self.sink_cmap_combobox.addItems(list(colormaps))
-        self.sink_cmap_combobox.setCurrentIndex(list(colormaps).index(self.snk_cmap))
+        self.sink_cmap_combobox.setCurrentIndex(list(colormaps).index(self.snk_cmap_name))
 
         row = 0
         col = 0
@@ -376,11 +376,11 @@ class ProcessPreviewSettingsWindow(Window):
     Process Preview Settings Window
     """
 
-    def __init__(self, cmap: str, cmap_norm: bool, mask_show: bool, parent=None):
+    def __init__(self, cmap_name: str, cmap_norm: bool, mask_show: bool, parent=None):
         super().__init__(parent, Qt.WindowType.Dialog)
-        self._cmap = cmap
-        self._cmap_norm = cmap_norm
-        self._mask_show = mask_show
+        self.cmap_name = cmap_name
+        self.cmap_norm = cmap_norm
+        self.mask_show = mask_show
         self.setWindowModality(Qt.WindowModality.WindowModal)
         self.setWindowTitle("Process Preview Settings")
         layout = QVBoxLayout()
@@ -396,17 +396,17 @@ class ProcessPreviewSettingsWindow(Window):
         scale_label = QLabel("Contrast Scale", self)
         self.log_checkbox = QCheckBox("Log", self)
         self.log_checkbox.setToolTip("Log Scale")
-        self.log_checkbox.setChecked(self._cmap_norm)
+        self.log_checkbox.setChecked(self.cmap_norm)
 
         dark_hole_mask_label = QLabel("Dark Hole Mask", self)
         self.mask_checkbox = QCheckBox("Show", self)
         self.mask_checkbox.setToolTip("Show dark hole mask")
-        # self.mask_checkbox.setChecked(self._mask_show)
+        self.mask_checkbox.setChecked(self.mask_show)
 
         cmap_label = QLabel("Source Colormap", self)
         self.cmap_combobox = QComboBox(self)
         self.cmap_combobox.addItems(list(colormaps))
-        self.cmap_combobox.setCurrentIndex(list(colormaps).index(self._cmap))
+        self.cmap_combobox.setCurrentIndex(list(colormaps).index(self.cmap_name))
 
         row = 0
         col = 0
@@ -478,7 +478,7 @@ class ProcessPreviewWindow(Window):
 
     @Slot()
     def on_preview_settings_clicked(self):
-        process_preview_settings_window = ProcessPreviewSettingsWindow(cmap=self.process_preview_figure.cmap_name, cmap_norm=self.process_preview_figure.cmap_norm, mask_show=self.process_preview_figure.mask_show, parent=self)
+        process_preview_settings_window = ProcessPreviewSettingsWindow(self.process_preview_figure.cmap_name, self.process_preview_figure.cmap_norm, self.process_preview_figure.mask_show, parent=self)
         process_preview_settings_window.show()
         process_preview_settings_window.raise_()
         process_preview_settings_window.activateWindow()

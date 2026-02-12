@@ -366,13 +366,13 @@ class OrientationWidget(QWidget):
     Function:
         get_flip(self) -> Flip:
             flip
-        
+
         set_flip(self, flip: Flip):
             set flip
 
         get_rotation(self) -> Rotation:
             get orientation
-        
+
         set_rotation(self, rotation: Rotation):
             set orientation
 
@@ -841,13 +841,15 @@ class TaskControlsWidget(QWidget):
 
         self.setLayout(layout)
 
+
 class FileLoadWidget(QWidget):
     """
     File load widget
     """
+
     fileChanged = Signal()
 
-    def __init__(self, caption:str="", directory:str=".", file_filter="", validator: Callable[[str], bool] = lambda _: True, parent=None):
+    def __init__(self, caption: str = "", directory: str = ".", file_filter="", validator: Callable[[str], bool] = lambda _: True, parent=None):
         super().__init__(parent)
         self.filepath: str | None = None
 
@@ -905,7 +907,7 @@ class FileLoadWidget(QWidget):
 
         self.setLayout(layout)
 
-    def setFilepath(self, filepath: str| None):
+    def setFilepath(self, filepath: str | None):
         self.filepath = filepath
         self.file_lineedit.setText(self.filepath)
         if self.filepath is None:
