@@ -128,7 +128,7 @@ class PreviewWindow(Window):
 
     @Slot(str)
     def on_cmap_changed(self, colormap: str):
-        self.preview_figure_widget.set_cmap(colormap)
+        self.preview_figure_widget.cmap_name = colormap
 
     @Slot(str)
     def on_rotation_changed(self, rotation: Rotation):

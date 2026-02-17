@@ -19,10 +19,10 @@ class PreviewSettingsWindow(Window):
     Settings for the camera preview window
     """
 
-    def __init__(self, cmap: str, cmap_log: bool, rotation: Rotation, flip: Flip, parent=None):
+    def __init__(self, cmap_name: str, cmap_norm: bool, rotation: Rotation, flip: Flip, parent=None):
         super().__init__(parent, Qt.WindowType.Dialog)
-        self.cmap: str = cmap
-        self.cmap_log: bool = cmap_log
+        self.cmap_name: str = cmap_name
+        self.cmap_norm: bool = cmap_norm
         self.rotation: Rotation = rotation
         self.flip: Flip = flip
 
@@ -41,12 +41,12 @@ class PreviewSettingsWindow(Window):
         scale_label = QLabel("Scale", self)
         self.log_checkbox = QCheckBox("Log", self)
         self.log_checkbox.setToolTip("Log Scale")
-        self.log_checkbox.setChecked(self.cmap_log)
+        self.log_checkbox.setChecked(self.cmap_norm)
 
         cmap_label = QLabel("Colormap", self)
         self.cmap_combobox = QComboBox(self)
         self.cmap_combobox.addItems(list(colormaps))
-        self.cmap_combobox.setCurrentIndex(list(colormaps).index(self.cmap))
+        self.cmap_combobox.setCurrentIndex(list(colormaps).index(self.cmap_name))
 
         orientation_label = QLabel("Orientation", self)
         orientation_label.setFixedWidth(100)
@@ -124,25 +124,22 @@ class PreviewWindow(Window):
 
     @Slot()
     def on_preview_settings_clicked(self):
-        preview_settings_window = PreviewSettingsWindow(cmap=self.preview_figure_widget.cmap_name, cmap_log=self.preview_figure_widget.cmap_log, rotation=self.preview_figure_widget.rotation, flip=self.preview_figure_widget.flip, parent=self)
+        preview_settings_window = PreviewSettingsWindow(cmap_name=self.preview_figure_widget.cmap_name, cmap_norm=self.preview_figure_widget.cmap_norm, rotation=self.preview_figure_widget.rotation, flip=self.preview_figure_widget.flip, parent=self)
         preview_settings_window.show()
         preview_settings_window.raise_()
         preview_settings_window.activateWindow()
-        preview_settings_window.log_checkbox.checkStateChanged.connect(self.on_cmap_log_changed)
-        preview_settings_window.cmap_combobox.currentTextChanged.connect(self.on_cmap_changed)
+        preview_settings_window.log_checkbox.checkStateChanged.connect(self.on_cmap_norm_changed)
+        preview_settings_window.cmap_combobox.currentTextChanged.connect(self.on_cmap_name_changed)
         preview_settings_window.orientation_widget.rotationChanged.connect(self.on_rotation_changed)
         preview_settings_window.orientation_widget.flipChanged.connect(self.on_flip_changed)
 
     @Slot(str)
-    def on_cmap_changed(self, colormap: str):
-        self.preview_figure_widget.set_cmap(colormap)
+    def on_cmap_name_changed(self, colormap: str):
+        self.preview_figure_widget.cmap_name = colormap
 
     @Slot(bool)
-    def on_cmap_log_changed(self, checked: bool):
-        if checked == Qt.CheckState.Checked:
-            self.preview_figure_widget.set_cmap_norm(True)
-        else:
-            self.preview_figure_widget.set_cmap_norm(False)
+    def on_cmap_norm_changed(self, checked: bool):
+        self.preview_figure_widget.cmap_norm = checked == Qt.CheckState.Checked
 
     @Slot(str)
     def on_rotation_changed(self, rotation: Rotation):
@@ -436,7 +433,7 @@ class SettingsWindow(Window):
         row = 0
         col = 0
 
-        if self.camera.settings is not None: 
+        if self.camera.settings is not None:
             if "temperature_C" in self.camera.settings:
                 # ---- temperature setting --------------------------------------------------------------------------------
                 @Slot(float)
@@ -535,7 +532,7 @@ class SettingsWindow(Window):
                 layout.addWidget(roi_widget, row, col)
 
         camera_calibration_label = QLabel("Camera Calibration", self)
-        self.calibration_widget = FileLoadWidget(caption="Open Calibration File", directory="./data/output", file_filter="Fits file (*.fits)", validator=lambda _filename : is_camera_calibration_file_valid(_filename, self.camera.full_shape), parent=self)
+        self.calibration_widget = FileLoadWidget(caption="Open Calibration File", directory="./data/output", file_filter="Fits file (*.fits)", validator=lambda _filename: is_camera_calibration_file_valid(_filename, self.camera.full_shape), parent=self)
         self.calibration_widget.setFilepath(self.camera.calibration_file)
 
         @Slot()

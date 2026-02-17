@@ -5,7 +5,7 @@ from PySide6.QtCore import Signal
 from PySide6.QtWidgets import QWidget, QVBoxLayout
 from PySide6.QtGui import QAction, QIcon
 
-from pykato.plotfunction.preset import Imshow_Colorbar_Preset, Imshow_Colorbar_Imshow_Colorbar_Preset
+from pykato.plotfunction.preset import Imshow_Colorbar_Imshow_Colorbar_Preset
 from pykato.log import setup_logger
 
 import matplotlib as mpl
@@ -17,7 +17,7 @@ from matplotlib.backends.backend_qtagg import NavigationToolbar2QT
 from matplotlib.colors import LogNorm, Normalize
 
 from testbed.function import Flip, Rotation
-from testbed.plot.preset import Speckle_Nulling_Process_Plot_Preset, Contrast_Evolution_Plot_Preset
+from testbed.plot.preset import Speckle_Nulling_Process_Plot_Preset, Contrast_Evolution_Plot_Preset, Sink_Plot_Preset, Source_Plot_Preset, Source_Sink_Plot_Preset
 
 from .resource import ICON_HOUSE, ICON_MOVE, ICON_MAGNIFY, ICON_DISK, ICON_GEAR
 
@@ -93,32 +93,25 @@ class SinkFigureWidget(FigureWidget):
     """
 
     def __init__(self, frame: np.ndarray, pxmax: float, show_toolbar: bool = False, parent=None):
-        super().__init__(Imshow_Colorbar_Preset(frame), show_toolbar, parent)
-        self.cmap_name: str = "bwr"
+        super().__init__(Sink_Plot_Preset(frame), show_toolbar, parent)
         self.rotation = Rotation.UP
         self.flip = Flip.POS
 
         self.figure.get_image().set_clim(0, pxmax)
-        self.figure.get_imshow_ax().set_title("Sink", size=10)
+        self.figure.get_imshow_axes().set_title("Sink", size=10)
+        self.figure.get_image().set_cmap_name("bwr")
         self.setMinimumSize(100, 100)
 
-        self.set_cmap(self.cmap_name)
         self.set_rotation(self.rotation)
         self.set_flip(self.flip)
 
     @property
     def cmap_name(self) -> str:
-        return self._cmap_name
+        return self.figure.get_image().get_cmap_name()
 
     @cmap_name.setter
     def cmap_name(self, value: str):
-        self._cmap_name = value
-        self._cmap = mpl.colormaps[value].copy()
-        self._cmap.set_bad(color="black")
-
-    def set_cmap(self, cmap_name: str):
-        self.cmap_name = cmap_name
-        self.figure.get_image().set_cmap(self._cmap)
+        self.figure.get_image().set_cmap_name(value)
 
     @property
     def rotation(self) -> Rotation:
@@ -174,13 +167,13 @@ class ModulatorFigureWidget(SinkFigureWidget):
 
     def __init__(self, frame: np.ndarray, pxmax: float, show_toolbar: bool = False, parent=None):
         super().__init__(frame, pxmax, show_toolbar, parent)
-        self.figure.get_imshow_ax().set_title("SLM", size=10)
-        self.figure.get_imshow_ax().set_xlabel("px", size=10)
-        self.figure.get_imshow_ax().set_ylabel("px", size=10)
-        self.figure.get_cbar_ax().set_title("adu", size=10)
-        self.figure.get_imshow_ax().axhline(frame.shape[0] / 2 - 0.5, alpha=0.25, linewidth=0.5, color="white")
-        self.figure.get_imshow_ax().axvline(frame.shape[1] / 2 - 0.5, alpha=0.25, linewidth=0.5, color="white")
-        self.figure.get_imshow_ax().add_patch(patches.Circle((frame.shape[0] / 2 - 0.5, frame.shape[1] / 2 - 0.5), radius=frame.shape[1] / 2, fill=False, alpha=0.25, linewidth=0.5, color="white", transform=self.figure.get_imshow_ax().transData))
+        self.figure.get_imshow_axes().set_title("SLM", size=10)
+        self.figure.get_imshow_axes().set_xlabel("px", size=10)
+        self.figure.get_imshow_axes().set_ylabel("px", size=10)
+        self.figure.get_cbar_axes().set_title("adu", size=10)
+        self.figure.get_imshow_axes().axhline(frame.shape[0] / 2 - 0.5, alpha=0.25, linewidth=0.5, color="white")
+        self.figure.get_imshow_axes().axvline(frame.shape[1] / 2 - 0.5, alpha=0.25, linewidth=0.5, color="white")
+        self.figure.get_imshow_axes().add_patch(patches.Circle((frame.shape[0] / 2 - 0.5, frame.shape[1] / 2 - 0.5), radius=frame.shape[1] / 2, fill=False, alpha=0.25, linewidth=0.5, color="white", transform=self.figure.get_imshow_axes().transData))
         self.setMinimumSize(100, 100)
 
 
@@ -190,55 +183,41 @@ class SourceFigureWidget(FigureWidget):
     """
 
     def __init__(self, frame: np.ndarray, pxmax: float, show_toolbar: bool = False, parent=None):
-        super().__init__(Imshow_Colorbar_Preset(frame), show_toolbar, parent)
-        self.cmap_name: str = "hot"
-        self.cmap_log: bool = True
+        super().__init__(Source_Plot_Preset(frame), show_toolbar, parent)
         self.rotation = Rotation.UP
         self.flip = Flip.POS
 
         self.figure.get_image().set_clim(0, pxmax)
-        self.figure.get_imshow_ax().set_title("Source", size=10)
-        self.figure.get_imshow_ax().set_xlabel("px", size=10)
-        self.figure.get_imshow_ax().set_ylabel("px", size=10)
-        self.figure.get_cbar_ax().set_title("adu", size=10)
-        self.figure.get_imshow_ax().axhline(frame.shape[0] / 2, alpha=0.25, linewidth=0.5, color="white")
-        self.figure.get_imshow_ax().axvline(frame.shape[1] / 2, alpha=0.25, linewidth=0.5, color="white")
-        self.figure.get_imshow_ax().add_patch(patches.Circle((frame.shape[0] / 2, frame.shape[1] / 2), radius=225, fill=False, alpha=0.25, linewidth=0.5, color="white", transform=self.figure.get_imshow_ax().transData))
+        self.figure.get_imshow_axes().set_title("Source", size=10)
+        self.figure.get_imshow_axes().set_xlabel("px", size=10)
+        self.figure.get_imshow_axes().set_ylabel("px", size=10)
+        self.figure.get_cbar_axes().set_title("adu", size=10)
+        self.figure.get_imshow_axes().axhline(frame.shape[0] / 2, alpha=0.25, linewidth=0.5, color="white")
+        self.figure.get_imshow_axes().axvline(frame.shape[1] / 2, alpha=0.25, linewidth=0.5, color="white")
+        self.figure.get_imshow_axes().add_patch(patches.Circle((frame.shape[0] / 2, frame.shape[1] / 2), radius=225, fill=False, alpha=0.25, linewidth=0.5, color="white", transform=self.figure.get_imshow_axes().transData))
+        self.figure.get_image().set_cmap_name("hot")
+        self.figure.get_image().set_cmap_norm(True)
+
         self.setMinimumSize(100, 100)
 
-        self.set_cmap(self.cmap_name)
-        self.set_cmap_norm(self.cmap_log)
         self.set_rotation(self.rotation)
         self.set_flip(self.flip)
 
     @property
     def cmap_name(self) -> str:
-        return self._cmap_name
+        return self.figure.get_image().get_cmap_name()
 
     @cmap_name.setter
     def cmap_name(self, value: str):
-        self._cmap_name = value
-        self._cmap = mpl.colormaps[value].copy()
-        self._cmap.set_bad(color="black")
-
-    def set_cmap(self, cmap_name: str):
-        self.cmap_name = cmap_name
-        self.figure.get_image().set_cmap(self._cmap)
+        self.figure.get_image().set_cmap_name(value)
 
     @property
-    def cmap_log(self) -> bool:
-        return self._cmap_log
+    def cmap_norm(self) -> bool:
+        return self.figure.get_image().get_cmap_norm()
 
-    @cmap_log.setter
-    def cmap_log(self, value: bool):
-        self._cmap_log = value
-
-    def set_cmap_norm(self, checked: bool):
-        self.cmap_log = checked
-        if self.cmap_log:
-            self.figure.get_image().set_norm(LogNorm(vmin=1, vmax=2**12 - 1))
-        else:
-            self.figure.get_image().set_norm(Normalize(vmin=1, vmax=2**12 - 1))
+    @cmap_norm.setter
+    def cmap_norm(self, value: bool):
+        self.figure.get_image().set_cmap_norm(value)
 
     @property
     def rotation(self) -> Rotation:
@@ -270,9 +249,9 @@ class ContrastFigureWidget(FigureWidget):
 
     def __init__(self, contrast: np.ndarray, n_iteration: int, dark_hole_mask: NDArray[np.bool] | None = None, show_toolbar: bool = False, parent=None):
         super().__init__(Contrast_Evolution_Plot_Preset(contrast, n_iteration, dark_hole_mask), show_toolbar, parent)
-        self.cmap_name: str = "jet"
-        self.cmap_norm: bool = True
-        self.mask_show: bool = True
+        self.figure.set_cmap_name("jet")
+        self.figure.set_cmap_norm(True)
+        self.figure.set_mask_show(True)
         self.setMinimumHeight(512)
 
     def set_contrast(self, contrast: np.ndarray):
@@ -392,42 +371,42 @@ class RecenteringFigureWidget(FigureWidget):
     """
 
     def __init__(self, capture: np.ndarray, command: np.ndarray, show_toolbar: bool = False, parent=None):
-        super().__init__(Imshow_Colorbar_Imshow_Colorbar_Preset((capture, command)), show_toolbar=show_toolbar, parent=parent)
-        self.src_cmap_name: str = "hot"
-        self.snk_cmap_name: str = "bwr"
-        self.src_cmap_log: bool = True
+        super().__init__(Source_Sink_Plot_Preset(capture, command), show_toolbar=show_toolbar, parent=parent)
 
-        self.image_src, self.image_snk = self.figure.get_images()
-        imshow_ax_src, imshow_ax_snk = self.figure.get_imshow_axes()
-        cbar_ax_src, cbar_ax_snk = self.figure.get_cbar_axes()
+        self.image_src, self.image_snk = self.figure.get_image_tuple()
+        imshow_ax_src, imshow_ax_snk = self.figure.get_imshow_axes_tuple()
+        cbar_ax_src, cbar_ax_snk = self.figure.get_cbar_axes_tuple()
 
+        self.image_snk.set_data(command)
         self.image_snk.set_clim(0, 2**16 - 1)
+        self.image_snk.set_cmap_name("bwr")
         imshow_ax_snk.set_title("SLM", size=10)
         imshow_ax_snk.set_xlabel("px", size=10)
         imshow_ax_snk.set_ylabel("px", size=10)
         imshow_ax_snk.axhline(command.shape[0] / 2 - 0.5, alpha=0.25, linewidth=0.5, color="white")
         imshow_ax_snk.axvline(command.shape[1] / 2 - 0.5, alpha=0.25, linewidth=0.5, color="white")
         imshow_ax_snk.add_patch(patches.Circle((command.shape[0] / 2 - 0.5, command.shape[1] / 2 - 0.5), radius=command.shape[1] / 2, fill=False, alpha=0.25, linewidth=0.5, color="white", transform=imshow_ax_snk.transData))
-        self.image_snk.set_data(command)
 
         cbar_ax_snk.set_title("adu", size=10)
 
+        self.image_src.set_data(capture)
+        self.image_src.set_cmap_name("hot")
+        self.image_src.set_cmap_norm(True)
         imshow_ax_src.set_title("Source", size=10)
         imshow_ax_src.set_xlabel("px", size=10)
         imshow_ax_src.set_ylabel("px", size=10)
         imshow_ax_src.axhline(capture.shape[0] / 2, alpha=0.25, linewidth=0.5, color="white")
         imshow_ax_src.axvline(capture.shape[1] / 2, alpha=0.25, linewidth=0.5, color="white")
+
         self.speckles = ((imshow_ax_src.axvline(np.nan, alpha=0.5, linewidth=0.5, color="red"), imshow_ax_src.axhline(np.nan, alpha=0.5, linewidth=0.5, color="red")), (imshow_ax_src.axvline(np.nan, alpha=0.5, linewidth=0.5, color="red"), imshow_ax_src.axhline(np.nan, alpha=0.5, linewidth=0.5, color="red")))
+        
         self.center = (imshow_ax_src.axvline(np.nan, alpha=0.5, linewidth=0.5, color="blue"), imshow_ax_src.axhline(np.nan, alpha=0.5, linewidth=0.5, color="blue"))
+        
         self.center_circle = imshow_ax_src.add_patch(patches.Circle((capture.shape[0] / 2, capture.shape[1] / 2), radius=capture.shape[1] / 2, fill=False, alpha=0.25, linewidth=0.5, color="white", transform=imshow_ax_src.transData))
-        self.image_src.set_data(capture)
+        
         imshow_ax_src.set_facecolor("black")
 
         cbar_ax_src.set_title("adu", size=10)
-
-        self.set_src_cmap(self.src_cmap_name)
-        self.set_src_cmap_norm(self.src_cmap_log)
-        self.set_snk_cmap(self.snk_cmap_name)
 
         self.setMinimumHeight(512)
 
@@ -436,27 +415,27 @@ class RecenteringFigureWidget(FigureWidget):
 
     @property
     def src_cmap_name(self) -> str:
-        return self.figure.get_src_cmap_name()
+        return self.image_src.get_cmap_name()
 
     @src_cmap_name.setter
     def src_cmap_name(self, value: str):
-        self.figure.set_src_cmap_name(value)
+        self.image_src.set_cmap_name(value)
 
     @property
-    def src_cmap_log(self) -> bool:
-        return self.figure.get_src_cmap_log()
+    def src_cmap_norm(self) -> bool:
+        return self.image_src.get_cmap_norm()
 
-    @src_cmap_log.setter
-    def src_cmap_log(self, value: bool):
-        self.figure.set_src_cmap_log(value)
+    @src_cmap_norm.setter
+    def src_cmap_norm(self, value: bool):
+        self.image_src.set_cmap_norm(value)
 
     @property
     def snk_cmap_name(self) -> str:
-        return self.figure.get_snk_cmap_name()
+        return self.image_snk.get_cmap_name()
 
     @snk_cmap_name.setter
     def snk_cmap_name(self, value: str):
-        self.figure.set_snk_cmap_name(value)
+        self.image_snk.set_cmap_name(value)
 
     def set_capture(self, capture: np.ndarray):
         self.image_src.set_data(capture)

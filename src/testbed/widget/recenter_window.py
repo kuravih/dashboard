@@ -92,11 +92,11 @@ class ProcessInfoSettingsWindow(Window):
     Settings for the re-centering process info window
     """
 
-    def __init__(self, src_cmap: str, src_cmap_norm: bool, snk_cmap: str, parent=None):
+    def __init__(self, src_cmap_name: str, src_cmap_norm: bool, snk_cmap_name: str, parent=None):
         super().__init__(parent, Qt.WindowType.Dialog)
-        self.src_cmap = src_cmap
+        self.src_cmap_name = src_cmap_name
         self.src_cmap_norm = src_cmap_norm
-        self.snk_cmap = snk_cmap
+        self.snk_cmap_name = snk_cmap_name
         self.setWindowModality(Qt.WindowModality.WindowModal)
         self.setWindowTitle("Process Info Settings")
         layout = QVBoxLayout()
@@ -112,7 +112,7 @@ class ProcessInfoSettingsWindow(Window):
         source_cmap_label = QLabel("Source Colormap", self)
         self.source_cmap_combobox = QComboBox(self)
         self.source_cmap_combobox.addItems(list(colormaps))
-        self.source_cmap_combobox.setCurrentIndex(list(colormaps).index(self.src_cmap))
+        self.source_cmap_combobox.setCurrentIndex(list(colormaps).index(self.src_cmap_name))
         self.source_log_checkbox = QCheckBox("Log", self)
         self.source_log_checkbox.setToolTip("Log Scale")
         self.source_log_checkbox.setChecked(self.src_cmap_norm)
@@ -120,7 +120,7 @@ class ProcessInfoSettingsWindow(Window):
         sink_cmap_label = QLabel("Sink Colormap", self)
         self.sink_cmap_combobox = QComboBox(self)
         self.sink_cmap_combobox.addItems(list(colormaps))
-        self.sink_cmap_combobox.setCurrentIndex(list(colormaps).index(self.snk_cmap))
+        self.sink_cmap_combobox.setCurrentIndex(list(colormaps).index(self.snk_cmap_name))
 
         row = 0
         col = 0
@@ -129,7 +129,7 @@ class ProcessInfoSettingsWindow(Window):
         layout.addWidget(self.source_cmap_combobox, row, col)
         col += 1
         layout.addWidget(self.source_log_checkbox, row, col)
- 
+
         row += 1
         col = 0
         layout.addWidget(sink_cmap_label, row, col)
@@ -192,7 +192,7 @@ class ProcessInfoWindow(Window):
 
     @Slot()
     def on_info_settings_clicked(self):
-        process_info_settings_window = ProcessInfoSettingsWindow(snk_cmap=self.process_info_figure.snk_cmap_name, src_cmap_log=self.process_info_figure.src_cmap_log, src_cmap=self.process_info_figure.src_cmap_name, parent=self)
+        process_info_settings_window = ProcessInfoSettingsWindow(self.process_info_figure.snk_cmap_name, self.process_info_figure.src_cmap_norm, self.process_info_figure.src_cmap_name, parent=self)
         process_info_settings_window.show()
         process_info_settings_window.raise_()
         process_info_settings_window.activateWindow()
@@ -202,18 +202,15 @@ class ProcessInfoWindow(Window):
 
     @Slot(str)
     def on_src_cmap_changed(self, colormap: str):
-        self.process_info_figure.set_src_cmap(colormap)
+        self.process_info_figure.src_cmap_name = colormap
 
     @Slot(str)
     def on_snk_cmap_changed(self, colormap: str):
-        self.process_info_figure.set_snk_cmap(colormap)
+        self.process_info_figure.snk_cmap_name = colormap
 
     @Slot(bool)
     def on_src_cmap_log_changed(self, checked: Qt.CheckState):
-        if checked == Qt.CheckState.Checked:
-            self.process_info_figure.set_src_cmap_norm(True)
-        else:
-            self.process_info_figure.set_src_cmap_norm(False)
+        self.process_info_figure.src_cmap_norm = checked == Qt.CheckState.Checked
 
     @Slot()
     def on_update_timer_tick(self):
