@@ -86,144 +86,144 @@ class ProcessSettingsWidget(QWidget):
         return self._sleep_s_spinbox.value()
 
 
-class ProcessInfoSettingsWindow(Window):
-    """
-    Settings for the re-centering process info window
-    """
+# class ProcessInfoSettingsWindow(Window):
+#     """
+#     Settings for the re-centering process info window
+#     """
 
-    def __init__(self, src_cmap_name: str, src_cmap_norm: bool, snk_cmap_name: str, parent=None):
-        super().__init__(parent, Qt.WindowType.Dialog)
-        self.src_cmap_name = src_cmap_name
-        self.src_cmap_norm = src_cmap_norm
-        self.snk_cmap_name = snk_cmap_name
-        self.setWindowModality(Qt.WindowModality.WindowModal)
-        self.setWindowTitle("Process Info Settings")
-        layout = QVBoxLayout()
-        layout.setContentsMargins(2, 2, 2, 2)
-        layout.addWidget(self.setup_settings_widget())
-        self.setLayout(layout)
+#     def __init__(self, src_cmap_name: str, src_cmap_norm: bool, snk_cmap_name: str, parent=None):
+#         super().__init__(parent, Qt.WindowType.Dialog)
+#         self.src_cmap_name = src_cmap_name
+#         self.src_cmap_norm = src_cmap_norm
+#         self.snk_cmap_name = snk_cmap_name
+#         self.setWindowModality(Qt.WindowModality.WindowModal)
+#         self.setWindowTitle("Process Info Settings")
+#         layout = QVBoxLayout()
+#         layout.setContentsMargins(2, 2, 2, 2)
+#         layout.addWidget(self.setup_settings_widget())
+#         self.setLayout(layout)
 
-    def setup_settings_widget(self) -> QWidget:
-        widget = QWidget(self)
-        layout = QGridLayout(widget)
-        widget.setLayout(layout)
+#     def setup_settings_widget(self) -> QWidget:
+#         widget = QWidget(self)
+#         layout = QGridLayout(widget)
+#         widget.setLayout(layout)
 
-        source_cmap_label = QLabel("Source Colormap", self)
-        self.source_cmap_combobox = QComboBox(self)
-        self.source_cmap_combobox.addItems(list(colormaps))
-        self.source_cmap_combobox.setCurrentIndex(list(colormaps).index(self.src_cmap_name))
-        self.source_log_checkbox = QCheckBox("Log", self)
-        self.source_log_checkbox.setToolTip("Log Scale")
-        self.source_log_checkbox.setChecked(self.src_cmap_norm)
+#         source_cmap_label = QLabel("Source Colormap", self)
+#         self.source_cmap_combobox = QComboBox(self)
+#         self.source_cmap_combobox.addItems(list(colormaps))
+#         self.source_cmap_combobox.setCurrentIndex(list(colormaps).index(self.src_cmap_name))
+#         self.source_log_checkbox = QCheckBox("Log", self)
+#         self.source_log_checkbox.setToolTip("Log Scale")
+#         self.source_log_checkbox.setChecked(self.src_cmap_norm)
 
-        sink_cmap_label = QLabel("Sink Colormap", self)
-        self.sink_cmap_combobox = QComboBox(self)
-        self.sink_cmap_combobox.addItems(list(colormaps))
-        self.sink_cmap_combobox.setCurrentIndex(list(colormaps).index(self.snk_cmap_name))
+#         sink_cmap_label = QLabel("Sink Colormap", self)
+#         self.sink_cmap_combobox = QComboBox(self)
+#         self.sink_cmap_combobox.addItems(list(colormaps))
+#         self.sink_cmap_combobox.setCurrentIndex(list(colormaps).index(self.snk_cmap_name))
 
-        row = 0
-        col = 0
-        layout.addWidget(source_cmap_label, row, col)
-        col += 1
-        layout.addWidget(self.source_cmap_combobox, row, col)
-        col += 1
-        layout.addWidget(self.source_log_checkbox, row, col)
+#         row = 0
+#         col = 0
+#         layout.addWidget(source_cmap_label, row, col)
+#         col += 1
+#         layout.addWidget(self.source_cmap_combobox, row, col)
+#         col += 1
+#         layout.addWidget(self.source_log_checkbox, row, col)
 
-        row += 1
-        col = 0
-        layout.addWidget(sink_cmap_label, row, col)
-        col += 1
-        layout.addWidget(self.sink_cmap_combobox, row, col)
+#         row += 1
+#         col = 0
+#         layout.addWidget(sink_cmap_label, row, col)
+#         col += 1
+#         layout.addWidget(self.sink_cmap_combobox, row, col)
 
-        return widget
+#         return widget
 
 
-class ProcessInfoWindow(Window):
-    """
-    Re-centering process info window
-    """
+# class ProcessInfoWindow(Window):
+#     """
+#     Re-centering process info window
+#     """
 
-    def __init__(self, source_sample: SourceSample, sink_sample: SinkSample, parent: QWidget | None = None):
-        super().__init__(parent, Qt.WindowType.Dialog)
-        self.source_sample = source_sample
-        self.sink_sample = sink_sample
+#     def __init__(self, source_sample: SourceSample, sink_sample: SinkSample, parent: QWidget | None = None):
+#         super().__init__(parent, Qt.WindowType.Dialog)
+#         self.source_sample = source_sample
+#         self.sink_sample = sink_sample
 
-        self.speckles = [[np.nan, np.nan], [np.nan, np.nan]]
-        self.center = [np.nan, np.nan]
+#         self.speckles = [[np.nan, np.nan], [np.nan, np.nan]]
+#         self.center = [np.nan, np.nan]
 
-        self.setWindowTitle("Re-centering")
+#         self.setWindowTitle("Re-centering")
 
-        layout = QVBoxLayout()
-        layout.setContentsMargins(2, 2, 2, 2)
-        # layout.addWidget(self.setup_info_widget())
-        self.setLayout(layout)
+#         layout = QVBoxLayout()
+#         layout.setContentsMargins(2, 2, 2, 2)
+#         # layout.addWidget(self.setup_info_widget())
+#         self.setLayout(layout)
 
-        self.update_timer = QTimer(self)
-        self.update_timer.timeout.connect(self.on_update_timer_tick)
-        self.update_timer.start(100)  # Update window every 100 ms
+#         self.update_timer = QTimer(self)
+#         self.update_timer.timeout.connect(self.on_update_timer_tick)
+#         self.update_timer.start(100)  # Update window every 100 ms
 
-    @Slot(SourceSample)
-    def on_src_sampled(self, sample: SourceSample):
-        self.source_sample = sample
+#     @Slot(SourceSample)
+#     def on_src_sampled(self, sample: SourceSample):
+#         self.source_sample = sample
 
-    @Slot(SinkSample)
-    def on_snk_sampled(self, sample: SinkSample):
-        self.sink_sample = sample
+#     @Slot(SinkSample)
+#     def on_snk_sampled(self, sample: SinkSample):
+#         self.sink_sample = sample
 
-    @Slot(float, float, float, float)
-    def on_speckles_located(self, x1: float, y1: float, x2: float, y2: float):
-        self.speckles = [[x1, y1], [x2, y2]]
+#     @Slot(float, float, float, float)
+#     def on_speckles_located(self, x1: float, y1: float, x2: float, y2: float):
+#         self.speckles = [[x1, y1], [x2, y2]]
 
-    @Slot(float, float)
-    def on_center_located(self, x: float, y: float):
-        self.center = [x, y]
+#     @Slot(float, float)
+#     def on_center_located(self, x: float, y: float):
+#         self.center = [x, y]
 
-    # def setup_info_widget(self) -> QWidget:
-    #     widget = QWidget(self)
-    #     layout = QVBoxLayout(widget)
-    #     layout.setContentsMargins(2, 2, 2, 2)
-    #     widget.setLayout(layout)
-    #     self.process_info_figure = RecenteringFigureWidget(self.source_sample.capture, self.sink_sample.command, show_toolbar=True, parent=self)
-    #     if self.process_info_figure.toolbar is not None:
-    #         self.process_info_figure.toolbar.settingsClicked.connect(self.on_info_settings_clicked)
-    #     layout.addWidget(self.process_info_figure)
-    #     return widget
+#     # def setup_info_widget(self) -> QWidget:
+#     #     widget = QWidget(self)
+#     #     layout = QVBoxLayout(widget)
+#     #     layout.setContentsMargins(2, 2, 2, 2)
+#     #     widget.setLayout(layout)
+#     #     self.process_info_figure = RecenteringFigureWidget(self.source_sample.capture, self.sink_sample.command, show_toolbar=True, parent=self)
+#     #     if self.process_info_figure.toolbar is not None:
+#     #         self.process_info_figure.toolbar.settingsClicked.connect(self.on_info_settings_clicked)
+#     #     layout.addWidget(self.process_info_figure)
+#     #     return widget
 
-    @Slot()
-    def on_info_settings_clicked(self):
-        process_info_settings_window = ProcessInfoSettingsWindow(self.process_info_figure.snk_cmap_name, self.process_info_figure.src_cmap_norm, self.process_info_figure.src_cmap_name, parent=self)
-        process_info_settings_window.show()
-        process_info_settings_window.raise_()
-        process_info_settings_window.activateWindow()
-        process_info_settings_window.source_log_checkbox.checkStateChanged.connect(self.on_src_cmap_log_changed)
-        process_info_settings_window.source_cmap_combobox.currentTextChanged.connect(self.on_src_cmap_changed)
-        process_info_settings_window.sink_cmap_combobox.currentTextChanged.connect(self.on_snk_cmap_changed)
+#     @Slot()
+#     def on_info_settings_clicked(self):
+#         process_info_settings_window = ProcessInfoSettingsWindow(self.process_info_figure.snk_cmap_name, self.process_info_figure.src_cmap_norm, self.process_info_figure.src_cmap_name, parent=self)
+#         process_info_settings_window.show()
+#         process_info_settings_window.raise_()
+#         process_info_settings_window.activateWindow()
+#         process_info_settings_window.source_log_checkbox.checkStateChanged.connect(self.on_src_cmap_log_changed)
+#         process_info_settings_window.source_cmap_combobox.currentTextChanged.connect(self.on_src_cmap_changed)
+#         process_info_settings_window.sink_cmap_combobox.currentTextChanged.connect(self.on_snk_cmap_changed)
 
-    @Slot(str)
-    def on_src_cmap_changed(self, colormap: str):
-        self.process_info_figure.src_cmap_name = colormap
+#     @Slot(str)
+#     def on_src_cmap_changed(self, colormap: str):
+#         self.process_info_figure.src_cmap_name = colormap
 
-    @Slot(str)
-    def on_snk_cmap_changed(self, colormap: str):
-        self.process_info_figure.snk_cmap_name = colormap
+#     @Slot(str)
+#     def on_snk_cmap_changed(self, colormap: str):
+#         self.process_info_figure.snk_cmap_name = colormap
 
-    @Slot(bool)
-    def on_src_cmap_log_changed(self, checked: Qt.CheckState):
-        self.process_info_figure.src_cmap_norm = checked == Qt.CheckState.Checked
+#     @Slot(bool)
+#     def on_src_cmap_log_changed(self, checked: Qt.CheckState):
+#         self.process_info_figure.src_cmap_norm = checked == Qt.CheckState.Checked
 
-    @Slot()
-    def on_update_timer_tick(self):
-        self.process_info_figure.set_command(self.sink_sample.command)
-        self.process_info_figure.set_capture(self.source_sample.capture)
-        self.process_info_figure.set_speckles(self.speckles)
-        self.process_info_figure.set_center(self.center)
-        self.process_info_figure.figure.canvas.draw_idle()
+#     @Slot()
+#     def on_update_timer_tick(self):
+#         self.process_info_figure.set_command(self.sink_sample.command)
+#         self.process_info_figure.set_capture(self.source_sample.capture)
+#         self.process_info_figure.set_speckles(self.speckles)
+#         self.process_info_figure.set_center(self.center)
+#         self.process_info_figure.figure.canvas.draw_idle()
 
-    def closeEvent(self, event):
-        if self.update_timer.isActive():
-            self.update_timer.stop()
-        self.deleteLater()
-        event.accept()
+#     def closeEvent(self, event):
+#         if self.update_timer.isActive():
+#             self.update_timer.stop()
+#         self.deleteLater()
+#         event.accept()
 
 
 class ProcessWindow(Window):
