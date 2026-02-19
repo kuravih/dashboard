@@ -255,45 +255,44 @@ class ContrastFigureWidget(FigureWidget):
     Contrast Figure widget
     """
 
-    def __init__(self, contrast: np.ndarray, n_iteration: int, dark_hole_mask: NDArray[np.bool] | None = None, toolitems: list[str] | None = None, parent: QWidget | None = None):
+    def __init__(self, contrast: np.ndarray, n_iteration: int, dark_hole_mask: NDArray[np.bool], toolitems: list[str] | None = None, parent: QWidget | None = None):
         super().__init__(Contrast_Evolution_Plot_Preset(contrast, n_iteration, dark_hole_mask), toolitems, parent)
-        self.figure.set_cmap_name("jet")
-        self.figure.set_cmap_norm(True)
-        self.figure.set_mask_show(True)
         self.setMinimumHeight(512)
 
     def set_contrast(self, contrast: np.ndarray):
-        self.figure.set_contrast(contrast)
+        self.figure.get_image().set_data(contrast)
 
     def set_contrast_plot(self, contrast_array: np.ndarray):
-        self.figure.set_contrast_plot(contrast_array)
+        self.figure.get_plot().set_xdata(np.arange(contrast_array.size))
+        self.figure.get_plot().set_ydata(contrast_array["avg"])
 
     def set_speckle(self, xy: list[float]):
-        self.figure.set_speckle(xy)
+        self.figure.get_speckle()[0].set_xdata([xy[0], xy[0]])
+        self.figure.get_speckle()[1].set_xdata([xy[1], xy[1]])
 
     @property
     def cmap_name(self) -> str:
-        return self.figure.get_cmap_name()
+        return self.figure.get_image().get_cmap_name()
 
     @cmap_name.setter
     def cmap_name(self, value: str):
-        self.figure.set_cmap_name(value)
+        self.figure.get_image().set_cmap_name(value)
 
     @property
     def cmap_norm(self) -> bool:
-        return self.figure.get_cmap_norm()
+        return self.figure.get_image().get_cmap_norm()
 
     @cmap_norm.setter
     def cmap_norm(self, value: bool):
-        self.figure.set_cmap_norm(value)
+        self.figure.get_image().set_cmap_norm(value)
 
     @property
-    def mask_show(self) -> bool:
-        return self.figure.get_mask_show()
+    def alpha_mask_show(self) -> bool:
+        return self.figure.get_image().get_alpha_mask_show()
 
-    @mask_show.setter
-    def mask_show(self, value: bool):
-        self.figure.set_mask_show(value)
+    @alpha_mask_show.setter
+    def alpha_mask_show(self, value: bool):
+        self.figure.get_image().set_alpha_mask_show(value)
 
 
 class SpeckleNullingFigureWidget(FigureWidget):

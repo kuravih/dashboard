@@ -2,6 +2,8 @@ import numpy as np
 from numpy.typing import NDArray
 
 from matplotlib.axes import Axes
+from matplotlib.image import AxesImage
+from matplotlib.lines import Line2D
 from matplotlib.figure import Figure
 from matplotlib.gridspec import GridSpecFromSubplotSpec
 from matplotlib.ticker import MaxNLocator
@@ -58,24 +60,6 @@ def Image_Plot_Preset(capture: NDArray[np.float64], cmap_norm: bool | None = Non
         figure.get_image().set_alpha_mask_show(True)
 
     return figure
-
-
-def Sink_Plot_Preset(command: NDArray[np.float64], figure: Figure | None = None) -> Figure:
-    """
-    Plot preset used to display command images.
-
-    Parameters:
-        command: NDArray[np.float64]
-            Command image
-
-        figure: Figure | None = None
-            Figure object
-
-    Returns: figure: Figure | None = None
-            Figure object
-    """
-
-    return Imshow_Colorbar_Preset(command, figure=figure)
 
 
 def Source_Sink_Speckle_Nulling_Process_Plot_Preset(capture: NDArray[np.float64], command: NDArray[np.float64], phs_lim: tuple[float, float], amp_lim: tuple[float, float], dark_hole_mask: NDArray[np.bool] | None = None, figure: Figure | None = None) -> Figure:
@@ -234,7 +218,7 @@ def Source_Sink_Speckle_Nulling_Process_Plot_Preset(capture: NDArray[np.float64]
 
     patch_cmap_name(imshow_image_source)
     patch_cmap_norm(imshow_image_source)
-    patch_mask_show(imshow_image_source)
+    patch_alpha_mask_show(imshow_image_source)
 
     # -----------------------------------------------------------------------------------------------------------------
     def _set_command(command: np.ndarray):
@@ -464,7 +448,7 @@ def Speckle_Nulling_Process_Plot_Preset(phs_lim: tuple[float, float], amp_lim: t
     return figure
 
 
-def Contrast_Evolution_Plot_Preset(contrast: NDArray[np.float64], n_iteration: int, dark_hole_mask: NDArray[np.bool] | None = None, figure: Figure | None = None) -> Figure:
+def Contrast_Evolution_Plot_Preset(contrast: NDArray[np.float64], n_iteration: int, dark_hole_mask: NDArray[np.bool], figure: Figure | None = None) -> Figure:
     """
     Plot preset used to illustrate contrast evolution.
     Consists of and Imshow axis and corresponding colorbar for contrast and a plot for change in contrast with iteration.
@@ -479,7 +463,7 @@ def Contrast_Evolution_Plot_Preset(contrast: NDArray[np.float64], n_iteration: i
         n_iteration: int
             Loop iterations
 
-        dark_hole_mask: NDArray[np.bool] | None = None
+        dark_hole_mask: NDArray[np.bool] = None
             dark hole mask
 
         figure: Figure | None = None
@@ -489,32 +473,6 @@ def Contrast_Evolution_Plot_Preset(contrast: NDArray[np.float64], n_iteration: i
             Figure object.
 
     Functions:
-        set_contrast(contrast: np.ndarray)
-            set contrast map
-
-        set_contrast_plot(contrast_array: np.ndarray)
-            set contrast array
-
-        set_speckle(xy: list[float])
-            set speckle
-
-        get_cmap_name() -> str:
-            get colormap
-
-        set_cmap_name(value: str)
-            set colormap
-
-        get_cmap_norm() -> bool:
-            get source colormap log normalization
-
-        set_cmap_norm(value: bool)
-            set source colormap log normalization
-
-        get_mask_show() -> bool
-            get mask
-
-        set_mask_show(value: bool)
-            set mask
 
         close()
             Properly close the figure
@@ -551,31 +509,25 @@ def Contrast_Evolution_Plot_Preset(contrast: NDArray[np.float64], n_iteration: i
     (data_plot,) = plot_ax.plot([], [], marker="+", linestyle="None")
 
     # -----------------------------------------------------------------------------------------------------------------
-    def _set_contrast(contrast: np.ndarray):
-        imshow_image.set_data(contrast)
+    def _get_image() -> AxesImage:
+        return imshow_image
 
-    figure.set_contrast = _set_contrast
+    figure.get_image = _get_image
     # -----------------------------------------------------------------------------------------------------------------
 
     # -----------------------------------------------------------------------------------------------------------------
-    def _set_contrast_plot(contrast_array: np.ndarray):
-        data_plot.set_xdata(np.arange(contrast_array.size))
-        data_plot.set_ydata(contrast_array["avg"])
+    def _get_plot() -> Line2D:
+        return data_plot
 
-    figure.set_contrast_plot = _set_contrast_plot
+    figure.get_plot = _get_plot
     # -----------------------------------------------------------------------------------------------------------------
 
     # -----------------------------------------------------------------------------------------------------------------
-    def _set_speckle(xy: list[float]):
-        speckle[0].set_xdata([xy[0], xy[0]])
-        speckle[1].set_ydata([xy[1], xy[1]])
+    def _get_speckle() -> tuple[Line2D, Line2D]:
+        return speckle
 
-    figure.set_speckle = _set_speckle
+    figure.get_speckle = _get_speckle
     # -----------------------------------------------------------------------------------------------------------------
-
-    patch_cmap_name(imshow_image)
-    patch_cmap_norm(imshow_image)
-    patch_mask_show(imshow_image)
 
     # -----------------------------------------------------------------------------------------------------------------
     def _close():
@@ -584,7 +536,14 @@ def Contrast_Evolution_Plot_Preset(contrast: NDArray[np.float64], n_iteration: i
     figure.close = _close
     # -----------------------------------------------------------------------------------------------------------------
 
+    patch_cmap_name(imshow_image)
     imshow_image.set_cmap_name("jet")
+
+    patch_cmap_norm(imshow_image)
+    imshow_image.set_cmap_norm(True)
+    
+    patch_alpha_mask_show(imshow_image, dark_hole_mask)
+    imshow_image.set_alpha_mask_show(True)
 
     return figure
 

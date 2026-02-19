@@ -170,12 +170,11 @@ class SpecklePreviewSettingsWindow(Window):
     Settings for the camera preview window
     """
 
-    def __init__(self, cmap_name: str, cmap_norm: bool, alpha_mask: NDArray[np.bool] | None = None, parent=None):
+    def __init__(self, cmap_name: str, cmap_norm: bool, alpha_mask_show: bool, parent=None):
         super().__init__(parent, Qt.WindowType.Dialog)
         self.cmap_name: str = cmap_name
         self.cmap_norm: bool = cmap_norm
-        self.alpha_mask: NDArray[np.bool] | None = alpha_mask
-
+        self.alpha_mask_show: bool = alpha_mask_show
 
         self.setWindowModality(Qt.WindowModality.WindowModal)
         self.setWindowTitle("Preview Settings")
@@ -233,7 +232,6 @@ class SpecklePreviewWindow(PreviewWindow):
     """
     def __init__(self, camera: Camera, alpha_mask: NDArray[np.bool], parent: QWidget | None = None):
         self._alpha_mask = alpha_mask
-
         super().__init__(camera, parent=parent)
 
     @property
@@ -257,7 +255,7 @@ class SpecklePreviewWindow(PreviewWindow):
 
     @Slot()
     def on_preview_settings_clicked(self):
-        preview_settings_window = SpecklePreviewSettingsWindow(cmap_name=self.preview_figure_widget.cmap_name, cmap_norm=self.preview_figure_widget.cmap_norm, alpha_mask=self.alpha_mask, parent=self)
+        preview_settings_window = SpecklePreviewSettingsWindow(cmap_name=self.preview_figure_widget.cmap_name, cmap_norm=self.preview_figure_widget.cmap_norm, alpha_mask_show=self.preview_figure_widget.alpha_mask_show, parent=self)
         preview_settings_window.show()
         preview_settings_window.raise_()
         preview_settings_window.activateWindow()

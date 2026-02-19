@@ -1,4 +1,6 @@
 import numpy as np
+from numpy.typing import NDArray
+
 from pykato.function import chord, timestamp_string
 from pykato.log import setup_logger
 from PySide6.QtCore import Qt, QTimer, Slot
@@ -18,7 +20,7 @@ from .camera_window import InfoWindow as CameraInfoWindow
 from .camera_window import SpecklePreviewWindow as CameraPreviewWindow
 from .camera_window import SettingsWindow as CameraSettingsWindow
 from .modulator_window import InfoWindow as ModulatorInfoWindow
-from .modulator_window import PreviewWindow as ModulatorPreviewWindow
+from .modulator_window import SpecklePreviewWindow as ModulatorPreviewWindow
 from .modulator_window import SettingsWindow as ModulatorSettingsWindow
 from .dialog import MessageDialog
 from .figure_widget import ContrastFigureWidget, SpeckleNullingFigureWidget
@@ -284,11 +286,12 @@ class ProcessPreviewSettingsWindow(Window):
     Process Preview Settings Window
     """
 
-    def __init__(self, cmap_name: str, cmap_norm: bool, mask_show: bool, parent=None):
+    def __init__(self, cmap_name: str, cmap_norm: bool, alpha_mask_show: bool, parent=None):
         super().__init__(parent, Qt.WindowType.Dialog)
-        self.cmap_name = cmap_name
-        self.cmap_norm = cmap_norm
-        self.mask_show = mask_show
+        self.cmap_name: str = cmap_name
+        self.cmap_norm: bool = cmap_norm
+        self.alpha_mask_show: bool = alpha_mask_show
+    
         self.setWindowModality(Qt.WindowModality.WindowModal)
         self.setWindowTitle("Process Preview Settings")
         layout = QVBoxLayout()
@@ -301,20 +304,21 @@ class ProcessPreviewSettingsWindow(Window):
         layout = QGridLayout(widget)
         widget.setLayout(layout)
 
-        scale_label = QLabel("Contrast Scale", self)
+        scale_label = QLabel("Scale", self)
         self.log_checkbox = QCheckBox("Log", self)
         self.log_checkbox.setToolTip("Log Scale")
         self.log_checkbox.setChecked(self.cmap_norm)
 
-        dark_hole_mask_label = QLabel("Dark Hole Mask", self)
-        self.mask_checkbox = QCheckBox("Show", self)
-        self.mask_checkbox.setToolTip("Show dark hole mask")
-        self.mask_checkbox.setChecked(self.mask_show)
-
-        cmap_label = QLabel("Source Colormap", self)
+        cmap_label = QLabel("Colormap", self)
         self.cmap_combobox = QComboBox(self)
         self.cmap_combobox.addItems(list(colormaps))
         self.cmap_combobox.setCurrentIndex(list(colormaps).index(self.cmap_name))
+
+        dark_hole_mask_label = QLabel("Dark Hole Mask", self)
+        self.mask_checkbox = QCheckBox("Show", self)
+        self.mask_checkbox.setToolTip("Show dark hole mask")
+        self.mask_checkbox.setChecked(self.alpha_mask_show)
+
 
         row = 0
         col = 0
@@ -342,7 +346,7 @@ class ProcessPreviewWindow(Window):
     Speckle Nulling Contrast Result Window
     """
 
-    def __init__(self, measure_map: np.ndarray, n_iterations: int, dark_hole_mask: np.ndarray | None = None, parent: QWidget | None = None):
+    def __init__(self, measure_map: np.ndarray, n_iterations: int, dark_hole_mask: NDArray[np.bool], parent: QWidget | None = None):
         super().__init__(parent, Qt.WindowType.Dialog)
         self.measure_map = measure_map
         self.measure_array = np.full(n_iterations + 1, fill_value=np.nan, dtype=[("avg", float), ("std", float), ("min", float), ("max", float)])
@@ -386,25 +390,25 @@ class ProcessPreviewWindow(Window):
 
     @Slot()
     def on_preview_settings_clicked(self):
-        process_preview_settings_window = ProcessPreviewSettingsWindow(self.process_preview_figure.cmap_name, self.process_preview_figure.cmap_norm, self.process_preview_figure.mask_show, parent=self)
+        process_preview_settings_window = ProcessPreviewSettingsWindow(cmap_name=self.process_preview_figure.cmap_name, cmap_norm=self.process_preview_figure.cmap_norm, alpha_mask_show=self.process_preview_figure.alpha_mask_show, parent=self)
         process_preview_settings_window.show()
         process_preview_settings_window.raise_()
         process_preview_settings_window.activateWindow()
-        process_preview_settings_window.log_checkbox.checkStateChanged.connect(self.on_cmap_log_changed)
-        process_preview_settings_window.cmap_combobox.currentTextChanged.connect(self.on_cmap_changed)
+        process_preview_settings_window.log_checkbox.checkStateChanged.connect(self.on_cmap_norm_changed)
+        process_preview_settings_window.cmap_combobox.currentTextChanged.connect(self.on_cmap_name_changed)
         process_preview_settings_window.mask_checkbox.checkStateChanged.connect(self.on_mask_show_changed)
 
     @Slot(str)
-    def on_cmap_changed(self, colormap: str):
+    def on_cmap_name_changed(self, colormap: str):
         self.process_preview_figure.cmap_name = colormap
 
     @Slot(bool)
-    def on_cmap_log_changed(self, checked: Qt.CheckState):
+    def on_cmap_norm_changed(self, checked: Qt.CheckState):
         self.process_preview_figure.cmap_norm = checked == Qt.CheckState.Checked
 
     @Slot(bool)
     def on_mask_show_changed(self, checked: Qt.CheckState):
-        self.process_preview_figure.mask_show = checked == Qt.CheckState.Checked
+        self.process_preview_figure.alpha_mask_show = checked == Qt.CheckState.Checked
 
     @Slot()
     def on_update_timer_tick(self):
@@ -675,7 +679,7 @@ class ProcessWindow(Window):
 
             if source_preview_window_id in testbed.data.windows:
                 worker.signals.srcSampled.connect(testbed.data.windows[source_preview_window_id].on_sampled)
-                worker.signals.speckleLocated.connect(testbed.data.windows[source_preview_window_id].on_speckle_located)
+                # worker.signals.speckleLocated.connect(testbed.data.windows[source_preview_window_id].on_speckle_located)
             if sink_preview_window_id in testbed.data.windows:
                 worker.signals.snkSampled.connect(testbed.data.windows[sink_preview_window_id].on_sampled)
             if process_info_window_id in testbed.data.windows:
