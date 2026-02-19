@@ -15,7 +15,7 @@ from ..function import is_speckle_calibration_file_valid, read_speckle_calibrati
 from ..worker.speckle_nulling_worker import ProcessWorker
 from ..worker.storage_worker import SinkStorageWorker, SourceStorageWorker
 from .camera_window import InfoWindow as CameraInfoWindow
-from .camera_window import PreviewWindow as CameraPreviewWindow
+from .camera_window import SpecklePreviewWindow as CameraPreviewWindow
 from .camera_window import SettingsWindow as CameraSettingsWindow
 from .modulator_window import InfoWindow as ModulatorInfoWindow
 from .modulator_window import PreviewWindow as ModulatorPreviewWindow

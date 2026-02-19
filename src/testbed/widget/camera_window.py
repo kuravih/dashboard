@@ -22,23 +22,21 @@ class PreviewSettingsWindow(Window):
     Settings for the camera preview window
     """
 
-    def __init__(self, cmap_name: str, cmap_norm: bool, rotation:Rotation, flip: Flip, orientation_setting: bool = True, alpha_mask: NDArray[np.bool] | None = None, parent=None):
-        super().__init__(parent, Qt.WindowType.Dialog)
+    def __init__(self, cmap_name: str, cmap_norm: bool, rotation:Rotation, flip: Flip, parent=None):
         self.cmap_name: str = cmap_name
         self.cmap_norm: bool = cmap_norm
         self.rotation: Rotation = rotation
         self.flip: Flip = flip
-        self.alpha_mask: NDArray[np.bool] | None = alpha_mask
 
-
+        super().__init__(parent, Qt.WindowType.Dialog)
         self.setWindowModality(Qt.WindowModality.WindowModal)
         self.setWindowTitle("Preview Settings")
         layout = QVBoxLayout()
         layout.setContentsMargins(2, 2, 2, 2)
-        layout.addWidget(self.setup_preview_settings_widget(orientation_setting))
+        layout.addWidget(self.setup_preview_settings_widget())
         self.setLayout(layout)
 
-    def setup_preview_settings_widget(self, orientation_setting: bool) -> QWidget:
+    def setup_preview_settings_widget(self) -> QWidget:
         widget = QWidget(self)
         layout = QGridLayout(widget)
         widget.setLayout(layout)
@@ -56,26 +54,6 @@ class PreviewSettingsWindow(Window):
         orientation_label = QLabel("Orientation", self)
         orientation_label.setFixedWidth(100)
         self.orientation_widget = OrientationWidget(self.rotation, self.flip, self)
-
-        dark_hole_mask_label = QLabel("Dark Hole Mask", self)
-        self.mask_checkbox = QCheckBox("Show", self)
-        self.mask_checkbox.setToolTip("Show dark hole mask")
-        self.mask_checkbox.setChecked(True)
-
-        if self.alpha_mask is not None:
-            dark_hole_mask_label.show()
-            self.mask_checkbox.show()
-            orientation_label.hide()
-            self.orientation_widget.hide()
-        else:
-            dark_hole_mask_label.hide()
-            self.mask_checkbox.hide()
-            if orientation_setting:
-                orientation_label.show()
-                self.orientation_widget.show()
-            else:
-                orientation_label.hide()
-                self.orientation_widget.hide()
 
         row = 0
         col = 0
@@ -96,12 +74,6 @@ class PreviewSettingsWindow(Window):
         col += 1
         layout.addWidget(self.orientation_widget, row, col)
 
-        row += 1
-        col = 0
-        layout.addWidget(dark_hole_mask_label, row, col)
-        col += 1
-        layout.addWidget(self.mask_checkbox, row, col)
-
         return widget
 
 
@@ -110,12 +82,10 @@ class PreviewWindow(Window):
     """
     Camera preview window
     """
-
-    def __init__(self, camera: Camera, alpha_mask: NDArray[np.bool] | None = None, parent: QWidget | None = None):
+    def __init__(self, camera: Camera, parent: QWidget | None = None):
         super().__init__(parent, Qt.WindowType.Dialog)
         self._camera = camera
         self._sample = self._camera.sample
-        self._alpha_mask = alpha_mask
 
         self.setWindowTitle(f"{self._camera.name} Preview")
 
@@ -136,13 +106,139 @@ class PreviewWindow(Window):
     def sample(self) -> SourceSample:
         return self._sample
 
-    @property
-    def alpha_mask(self) -> NDArray[np.bool] | None:
-        return self._alpha_mask
-
     @Slot(SourceSample)
     def on_sampled(self, _sample: SourceSample):
         self._sample = _sample
+
+    def setup_preview_widget(self) -> QWidget:
+        widget = QWidget(self)
+        layout = QVBoxLayout(widget)
+        layout.setContentsMargins(2, 2, 2, 2)
+        widget.setLayout(layout)
+
+        self._sample = self.camera.sample
+        self.preview_figure_widget = SourceFigureWidget(self.camera.blank, self.camera.pxmax, parent=self)
+        if self.preview_figure_widget.toolbar is not None:
+            self.preview_figure_widget.toolbar.settingsClicked.connect(self.on_preview_settings_clicked)
+
+        layout.addWidget(self.preview_figure_widget)
+
+        return widget
+
+    @Slot()
+    def on_preview_settings_clicked(self):
+        preview_settings_window = PreviewSettingsWindow(cmap_name=self.preview_figure_widget.cmap_name, cmap_norm=self.preview_figure_widget.cmap_norm, rotation=self.preview_figure_widget.rotation, flip=self.preview_figure_widget.flip, parent=self)
+        preview_settings_window.show()
+        preview_settings_window.raise_()
+        preview_settings_window.activateWindow()
+        preview_settings_window.log_checkbox.checkStateChanged.connect(self.on_cmap_norm_changed)
+        preview_settings_window.cmap_combobox.currentTextChanged.connect(self.on_cmap_name_changed)
+        preview_settings_window.orientation_widget.rotationChanged.connect(self.on_rotation_changed)
+        preview_settings_window.orientation_widget.flipChanged.connect(self.on_flip_changed)
+
+    @Slot(str)
+    def on_cmap_name_changed(self, colormap: str):
+        self.preview_figure_widget.cmap_name = colormap
+
+    @Slot(bool)
+    def on_cmap_norm_changed(self, checked: bool):
+        self.preview_figure_widget.cmap_norm = checked == Qt.CheckState.Checked
+
+    @Slot(str)
+    def on_rotation_changed(self, rotation: Rotation):
+        self.preview_figure_widget.rotation = rotation
+
+    @Slot(str)
+    def on_flip_changed(self, flip: Flip):
+        self.preview_figure_widget.flip = flip
+
+    @Slot()
+    def on_update_timer_tick(self):
+        self.preview_figure_widget.figure.get_image().set_data(flip_rotate(self.sample.capture, self.preview_figure_widget.flip, self.preview_figure_widget.rotation))
+        self.preview_figure_widget.figure.canvas.draw_idle()
+
+    def closeEvent(self, event):
+        if self.update_timer.isActive():
+            self.update_timer.stop()
+        self.deleteLater()
+        event.accept()
+
+
+# ==== SpecklePreviewSettingsWindow ==========================================================================================
+class SpecklePreviewSettingsWindow(Window):
+    """
+    Settings for the camera preview window
+    """
+
+    def __init__(self, cmap_name: str, cmap_norm: bool, alpha_mask: NDArray[np.bool] | None = None, parent=None):
+        super().__init__(parent, Qt.WindowType.Dialog)
+        self.cmap_name: str = cmap_name
+        self.cmap_norm: bool = cmap_norm
+        self.alpha_mask: NDArray[np.bool] | None = alpha_mask
+
+
+        self.setWindowModality(Qt.WindowModality.WindowModal)
+        self.setWindowTitle("Preview Settings")
+        layout = QVBoxLayout()
+        layout.setContentsMargins(2, 2, 2, 2)
+        layout.addWidget(self.setup_preview_settings_widget())
+        self.setLayout(layout)
+
+    def setup_preview_settings_widget(self) -> QWidget:
+        widget = QWidget(self)
+        layout = QGridLayout(widget)
+        widget.setLayout(layout)
+
+        scale_label = QLabel("Scale", self)
+        self.log_checkbox = QCheckBox("Log", self)
+        self.log_checkbox.setToolTip("Log Scale")
+        self.log_checkbox.setChecked(self.cmap_norm)
+
+        cmap_label = QLabel("Colormap", self)
+        self.cmap_combobox = QComboBox(self)
+        self.cmap_combobox.addItems(list(colormaps))
+        self.cmap_combobox.setCurrentIndex(list(colormaps).index(self.cmap_name))
+
+        dark_hole_mask_label = QLabel("Dark Hole Mask", self)
+        self.mask_checkbox = QCheckBox("Show", self)
+        self.mask_checkbox.setToolTip("Show dark hole mask")
+        self.mask_checkbox.setChecked(True)
+
+        row = 0
+        col = 0
+        layout.addWidget(scale_label, row, col)
+        col += 1
+        layout.addWidget(self.log_checkbox, row, col)
+
+        row += 1
+        col = 0
+        layout.addWidget(cmap_label, row, col)
+        col += 1
+        layout.addWidget(self.cmap_combobox, row, col)
+
+        row += 1
+        col = 0
+        layout.addWidget(dark_hole_mask_label, row, col)
+        col += 1
+        layout.addWidget(self.mask_checkbox, row, col)
+
+        return widget
+
+
+
+# ==== PreviewWindow ==================================================================================================
+class SpecklePreviewWindow(PreviewWindow):
+    """
+    Camera speckle preview window
+    """
+    def __init__(self, camera: Camera, alpha_mask: NDArray[np.bool], parent: QWidget | None = None):
+        self._alpha_mask = alpha_mask
+
+        super().__init__(camera, parent=parent)
+
+    @property
+    def alpha_mask(self) -> NDArray[np.bool]:
+        return self._alpha_mask
 
     def setup_preview_widget(self) -> QWidget:
         widget = QWidget(self)
@@ -161,14 +257,12 @@ class PreviewWindow(Window):
 
     @Slot()
     def on_preview_settings_clicked(self):
-        preview_settings_window = PreviewSettingsWindow(cmap_name=self.preview_figure_widget.cmap_name, cmap_norm=self.preview_figure_widget.cmap_norm, rotation=self.preview_figure_widget.rotation, flip=self.preview_figure_widget.flip, alpha_mask=self.alpha_mask, parent=self)
+        preview_settings_window = SpecklePreviewSettingsWindow(cmap_name=self.preview_figure_widget.cmap_name, cmap_norm=self.preview_figure_widget.cmap_norm, alpha_mask=self.alpha_mask, parent=self)
         preview_settings_window.show()
         preview_settings_window.raise_()
         preview_settings_window.activateWindow()
         preview_settings_window.log_checkbox.checkStateChanged.connect(self.on_cmap_norm_changed)
         preview_settings_window.cmap_combobox.currentTextChanged.connect(self.on_cmap_name_changed)
-        preview_settings_window.orientation_widget.rotationChanged.connect(self.on_rotation_changed)
-        preview_settings_window.orientation_widget.flipChanged.connect(self.on_flip_changed)
         preview_settings_window.mask_checkbox.checkStateChanged.connect(self.on_mask_show_changed)
 
     @Slot(str)
@@ -179,21 +273,13 @@ class PreviewWindow(Window):
     def on_cmap_norm_changed(self, checked: bool):
         self.preview_figure_widget.cmap_norm = checked == Qt.CheckState.Checked
 
-    @Slot(str)
-    def on_rotation_changed(self, rotation: Rotation):
-        self.preview_figure_widget.rotation = rotation
-
-    @Slot(str)
-    def on_flip_changed(self, flip: Flip):
-        self.preview_figure_widget.flip = flip
-
     @Slot(bool)
     def on_mask_show_changed(self, checked: Qt.CheckState):
         self.preview_figure_widget.alpha_mask_show = checked == Qt.CheckState.Checked
 
     @Slot()
     def on_update_timer_tick(self):
-        self.preview_figure_widget.figure.get_image().set_data(flip_rotate(self.sample.capture, self.preview_figure_widget.flip, self.preview_figure_widget.rotation))
+        self.preview_figure_widget.figure.get_image().set_data(self.sample.capture)
         self.preview_figure_widget.figure.canvas.draw_idle()
 
     def closeEvent(self, event):
@@ -203,7 +289,7 @@ class PreviewWindow(Window):
         event.accept()
 
 
-# ==== InfoWindow ===============================================================================================
+# ==== InfoWindow =====================================================================================================
 class InfoWindow(Window):
     """
     Camera info window
@@ -437,7 +523,7 @@ class InfoWindow(Window):
         event.accept()
 
 
-# ==== SettingsWindow ===========================================================================================
+# ==== SettingsWindow =================================================================================================
 class SettingsWindow(Window):
     """
     Camera settings window
@@ -597,6 +683,3 @@ class SettingsWindow(Window):
     def closeEvent(self, event):
         self.deleteLater()
         event.accept()
-
-
-# ==== SettingsWindow =================================================================================================
