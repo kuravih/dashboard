@@ -10,7 +10,6 @@ from matplotlib import colormaps
 
 import testbed
 
-from ..device import SinkSample, SourceSample
 from ..device.camera import Camera
 from ..device.modulator import Modulator
 from ..function import is_speckle_calibration_file_valid, read_speckle_calibration_file, constrained_sin_fit_fn, quadratic_fit_fn
@@ -80,6 +79,7 @@ class ProcessSettingsWidget(QWidget):
         self._continuous_checkbox.toggled.connect(on_continuous_toggled)
 
         self.dark_hole_mask = None
+        # self.dark_hole_mask = chord(self.source.shape, self.source.shape[0] * 7 / 16, 0.65)
 
         self.speckle_calibration = None
 
@@ -170,16 +170,8 @@ class ProcessInfoWindow(Window):
     Speckle Nulling Process Information Window
     """
 
-    def __init__(self, source_sample: SourceSample, sink_sample: SinkSample, phs_lim: tuple[float, float], phs_array: np.ndarray, amp_lim: tuple[float, float], amp_array: np.ndarray, dark_hole_mask: np.ndarray | None = None, parent: QWidget | None = None):
+    def __init__(self, phs_lim: tuple[float, float], phs_array: np.ndarray, amp_lim: tuple[float, float], amp_array: np.ndarray, parent: QWidget | None = None):
         super().__init__(parent, Qt.WindowType.Dialog)
-        self.source_sample = source_sample
-        self.sink_sample = sink_sample
-
-        self.dark_hole_mask = dark_hole_mask
-
-        self.speckle = [np.nan, np.nan]
-        self.speckle_frequency = np.nan
-        self.speckle_angle = np.nan
 
         self.phs_lim = phs_lim
         self.phs_array = phs_array
@@ -209,20 +201,6 @@ class ProcessInfoWindow(Window):
         self.update_timer = QTimer(self)
         self.update_timer.timeout.connect(self.on_update_timer_tick)
         self.update_timer.start(100)  # Update window every 100 ms
-
-    @Slot(SourceSample)
-    def on_src_sampled(self, sample: SourceSample):
-        self.source_sample = sample
-
-    @Slot(SinkSample)
-    def on_snk_sampled(self, sample: SinkSample):
-        self.sink_sample = sample
-
-    @Slot(float, float, float, float)
-    def on_speckle_located(self, x: float, y: float, frequency: float, angle: float):
-        self.speckle[0], self.speckle[1] = x, y
-        self.speckle_frequency = frequency
-        self.speckle_angle = angle
 
     @Slot(np.ndarray)
     def on_phs_swept(self, intensity: np.ndarray):
@@ -263,9 +241,6 @@ class ProcessInfoWindow(Window):
 
     @Slot()
     def on_update_timer_tick(self):
-        # self.process_info_figure.set_command(self.sink_sample.command)
-        # self.process_info_figure.set_capture(self.source_sample.capture)
-        # self.process_info_figure.set_speckle(self.speckle)
         self.process_info_figure.set_phs_data_plot(self.phs_array, self.phs_intensity_data_array)
         self.process_info_figure.set_phs_fit_plot(self.phs_intensity_fit_x_data, self.phs_intensity_fit_y_data)
         self.process_info_figure.set_phs_solve(self.phs_solve)
@@ -344,6 +319,7 @@ class ProcessPreviewSettingsWindow(Window):
 class ProcessPreviewWindow(Window):
     """
     Speckle Nulling Contrast Result Window
+    Consists of an Imshow axes for the contrast map and a Plot axes for a contrast evolution plot.
     """
 
     def __init__(self, measure_map: np.ndarray, n_iterations: int, dark_hole_mask: NDArray[np.bool], parent: QWidget | None = None):
@@ -354,6 +330,8 @@ class ProcessPreviewWindow(Window):
         self.dark_hole_mask = dark_hole_mask
 
         self.speckle = [np.nan, np.nan]
+        # self.speckle_frequency = np.nan
+        # self.speckle_angle = np.nan
 
         self.setWindowTitle("Contrast")
 
@@ -368,29 +346,29 @@ class ProcessPreviewWindow(Window):
 
     @Slot(np.ndarray, np.ndarray)
     def on_contrast_measured(self, measure_map: np.ndarray, measure_array: np.ndarray):
-        self.measure_map = measure_map
-        self.measure_array = measure_array
+        self.measure_map[:] = measure_map[:]
+        self.measure_array[:] = measure_array[:]
 
     @Slot(float, float, float, float)
     def on_speckle_located(self, x: float, y: float, frequency: float, angle: float):
         self.speckle[0], self.speckle[1] = x, y
-        self.speckle_frequency = frequency
-        self.speckle_angle = angle
+        # self.speckle_frequency = frequency
+        # self.speckle_angle = angle
 
     def setup_preview_widget(self) -> QWidget:
         widget = QWidget(self)
         layout = QVBoxLayout(widget)
         layout.setContentsMargins(2, 2, 2, 2)
         widget.setLayout(layout)
-        self.process_preview_figure = ContrastFigureWidget(self.measure_map, self.n_iterations, dark_hole_mask=self.dark_hole_mask, parent=self)
-        if self.process_preview_figure.toolbar is not None:
-            self.process_preview_figure.toolbar.settingsClicked.connect(self.on_preview_settings_clicked)
-        layout.addWidget(self.process_preview_figure)
+        self.process_preview_figure_widget = ContrastFigureWidget(self.measure_map, self.n_iterations, dark_hole_mask=self.dark_hole_mask, parent=self)
+        if self.process_preview_figure_widget.toolbar is not None:
+            self.process_preview_figure_widget.toolbar.settingsClicked.connect(self.on_preview_settings_clicked)
+        layout.addWidget(self.process_preview_figure_widget)
         return widget
 
     @Slot()
     def on_preview_settings_clicked(self):
-        process_preview_settings_window = ProcessPreviewSettingsWindow(cmap_name=self.process_preview_figure.cmap_name, cmap_norm=self.process_preview_figure.cmap_norm, alpha_mask_show=self.process_preview_figure.alpha_mask_show, parent=self)
+        process_preview_settings_window = ProcessPreviewSettingsWindow(cmap_name=self.process_preview_figure_widget.cmap_name, cmap_norm=self.process_preview_figure_widget.cmap_norm, alpha_mask_show=self.process_preview_figure_widget.alpha_mask_show, parent=self)
         process_preview_settings_window.show()
         process_preview_settings_window.raise_()
         process_preview_settings_window.activateWindow()
@@ -400,22 +378,22 @@ class ProcessPreviewWindow(Window):
 
     @Slot(str)
     def on_cmap_name_changed(self, colormap: str):
-        self.process_preview_figure.cmap_name = colormap
+        self.process_preview_figure_widget.cmap_name = colormap
 
     @Slot(bool)
     def on_cmap_norm_changed(self, checked: Qt.CheckState):
-        self.process_preview_figure.cmap_norm = checked == Qt.CheckState.Checked
+        self.process_preview_figure_widget.cmap_norm = checked == Qt.CheckState.Checked
 
     @Slot(bool)
     def on_mask_show_changed(self, checked: Qt.CheckState):
-        self.process_preview_figure.alpha_mask_show = checked == Qt.CheckState.Checked
+        self.process_preview_figure_widget.alpha_mask_show = checked == Qt.CheckState.Checked
 
     @Slot()
     def on_update_timer_tick(self):
-        self.process_preview_figure.set_contrast(self.measure_map)
-        self.process_preview_figure.set_speckle(self.speckle)
-        self.process_preview_figure.set_contrast_plot(self.measure_array)
-        self.process_preview_figure.figure.canvas.draw_idle()
+        self.process_preview_figure_widget.set_contrast_map_data(self.measure_map)
+        self.process_preview_figure_widget.set_contrast_curve_data(self.measure_array)
+        self.process_preview_figure_widget.set_speckle_location_data(self.speckle)
+        self.process_preview_figure_widget.figure.canvas.draw_idle()
 
     def closeEvent(self, event):
         if self.update_timer.isActive():
@@ -679,13 +657,10 @@ class ProcessWindow(Window):
 
             if source_preview_window_id in testbed.data.windows:
                 worker.signals.srcSampled.connect(testbed.data.windows[source_preview_window_id].on_sampled)
-                # worker.signals.speckleLocated.connect(testbed.data.windows[source_preview_window_id].on_speckle_located)
+                worker.signals.speckleLocated.connect(testbed.data.windows[source_preview_window_id].on_speckle_located)
             if sink_preview_window_id in testbed.data.windows:
                 worker.signals.snkSampled.connect(testbed.data.windows[sink_preview_window_id].on_sampled)
             if process_info_window_id in testbed.data.windows:
-                # worker.signals.srcSampled.connect(testbed.data.windows[process_info_window_id].on_src_sampled)
-                # worker.signals.snkSampled.connect(testbed.data.windows[process_info_window_id].on_snk_sampled)
-                # worker.signals.speckleLocated.connect(testbed.data.windows[process_info_window_id].on_speckle_located)
                 worker.signals.phsSwept.connect(testbed.data.windows[process_info_window_id].on_phs_swept)
                 worker.signals.phsFitted.connect(testbed.data.windows[process_info_window_id].on_phs_fitted)
                 worker.signals.phsSolved.connect(testbed.data.windows[process_info_window_id].on_phs_solved)
@@ -724,7 +699,7 @@ class ProcessWindow(Window):
             testbed.data.windows.pop(process_info_window_id, None)
 
         if process_info_window_id not in testbed.data.windows and self.source is not None and self.sink is not None:
-            process_info_window = ProcessInfoWindow(self.source.sample, self.sink.sample, [0, 360], self.settings_widget.phs_array, [self.settings_widget.amp_array[0], self.settings_widget.amp_array[-1]], self.settings_widget.amp_array, self.settings_widget.dark_hole_mask, parent=self)
+            process_info_window = ProcessInfoWindow([0, 360], self.settings_widget.phs_array, [self.settings_widget.amp_array[0], self.settings_widget.amp_array[-1]], self.settings_widget.amp_array, parent=self)
             process_info_window.destroyed.connect(on_window_closed)
             process_info_window.show()
             process_info_window.raise_()
@@ -734,7 +709,6 @@ class ProcessWindow(Window):
             if process_worker_id in testbed.data.workers:
                 testbed.data.workers[process_worker_id].signals.srcSampled.connect(testbed.data.windows[process_info_window_id].on_src_sampled)
                 testbed.data.workers[process_worker_id].signals.snkSampled.connect(testbed.data.windows[process_info_window_id].on_snk_sampled)
-                testbed.data.workers[process_worker_id].signals.speckleLocated.connect(testbed.data.windows[process_info_window_id].on_speckle_located)
                 testbed.data.workers[process_worker_id].signals.phsSwept.connect(testbed.data.windows[process_info_window_id].on_phs_swept)
                 testbed.data.workers[process_worker_id].signals.phsFitted.connect(testbed.data.windows[process_info_window_id].on_phs_fitted)
                 testbed.data.workers[process_worker_id].signals.phsSolved.connect(testbed.data.windows[process_info_window_id].on_phs_solved)

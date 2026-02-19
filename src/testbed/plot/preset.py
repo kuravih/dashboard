@@ -448,7 +448,7 @@ def Speckle_Nulling_Process_Plot_Preset(phs_lim: tuple[float, float], amp_lim: t
     return figure
 
 
-def Contrast_Evolution_Plot_Preset(contrast: NDArray[np.float64], n_iteration: int, dark_hole_mask: NDArray[np.bool], figure: Figure | None = None) -> Figure:
+def Contrast_Evolution_Plot_Preset(contrast: np.ndarray, n_iteration: int, dark_hole_mask: NDArray[np.bool], figure: Figure | None = None) -> Figure:
     """
     Plot preset used to illustrate contrast evolution.
     Consists of and Imshow axis and corresponding colorbar for contrast and a plot for change in contrast with iteration.

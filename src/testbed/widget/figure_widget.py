@@ -259,16 +259,16 @@ class ContrastFigureWidget(FigureWidget):
         super().__init__(Contrast_Evolution_Plot_Preset(contrast, n_iteration, dark_hole_mask), toolitems, parent)
         self.setMinimumHeight(512)
 
-    def set_contrast(self, contrast: np.ndarray):
-        self.figure.get_image().set_data(contrast)
+    def set_contrast_map_data(self, contrast_map: np.ndarray):
+        self.figure.get_image().set_data(contrast_map)
 
-    def set_contrast_plot(self, contrast_array: np.ndarray):
-        self.figure.get_plot().set_xdata(np.arange(contrast_array.size))
-        self.figure.get_plot().set_ydata(contrast_array["avg"])
+    def set_contrast_curve_data(self, contrast_curve):
+        self.figure.get_plot().set_xdata(np.arange(contrast_curve.size))
+        self.figure.get_plot().set_ydata(contrast_curve["avg"])
 
-    def set_speckle(self, xy: list[float]):
-        self.figure.get_speckle()[0].set_xdata([xy[0], xy[0]])
-        self.figure.get_speckle()[1].set_xdata([xy[1], xy[1]])
+    def set_speckle_location_data(self, speckle_location: list[float]):
+        self.figure.get_speckle()[0].set_xdata([speckle_location[0], speckle_location[0]])
+        self.figure.get_speckle()[1].set_ydata([speckle_location[1], speckle_location[1]])
 
     @property
     def cmap_name(self) -> str:
@@ -293,7 +293,6 @@ class ContrastFigureWidget(FigureWidget):
     @alpha_mask_show.setter
     def alpha_mask_show(self, value: bool):
         self.figure.get_image().set_alpha_mask_show(value)
-
 
 class SpeckleNullingFigureWidget(FigureWidget):
     """

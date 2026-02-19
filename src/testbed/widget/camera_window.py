@@ -232,6 +232,7 @@ class SpecklePreviewWindow(PreviewWindow):
     """
     def __init__(self, camera: Camera, alpha_mask: NDArray[np.bool], parent: QWidget | None = None):
         self._alpha_mask = alpha_mask
+        self._speckle = [np.nan, np.nan]
         super().__init__(camera, parent=parent)
 
     @property
@@ -246,12 +247,23 @@ class SpecklePreviewWindow(PreviewWindow):
 
         self._sample = self.camera.sample
         self.preview_figure_widget = SourceFigureWidget(self.camera.blank, self.camera.pxmax, alpha_mask=self.alpha_mask, parent=self)
+        self.speckle_axvline, self.speckle_axhline = self.preview_figure_widget.figure.get_imshow_axes().axvline(np.nan, alpha=0.5, linewidth=0.5, color="red"), self.preview_figure_widget.figure.get_imshow_axes().axhline(np.nan, alpha=0.5, linewidth=0.5, color="red")
         if self.preview_figure_widget.toolbar is not None:
             self.preview_figure_widget.toolbar.settingsClicked.connect(self.on_preview_settings_clicked)
 
         layout.addWidget(self.preview_figure_widget)
 
         return widget
+
+    @property
+    def speckle(self) -> list[float]:
+        return self._speckle
+    
+    @Slot(float, float, float, float)
+    def on_speckle_located(self, x: float, y: float, frequency: float, angle: float):
+        self._speckle[0], self._speckle[1] = x, y
+        # self.speckle_frequency = frequency
+        # self.speckle_angle = angle
 
     @Slot()
     def on_preview_settings_clicked(self):
@@ -278,6 +290,8 @@ class SpecklePreviewWindow(PreviewWindow):
     @Slot()
     def on_update_timer_tick(self):
         self.preview_figure_widget.figure.get_image().set_data(self.sample.capture)
+        self.speckle_axvline.set_xdata([self.speckle[0], self.speckle[0]])
+        self.speckle_axhline.set_ydata([self.speckle[1], self.speckle[1]])
         self.preview_figure_widget.figure.canvas.draw_idle()
 
     def closeEvent(self, event):
