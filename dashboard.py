@@ -8,6 +8,7 @@ import testbed
 from testbed.device import Stream
 
 from testbed.device.camera import Camera
+from testbed.function import Flip, Rotation
 from testbed.widget.camera_window import PreviewWindow as CameraPreviewWindow, InfoWindow as CameraInfoWindow, SettingsWindow as CameraSettingsWindow
 from testbed.worker.camera_worker import UpdateWorker as CameraUpdateWorker
 
@@ -20,6 +21,8 @@ from testbed.widget.speckle_calibration_window import ProcessWindow as SpeckleCa
 from testbed.widget.speckle_nulling_window import ProcessWindow as SpeckleNullingWindow
 from testbed.widget.recenter_window import ProcessWindow as RecenterWindow
 from testbed.widget.camera_calibration_window import ProcessWindow as CameraCalibrationWindow
+from testbed.widget.dotf_measurement_window import ProcessWindow as DOTFMeasurementWindow
+from testbed.widget.pairwise_fpwfs_window import ProcessWindow as PairwiseFPWFSWindow
 
 from testbed.widget.dialog import MessageDialog
 from testbed.widget.resource import ICON_EYE, ICON_GEAR, ICON_INFO, ICON_PLAY, ICON_PAUSE
@@ -66,6 +69,12 @@ class MainWindow(QMainWindow):
         camera_calibration_button = QPushButton("Camera Calibration Process")
         camera_calibration_button.clicked.connect(self.on_open_camera_calibration_clicked)
 
+        dotf_measurement_button = QPushButton("DOTF Measurement Process")
+        dotf_measurement_button.clicked.connect(self.on_open_dotf_measurement_clicked)
+
+        pairwise_fpwfs_button = QPushButton("Pairwise FPWFS Process")
+        pairwise_fpwfs_button.clicked.connect(self.on_open_pairwise_fpwfs_clicked)
+
         device_button_layout = QHBoxLayout()
         device_button_layout.addWidget(add_device_button)
         device_button_layout.addWidget(remove_device_button)
@@ -80,6 +89,8 @@ class MainWindow(QMainWindow):
         layout.addWidget(speckle_nulling_button)
         layout.addWidget(recenter_button)
         layout.addWidget(camera_calibration_button)
+        layout.addWidget(dotf_measurement_button)
+        layout.addWidget(pairwise_fpwfs_button)
         self.setCentralWidget(container)
 
     def open_device_preview_window(self, _device: Camera | Modulator):
@@ -235,7 +246,7 @@ class MainWindow(QMainWindow):
                 if stream.kind == Stream.Kind.CAMERA:
                     camera = Camera(stream)
                     self.table.setItem(row, 2, QTableWidgetItem(str(camera.shape)))
-                    self.table.setItem(row, 3, QTableWidgetItem("dtype"))
+                    self.table.setItem(row, 3, QTableWidgetItem(str(stream.dtype)))
                     preview_button.clicked.connect(lambda _, _camera=camera: self.open_device_preview_window(_camera))
                     info_button.clicked.connect(lambda _, _camera=camera: self.open_device_info_window(_camera))
                     settings_button.clicked.connect(lambda _, _camera=camera: self.open_device_settings_window(_camera))
@@ -246,7 +257,7 @@ class MainWindow(QMainWindow):
                 elif stream.kind == Stream.Kind.SLM:
                     modulator = Modulator(stream)
                     self.table.setItem(row, 2, QTableWidgetItem(str(modulator.shape)))
-                    self.table.setItem(row, 3, QTableWidgetItem("dtype"))
+                    self.table.setItem(row, 3, QTableWidgetItem(str(stream.dtype)))
                     preview_button.clicked.connect(lambda _, _modulator=modulator: self.open_device_preview_window(_modulator))
                     info_button.clicked.connect(lambda _, _modulator=modulator: self.open_device_info_window(_modulator))
                     settings_button.clicked.connect(lambda _, _modulator=modulator: self.open_device_settings_window(_modulator))
@@ -356,6 +367,40 @@ class MainWindow(QMainWindow):
             camera_calibration_window.raise_()
             camera_calibration_window.activateWindow()
             testbed.data.windows[camera_calibration_window_id] = camera_calibration_window
+
+    @Slot()
+    def on_open_dotf_measurement_clicked(self):
+
+        dotf_measurement_window_id = f"{testbed.DOTF_MEASUREMENT}_window"
+
+        @Slot()
+        def on_window_closed():
+            testbed.data.windows.pop(dotf_measurement_window_id, None)
+
+        if dotf_measurement_window_id not in testbed.data.windows:
+            dotf_measurement_window = DOTFMeasurementWindow(self)
+            dotf_measurement_window.destroyed.connect(on_window_closed)
+            dotf_measurement_window.show()
+            dotf_measurement_window.raise_()
+            dotf_measurement_window.activateWindow()
+            testbed.data.windows[dotf_measurement_window_id] = dotf_measurement_window
+
+    @Slot()
+    def on_open_pairwise_fpwfs_clicked(self):
+
+        pairwise_fpwfs_window_id = f"{testbed.DOTF_MEASUREMENT}_window"
+
+        @Slot()
+        def on_window_closed():
+            testbed.data.windows.pop(pairwise_fpwfs_window_id, None)
+
+        if pairwise_fpwfs_window_id not in testbed.data.windows:
+            pairwise_fpwfs_window = PairwiseFPWFSWindow(self)
+            pairwise_fpwfs_window.destroyed.connect(on_window_closed)
+            pairwise_fpwfs_window.show()
+            pairwise_fpwfs_window.raise_()
+            pairwise_fpwfs_window.activateWindow()
+            testbed.data.windows[pairwise_fpwfs_window_id] = pairwise_fpwfs_window
 
     def closeEvent(self, event):
         if testbed.data.windows:

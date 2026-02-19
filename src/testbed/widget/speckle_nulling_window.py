@@ -36,6 +36,7 @@ sink_storage_worker_id = f"{_PROCESS_}_sink_storage_worker"
 logger = setup_logger(f"{_PROCESS_}_window", terminator="\n")
 
 
+# ==== ProcessSettingsWidget ==========================================================================================
 class ProcessSettingsWidget(QWidget):
     """
     Speckle Nulling Process Settings
@@ -162,70 +163,6 @@ class ProcessSettingsWidget(QWidget):
         return self._amp_steps.value()
 
 
-class ProcessInfoSettingsWindow(Window):
-    """
-    Process Info Settings Window
-    """
-
-    def __init__(self, src_cmap_name: str, src_cmap_norm: bool, src_mask_show: bool, snk_cmap_name: str, parent=None):
-        super().__init__(parent, Qt.WindowType.Dialog)
-        self.src_cmap_name = src_cmap_name
-        self.src_cmap_norm = src_cmap_norm
-        self.src_mask_show = src_mask_show
-        self.snk_cmap_name = snk_cmap_name
-        self.setWindowModality(Qt.WindowModality.WindowModal)
-        self.setWindowTitle("Process Info Settings")
-        layout = QVBoxLayout()
-        layout.setContentsMargins(2, 2, 2, 2)
-        layout.addWidget(self.setup_settings_widget())
-        self.setLayout(layout)
-
-    def setup_settings_widget(self) -> QWidget:
-        widget = QWidget(self)
-        layout = QGridLayout(widget)
-        widget.setLayout(layout)
-
-        source_cmap_label = QLabel("Source Colormap", self)
-        self.source_cmap_combobox = QComboBox(self)
-        self.source_cmap_combobox.addItems(list(colormaps))
-        self.source_cmap_combobox.setCurrentIndex(list(colormaps).index(self.src_cmap_name))
-        self.source_log_checkbox = QCheckBox("Log", self)
-        self.source_log_checkbox.setToolTip("Log Scale")
-        self.source_log_checkbox.setChecked(self.src_cmap_norm)
-
-        dark_hole_mask_label = QLabel("Dark Hole Mask", self)
-        self.source_mask_checkbox = QCheckBox("Show", self)
-        self.source_mask_checkbox.setToolTip("Show dark hole mask")
-        self.source_mask_checkbox.setChecked(self.src_mask_show)
-
-        sink_cmap_label = QLabel("Sink Colormap", self)
-        self.sink_cmap_combobox = QComboBox(self)
-        self.sink_cmap_combobox.addItems(list(colormaps))
-        self.sink_cmap_combobox.setCurrentIndex(list(colormaps).index(self.snk_cmap_name))
-
-        row = 0
-        col = 0
-        layout.addWidget(source_cmap_label, row, col)
-        col += 1
-        layout.addWidget(self.source_cmap_combobox, row, col)
-        col += 1
-        layout.addWidget(self.source_log_checkbox, row, col)
-
-        row += 1
-        col = 0
-        layout.addWidget(dark_hole_mask_label, row, col)
-        col += 1
-        layout.addWidget(self.source_mask_checkbox, row, col)
-
-        row += 1
-        col = 0
-        layout.addWidget(sink_cmap_label, row, col)
-        col += 1
-        layout.addWidget(self.sink_cmap_combobox, row, col)
-
-        return widget
-
-
 class ProcessInfoWindow(Window):
     """
     Speckle Nulling Process Information Window
@@ -318,44 +255,15 @@ class ProcessInfoWindow(Window):
         layout = QVBoxLayout(widget)
         layout.setContentsMargins(2, 2, 2, 2)
         widget.setLayout(layout)
-        self.process_info_figure = SpeckleNullingFigureWidget(self.source_sample.capture, self.sink_sample.command, self.phs_lim, self.amp_lim, self.dark_hole_mask, show_toolbar=True, parent=self)
-        if self.process_info_figure.toolbar is not None:
-            self.process_info_figure.toolbar.settingsClicked.connect(self.on_info_settings_clicked)
+        self.process_info_figure = SpeckleNullingFigureWidget(self.phs_lim, self.amp_lim, ["Home", "Pan", "Zoom", "Save"], parent=self)
         layout.addWidget(self.process_info_figure)
         return widget
 
     @Slot()
-    def on_info_settings_clicked(self):
-        process_info_settings_window = ProcessInfoSettingsWindow(self.process_info_figure.src_cmap_name, self.process_info_figure.src_cmap_norm, self.process_info_figure.src_mask_show, self.process_info_figure.snk_cmap_name, parent=self)
-        process_info_settings_window.show()
-        process_info_settings_window.raise_()
-        process_info_settings_window.activateWindow()
-        process_info_settings_window.source_log_checkbox.checkStateChanged.connect(self.on_src_cmap_log_changed)
-        process_info_settings_window.source_cmap_combobox.currentTextChanged.connect(self.on_src_cmap_changed)
-        process_info_settings_window.source_mask_checkbox.checkStateChanged.connect(self.on_src_mask_show_changed)
-        process_info_settings_window.sink_cmap_combobox.currentTextChanged.connect(self.on_snk_cmap_changed)
-
-    @Slot(str)
-    def on_src_cmap_changed(self, colormap: str):
-        self.process_info_figure.src_cmap_name = colormap
-
-    @Slot(str)
-    def on_snk_cmap_changed(self, colormap: str):
-        self.process_info_figure.snk_cmap_name = colormap
-
-    @Slot(bool)
-    def on_src_cmap_log_changed(self, checked: Qt.CheckState):
-        self.process_info_figure.src_cmap_norm = (checked == Qt.CheckState.Checked)
-
-    @Slot(bool)
-    def on_src_mask_show_changed(self, checked: Qt.CheckState):
-        self.process_info_figure.src_mask_show = (checked == Qt.CheckState.Checked)
-
-    @Slot()
     def on_update_timer_tick(self):
-        self.process_info_figure.set_command(self.sink_sample.command)
-        self.process_info_figure.set_capture(self.source_sample.capture)
-        self.process_info_figure.set_speckle(self.speckle)
+        # self.process_info_figure.set_command(self.sink_sample.command)
+        # self.process_info_figure.set_capture(self.source_sample.capture)
+        # self.process_info_figure.set_speckle(self.speckle)
         self.process_info_figure.set_phs_data_plot(self.phs_array, self.phs_intensity_data_array)
         self.process_info_figure.set_phs_fit_plot(self.phs_intensity_fit_x_data, self.phs_intensity_fit_y_data)
         self.process_info_figure.set_phs_solve(self.phs_solve)
@@ -470,7 +378,7 @@ class ProcessPreviewWindow(Window):
         layout = QVBoxLayout(widget)
         layout.setContentsMargins(2, 2, 2, 2)
         widget.setLayout(layout)
-        self.process_preview_figure = ContrastFigureWidget(self.measure_map, self.n_iterations, dark_hole_mask=self.dark_hole_mask, show_toolbar=True, parent=self)
+        self.process_preview_figure = ContrastFigureWidget(self.measure_map, self.n_iterations, dark_hole_mask=self.dark_hole_mask, parent=self)
         if self.process_preview_figure.toolbar is not None:
             self.process_preview_figure.toolbar.settingsClicked.connect(self.on_preview_settings_clicked)
         layout.addWidget(self.process_preview_figure)
@@ -492,11 +400,11 @@ class ProcessPreviewWindow(Window):
 
     @Slot(bool)
     def on_cmap_log_changed(self, checked: Qt.CheckState):
-        self.process_preview_figure.cmap_norm = (checked == Qt.CheckState.Checked)
-        
+        self.process_preview_figure.cmap_norm = checked == Qt.CheckState.Checked
+
     @Slot(bool)
     def on_mask_show_changed(self, checked: Qt.CheckState):
-        self.process_preview_figure.mask_show = (checked == Qt.CheckState.Checked)
+        self.process_preview_figure.mask_show = checked == Qt.CheckState.Checked
 
     @Slot()
     def on_update_timer_tick(self):
@@ -533,7 +441,7 @@ class ProcessWindow(Window):
     @property
     def source(self) -> Camera | None:
         return self._source
-    
+
     @source.setter
     def source(self, value: Camera | None):
         self._source = value
@@ -541,15 +449,15 @@ class ProcessWindow(Window):
     @property
     def sink(self) -> Modulator | None:
         return self._sink
-    
+
     @sink.setter
     def sink(self, value: Modulator | None):
         self._sink = value
-    
+
     @property
     def speckle_calibration(self) -> dict[str, np.ndarray] | None:
         return self._speckle_calibration
-    
+
     @speckle_calibration.setter
     def speckle_calibration(self, value: dict[str, np.ndarray] | None):
         self._speckle_calibration = value
@@ -668,7 +576,7 @@ class ProcessWindow(Window):
         if device_preview_window_id not in testbed.data.windows:
             preview_window: CameraPreviewWindow | ModulatorPreviewWindow | None = None
             if isinstance(_device, Camera):
-                preview_window = CameraPreviewWindow(_device, parent=self)
+                preview_window = CameraPreviewWindow(_device, alpha_mask=self.settings_widget.dark_hole_mask, parent=self)
                 if process_worker_id in testbed.data.workers:  # an update worker is in progress
                     testbed.data.workers[process_worker_id].signals.srcSampled.connect(preview_window.on_sampled)
             elif isinstance(_device, Modulator):
@@ -741,7 +649,6 @@ class ProcessWindow(Window):
             else:
                 self.controls_widget.progressbar.setMaximum(self.settings_widget.n_iterations)
 
-
             worker = ProcessWorker(self.source, self.sink, self.settings_widget.dark_hole_mask, self.speckle_calibration, self.settings_widget.phs_array, self.settings_widget.amp_array, self.settings_widget.n_iterations)
             worker.signals.progressTicked.connect(self.on_progress_tick)
             worker.signals.finished.connect(self.on_finish)
@@ -767,13 +674,14 @@ class ProcessWindow(Window):
             self.devices_widget.source_settings_button.setEnabled(False)
 
             if source_preview_window_id in testbed.data.windows:
-                worker.signals.srcSampled.connect(testbed.data.windows[source_preview_window_id].on_sample)
+                worker.signals.srcSampled.connect(testbed.data.windows[source_preview_window_id].on_sampled)
+                worker.signals.speckleLocated.connect(testbed.data.windows[source_preview_window_id].on_speckle_located)
             if sink_preview_window_id in testbed.data.windows:
-                worker.signals.snkSampled.connect(testbed.data.windows[sink_preview_window_id].on_sample)
+                worker.signals.snkSampled.connect(testbed.data.windows[sink_preview_window_id].on_sampled)
             if process_info_window_id in testbed.data.windows:
-                worker.signals.srcSampled.connect(testbed.data.windows[process_info_window_id].on_src_sampled)
-                worker.signals.snkSampled.connect(testbed.data.windows[process_info_window_id].on_snk_sampled)
-                worker.signals.speckleLocated.connect(testbed.data.windows[process_info_window_id].on_speckle_located)
+                # worker.signals.srcSampled.connect(testbed.data.windows[process_info_window_id].on_src_sampled)
+                # worker.signals.snkSampled.connect(testbed.data.windows[process_info_window_id].on_snk_sampled)
+                # worker.signals.speckleLocated.connect(testbed.data.windows[process_info_window_id].on_speckle_located)
                 worker.signals.phsSwept.connect(testbed.data.windows[process_info_window_id].on_phs_swept)
                 worker.signals.phsFitted.connect(testbed.data.windows[process_info_window_id].on_phs_fitted)
                 worker.signals.phsSolved.connect(testbed.data.windows[process_info_window_id].on_phs_solved)

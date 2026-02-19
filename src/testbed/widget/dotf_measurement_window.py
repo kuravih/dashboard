@@ -18,11 +18,12 @@ from .modulator_window import InfoWindow as ModulatorInfoWindow
 from .modulator_window import PreviewWindow as ModulatorPreviewWindow
 from .modulator_window import SettingsWindow as ModulatorSettingsWindow
 from .dialog import MessageDialog
+from .figure_widget import DOTFMeasureFigureWidget
 from .resource import ICON_PAUSE, ICON_RUN
 
 from . import DevicesSetupWidget, TaskControlsWidget, Window
 
-_PROCESS_ = testbed.RECENTER
+_PROCESS_ = testbed.DOTF_MEASUREMENT
 process_worker_id = f"{_PROCESS_}_worker"
 process_info_window_id = f"{_PROCESS_}_info_window"
 source_storage_worker_id = f"{_PROCESS_}_source_storage_worker"
@@ -151,11 +152,11 @@ class ProcessInfoWindow(Window):
         self.speckles = [[np.nan, np.nan], [np.nan, np.nan]]
         self.center = [np.nan, np.nan]
 
-        self.setWindowTitle("Re-centering")
+        self.setWindowTitle("DOTF Measurement")
 
         layout = QVBoxLayout()
         layout.setContentsMargins(2, 2, 2, 2)
-        # layout.addWidget(self.setup_info_widget())
+        layout.addWidget(self.setup_info_widget())
         self.setLayout(layout)
 
         self.update_timer = QTimer(self)
@@ -178,16 +179,16 @@ class ProcessInfoWindow(Window):
     def on_center_located(self, x: float, y: float):
         self.center = [x, y]
 
-    # def setup_info_widget(self) -> QWidget:
-    #     widget = QWidget(self)
-    #     layout = QVBoxLayout(widget)
-    #     layout.setContentsMargins(2, 2, 2, 2)
-    #     widget.setLayout(layout)
-    #     self.process_info_figure = RecenteringFigureWidget(self.source_sample.capture, self.sink_sample.command, show_toolbar=True, parent=self)
-    #     if self.process_info_figure.toolbar is not None:
-    #         self.process_info_figure.toolbar.settingsClicked.connect(self.on_info_settings_clicked)
-    #     layout.addWidget(self.process_info_figure)
-    #     return widget
+    def setup_info_widget(self) -> QWidget:
+        widget = QWidget(self)
+        layout = QVBoxLayout(widget)
+        layout.setContentsMargins(2, 2, 2, 2)
+        widget.setLayout(layout)
+        self.process_info_figure = DOTFMeasureFigureWidget(self.source_sample.capture, self.sink_sample.command, show_toolbar=True, parent=self)
+        if self.process_info_figure.toolbar is not None:
+            self.process_info_figure.toolbar.settingsClicked.connect(self.on_info_settings_clicked)
+        layout.addWidget(self.process_info_figure)
+        return widget
 
     @Slot()
     def on_info_settings_clicked(self):
@@ -234,7 +235,7 @@ class ProcessWindow(Window):
     def __init__(self, parent=None):
         super().__init__(parent, Qt.WindowType.Dialog)
         self.setWindowModality(Qt.WindowModality.WindowModal)
-        self.setWindowTitle("Recenter Process")
+        self.setWindowTitle("DOTF Measurement Process")
         self._sink = None
         self._source = None
 

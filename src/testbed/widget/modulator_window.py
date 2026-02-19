@@ -108,7 +108,7 @@ class PreviewWindow(Window):
         widget.setLayout(layout)
 
         self._sample = self.modulator.sample
-        self.preview_figure_widget = ModulatorFigureWidget(self.modulator.blank, self.modulator.pxmax, True, self)
+        self.preview_figure_widget = ModulatorFigureWidget(self.modulator.blank, self.modulator.pxmax, parent=self)
         if self.preview_figure_widget.toolbar is not None:
             self.preview_figure_widget.toolbar.settingsClicked.connect(self.on_preview_settings_clicked)
 

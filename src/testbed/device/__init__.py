@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 from enum import Enum, auto
+from venv import logger
 import zmq
 import toml
 import numpy as np
@@ -157,6 +158,10 @@ class Stream(SharedMemory):
     @property
     def port(self) -> int:
         return self._port
+
+    @property
+    def dtype(self):
+        return self.ndarray.dtype
 
     def get_data(self) -> np.ndarray:
         self.post_request()
