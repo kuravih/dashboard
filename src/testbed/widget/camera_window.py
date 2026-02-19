@@ -4,6 +4,7 @@ from numpy.typing import NDArray
 from PySide6.QtWidgets import QWidget, QVBoxLayout, QLabel, QRadioButton, QSpacerItem, QButtonGroup, QSizePolicy, QGridLayout, QHBoxLayout, QCheckBox, QComboBox
 from PySide6.QtCore import Slot, QTimer, Qt
 from matplotlib import colormaps
+from matplotlib.colors import LogNorm, Normalize
 
 from pykato.log import setup_logger
 from pykato.plotfunction.preset import Histogram_Colorbar_Preset
@@ -22,9 +23,9 @@ class PreviewSettingsWindow(Window):
     Settings for the camera preview window
     """
 
-    def __init__(self, cmap_name: str, cmap_norm: bool, rotation:Rotation, flip: Flip, parent=None):
+    def __init__(self, cmap_name: str, cmap_norm: Normalize, rotation:Rotation, flip: Flip, parent=None):
         self.cmap_name: str = cmap_name
-        self.cmap_norm: bool = cmap_norm
+        self.cmap_norm: Normalize = cmap_norm
         self.rotation: Rotation = rotation
         self.flip: Flip = flip
 
@@ -44,7 +45,11 @@ class PreviewSettingsWindow(Window):
         scale_label = QLabel("Scale", self)
         self.log_checkbox = QCheckBox("Log", self)
         self.log_checkbox.setToolTip("Log Scale")
-        self.log_checkbox.setChecked(self.cmap_norm)
+
+        if isinstance(self.cmap_norm, LogNorm):
+            self.log_checkbox.setChecked(True)
+        else:
+            self.log_checkbox.setChecked(False)
 
         cmap_label = QLabel("Colormap", self)
         self.cmap_combobox = QComboBox(self)
@@ -142,7 +147,10 @@ class PreviewWindow(Window):
 
     @Slot(bool)
     def on_cmap_norm_changed(self, checked: bool):
-        self.preview_figure_widget.cmap_norm = checked == Qt.CheckState.Checked
+        if checked == Qt.CheckState.Checked:
+            self.preview_figure_widget.cmap_norm = LogNorm(1, 2**12 - 1)
+        else:
+            self.preview_figure_widget.cmap_norm = Normalize(0, 2**12-1)
 
     @Slot(str)
     def on_rotation_changed(self, rotation: Rotation):
@@ -170,10 +178,10 @@ class SpecklePreviewSettingsWindow(Window):
     Settings for the camera preview window
     """
 
-    def __init__(self, cmap_name: str, cmap_norm: bool, alpha_mask_show: bool, parent=None):
+    def __init__(self, cmap_name: str, cmap_norm: Normalize, alpha_mask_show: bool, parent=None):
         super().__init__(parent, Qt.WindowType.Dialog)
         self.cmap_name: str = cmap_name
-        self.cmap_norm: bool = cmap_norm
+        self.cmap_norm: Normalize = cmap_norm
         self.alpha_mask_show: bool = alpha_mask_show
 
         self.setWindowModality(Qt.WindowModality.WindowModal)
@@ -191,7 +199,10 @@ class SpecklePreviewSettingsWindow(Window):
         scale_label = QLabel("Scale", self)
         self.log_checkbox = QCheckBox("Log", self)
         self.log_checkbox.setToolTip("Log Scale")
-        self.log_checkbox.setChecked(self.cmap_norm)
+        if isinstance(self.cmap_norm, LogNorm):
+            self.log_checkbox.setChecked(True)
+        else:
+            self.log_checkbox.setChecked(False)
 
         cmap_label = QLabel("Colormap", self)
         self.cmap_combobox = QComboBox(self)
@@ -281,7 +292,10 @@ class SpecklePreviewWindow(PreviewWindow):
 
     @Slot(bool)
     def on_cmap_norm_changed(self, checked: bool):
-        self.preview_figure_widget.cmap_norm = checked == Qt.CheckState.Checked
+        if checked == Qt.CheckState.Checked:
+            self.preview_figure_widget.cmap_norm = LogNorm(1, 2**12 - 1)
+        else:
+            self.preview_figure_widget.cmap_norm = Normalize(0, 2**12-1)
 
     @Slot(bool)
     def on_mask_show_changed(self, checked: Qt.CheckState):

@@ -8,6 +8,7 @@ from matplotlib.figure import Figure
 from matplotlib.gridspec import GridSpecFromSubplotSpec
 from matplotlib.ticker import MaxNLocator
 from matplotlib.ticker import FuncFormatter, LinearLocator
+from matplotlib.colors import LogNorm, Normalize
 
 import matplotlib.pyplot as plt
 import matplotlib.patches as patches
@@ -21,7 +22,7 @@ from pykato.log import setup_logger
 logger = setup_logger("preset", terminator="\n")
 
 
-def Image_Plot_Preset(capture: NDArray[np.float64], cmap_norm: bool | None = None, cmap_name: str | None = None, alpha_mask: NDArray[np.bool] | None = None, figure: Figure | None = None) -> Figure:
+def Image_Plot_Preset(capture: NDArray[np.float64], cmap_norm: Normalize | None = None, cmap_name: str | None = None, alpha_mask: NDArray[np.bool] | None = None, figure: Figure | None = None) -> Figure:
     """
     Plot preset used to display source images.
 
@@ -503,8 +504,10 @@ def Contrast_Evolution_Plot_Preset(contrast: np.ndarray, n_iteration: int, dark_
     plot_ax = divider.append_axes("right", size="200%", pad=0.5)
     plot_ax.set_title("Evolution", size=10)
     plot_ax.set_xlabel("Iteration", size=10)
-    plot_ax.set_ylabel("", size=10)
     plot_ax.set_xlim((0, n_iteration))
+    plot_ax.set_yscale('log')
+    plot_ax.set_ylim(1, 2**12 - 1)
+    plot_ax.set_ylabel("", size=10)
     plot_ax.set_yticklabels([])
     (data_plot,) = plot_ax.plot([], [], marker="+", linestyle="None")
 
@@ -516,10 +519,24 @@ def Contrast_Evolution_Plot_Preset(contrast: np.ndarray, n_iteration: int, dark_
     # -----------------------------------------------------------------------------------------------------------------
 
     # -----------------------------------------------------------------------------------------------------------------
+    def _get_image_ax() -> Axes:
+        return image_ax
+
+    figure.get_image_ax = _get_image_ax
+    # -----------------------------------------------------------------------------------------------------------------
+
+    # -----------------------------------------------------------------------------------------------------------------
     def _get_plot() -> Line2D:
         return data_plot
 
     figure.get_plot = _get_plot
+    # -----------------------------------------------------------------------------------------------------------------
+
+    # -----------------------------------------------------------------------------------------------------------------
+    def _get_plot_ax() -> Axes:
+        return plot_ax
+
+    figure.get_plot_ax = _get_plot_ax
     # -----------------------------------------------------------------------------------------------------------------
 
     # -----------------------------------------------------------------------------------------------------------------
@@ -540,8 +557,8 @@ def Contrast_Evolution_Plot_Preset(contrast: np.ndarray, n_iteration: int, dark_
     imshow_image.set_cmap_name("jet")
 
     patch_cmap_norm(imshow_image)
-    imshow_image.set_cmap_norm(True)
-    
+    imshow_image.set_cmap_norm(LogNorm(1, 1e-5))
+
     patch_alpha_mask_show(imshow_image, dark_hole_mask)
     imshow_image.set_alpha_mask_show(True)
 

@@ -7,6 +7,7 @@ from PySide6.QtCore import Qt, QTimer, Slot
 from PySide6.QtGui import QIcon
 from PySide6.QtWidgets import QCheckBox, QGridLayout, QHBoxLayout, QLabel, QMessageBox, QSpinBox, QVBoxLayout, QWidget, QComboBox
 from matplotlib import colormaps
+from matplotlib.colors import Normalize, LogNorm
 
 import testbed
 
@@ -165,6 +166,7 @@ class ProcessSettingsWidget(QWidget):
         return self._amp_steps.value()
 
 
+# ==== ProcessInfoWindow ==============================================================================================
 class ProcessInfoWindow(Window):
     """
     Speckle Nulling Process Information Window
@@ -256,17 +258,18 @@ class ProcessInfoWindow(Window):
         event.accept()
 
 
+# ==== ProcessPreviewSettingsWindow ===================================================================================
 class ProcessPreviewSettingsWindow(Window):
     """
     Process Preview Settings Window
     """
 
-    def __init__(self, cmap_name: str, cmap_norm: bool, alpha_mask_show: bool, parent=None):
+    def __init__(self, cmap_name: str, cmap_norm: Normalize, alpha_mask_show: bool, parent=None):
         super().__init__(parent, Qt.WindowType.Dialog)
         self.cmap_name: str = cmap_name
-        self.cmap_norm: bool = cmap_norm
+        self.cmap_norm: Normalize = cmap_norm
         self.alpha_mask_show: bool = alpha_mask_show
-    
+
         self.setWindowModality(Qt.WindowModality.WindowModal)
         self.setWindowTitle("Process Preview Settings")
         layout = QVBoxLayout()
@@ -282,7 +285,10 @@ class ProcessPreviewSettingsWindow(Window):
         scale_label = QLabel("Scale", self)
         self.log_checkbox = QCheckBox("Log", self)
         self.log_checkbox.setToolTip("Log Scale")
-        self.log_checkbox.setChecked(self.cmap_norm)
+        if isinstance(self.cmap_norm, LogNorm):
+            self.log_checkbox.setChecked(True)
+        else:
+            self.log_checkbox.setChecked(False)
 
         cmap_label = QLabel("Colormap", self)
         self.cmap_combobox = QComboBox(self)
@@ -293,7 +299,6 @@ class ProcessPreviewSettingsWindow(Window):
         self.mask_checkbox = QCheckBox("Show", self)
         self.mask_checkbox.setToolTip("Show dark hole mask")
         self.mask_checkbox.setChecked(self.alpha_mask_show)
-
 
         row = 0
         col = 0
@@ -316,6 +321,7 @@ class ProcessPreviewSettingsWindow(Window):
         return widget
 
 
+# ==== ProcessPreviewWindow ===========================================================================================
 class ProcessPreviewWindow(Window):
     """
     Speckle Nulling Contrast Result Window
@@ -325,7 +331,7 @@ class ProcessPreviewWindow(Window):
     def __init__(self, measure_map: np.ndarray, n_iterations: int, dark_hole_mask: NDArray[np.bool], parent: QWidget | None = None):
         super().__init__(parent, Qt.WindowType.Dialog)
         self.measure_map = measure_map
-        self.measure_array = np.full(n_iterations + 1, fill_value=np.nan, dtype=[("avg", float), ("std", float), ("min", float), ("max", float)])
+        self.measure_curve = np.full(n_iterations + 1, fill_value=np.nan, dtype=[("avg", float), ("std", float), ("min", float), ("max", float)])
         self.n_iterations = n_iterations
         self.dark_hole_mask = dark_hole_mask
 
@@ -345,9 +351,9 @@ class ProcessPreviewWindow(Window):
         self.update_timer.start(100)  # Update window every 100 ms
 
     @Slot(np.ndarray, np.ndarray)
-    def on_contrast_measured(self, measure_map: np.ndarray, measure_array: np.ndarray):
-        self.measure_map[:] = measure_map[:]
-        self.measure_array[:] = measure_array[:]
+    def on_contrast_measured(self, measure_map: np.ndarray, measure_curve: np.ndarray):
+        self.measure_map = measure_map
+        self.measure_curve = measure_curve
 
     @Slot(float, float, float, float)
     def on_speckle_located(self, x: float, y: float, frequency: float, angle: float):
@@ -382,7 +388,15 @@ class ProcessPreviewWindow(Window):
 
     @Slot(bool)
     def on_cmap_norm_changed(self, checked: Qt.CheckState):
-        self.process_preview_figure_widget.cmap_norm = checked == Qt.CheckState.Checked
+        if checked == Qt.CheckState.Checked:
+            self.process_preview_figure_widget.cmap_norm = LogNorm(1e-5, 1)
+            self.process_preview_figure_widget.figure.get_plot_ax().set_yscale("log")
+            self.process_preview_figure_widget.figure.get_plot_ax().set_ylim(1e-5, 1)
+        else:
+            self.process_preview_figure_widget.cmap_norm = Normalize(1e-5, 1)
+            self.process_preview_figure_widget.figure.get_plot_ax().set_yscale("linear")
+            self.process_preview_figure_widget.figure.get_plot_ax().set_ylim(1e-5, 1)
+        self.process_preview_figure_widget.figure.get_plot_ax().set_yticklabels([])
 
     @Slot(bool)
     def on_mask_show_changed(self, checked: Qt.CheckState):
@@ -391,7 +405,7 @@ class ProcessPreviewWindow(Window):
     @Slot()
     def on_update_timer_tick(self):
         self.process_preview_figure_widget.set_contrast_map_data(self.measure_map)
-        self.process_preview_figure_widget.set_contrast_curve_data(self.measure_array)
+        self.process_preview_figure_widget.set_contrast_curve_data(self.measure_curve)
         self.process_preview_figure_widget.set_speckle_location_data(self.speckle)
         self.process_preview_figure_widget.figure.canvas.draw_idle()
 
@@ -402,6 +416,7 @@ class ProcessPreviewWindow(Window):
         event.accept()
 
 
+# ==== ProcessWindow ==================================================================================================
 class ProcessWindow(Window):
     """
     Speckle Nulling Process Window

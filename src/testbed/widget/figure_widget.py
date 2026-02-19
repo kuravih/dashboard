@@ -10,6 +10,7 @@ from pykato.log import setup_logger
 import matplotlib.pyplot as plt
 import matplotlib.patches as patches
 from matplotlib.figure import Figure
+from matplotlib.colors import Normalize, LogNorm
 from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.backends.backend_qtagg import NavigationToolbar2QT
 
@@ -191,7 +192,7 @@ class SourceFigureWidget(FigureWidget):
     """
 
     def __init__(self, frame: np.ndarray, pxmax: float, rotation: Rotation = Rotation.UP, flip: Flip = Flip.POS, alpha_mask: NDArray[np.bool] | None = None, toolitems: list[str] | None = None, parent: QWidget | None = None):
-        super().__init__(Image_Plot_Preset(frame, cmap_name="hot", cmap_norm=True, alpha_mask=alpha_mask), toolitems, parent)
+        super().__init__(Image_Plot_Preset(frame, cmap_name="hot", cmap_norm=LogNorm(1, 2**12 - 1), alpha_mask=alpha_mask), toolitems, parent)
         self.rotation = rotation
         self.flip = flip
 
@@ -215,11 +216,11 @@ class SourceFigureWidget(FigureWidget):
         self.figure.get_image().set_cmap_name(value)
 
     @property
-    def cmap_norm(self) -> bool:
+    def cmap_norm(self) -> Normalize:
         return self.figure.get_image().get_cmap_norm()
 
     @cmap_norm.setter
-    def cmap_norm(self, value: bool):
+    def cmap_norm(self, value: Normalize):
         self.figure.get_image().set_cmap_norm(value)
 
     @property
@@ -245,9 +246,6 @@ class SourceFigureWidget(FigureWidget):
     @flip.setter
     def flip(self, value: Flip):
         self._flip = value
-
-
-
 
 
 class ContrastFigureWidget(FigureWidget):
@@ -279,11 +277,11 @@ class ContrastFigureWidget(FigureWidget):
         self.figure.get_image().set_cmap_name(value)
 
     @property
-    def cmap_norm(self) -> bool:
+    def cmap_norm(self) -> Normalize:
         return self.figure.get_image().get_cmap_norm()
 
     @cmap_norm.setter
-    def cmap_norm(self, value: bool):
+    def cmap_norm(self, value: Normalize):
         self.figure.get_image().set_cmap_norm(value)
 
     @property
