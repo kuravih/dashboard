@@ -8,12 +8,11 @@ import testbed
 from testbed.device import Stream
 
 from testbed.device.camera import Camera
-from testbed.function import Flip, Rotation
-from testbed.widget.camera_window import PreviewWindow as CameraPreviewWindow, InfoWindow as CameraInfoWindow, SettingsWindow as CameraSettingsWindow
+from testbed.widget.camera_window import AltPreviewWindow as CameraPreviewWindow, InfoWindow as CameraInfoWindow, SettingsWindow as CameraSettingsWindow
 from testbed.worker.camera_worker import UpdateWorker as CameraUpdateWorker
 
 from testbed.device.modulator import Modulator
-from testbed.widget.modulator_window import PreviewWindow as ModulatorPreviewWindow, InfoWindow as ModulatorInfoWindow, SettingsWindow as ModulatorSettingsWindow
+from testbed.widget.modulator_window import AltPreviewWindow as ModulatorPreviewWindow, InfoWindow as ModulatorInfoWindow, SettingsWindow as ModulatorSettingsWindow
 from testbed.worker.modulator_worker import UpdateWorker as ModulatorUpdateWorker
 
 from testbed.widget.simple_loop_window import ProcessWindow as SimpleLoopWindow

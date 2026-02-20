@@ -17,10 +17,10 @@ class UpdateWorkerSignals(WorkerSignals):
 
 
 class UpdateWorker(Worker):
-    def __init__(self, _mirror: Mirror):
+    def __init__(self, mirror: Mirror):
         super().__init__()
         self.signals = UpdateWorkerSignals()
-        self._mirror = _mirror
+        self._mirror = mirror
 
     @Slot()
     def run(self):

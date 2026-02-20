@@ -1,6 +1,5 @@
 import time
 import numpy as np
-import copy
 from PySide6.QtCore import Slot, Signal
 
 from pykato.function import sinusoid

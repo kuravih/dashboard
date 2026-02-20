@@ -15,10 +15,10 @@ class UpdateWorkerSignals(WorkerSignals):
 
 
 class UpdateWorker(Worker):
-    def __init__(self, _modulator: Modulator):
+    def __init__(self, modulator: Modulator):
         super().__init__()
         self.signals = UpdateWorkerSignals()
-        self._modulator = _modulator
+        self._modulator = modulator
 
     @Slot()
     def run(self):

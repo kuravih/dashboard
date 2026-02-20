@@ -1,3 +1,6 @@
+import numpy as np
+from numpy.typing import NDArray
+
 from PySide6.QtWidgets import QWidget, QVBoxLayout, QLabel, QRadioButton, QSpacerItem, QButtonGroup, QSizePolicy, QGridLayout, QHBoxLayout, QCheckBox, QComboBox
 from PySide6.QtCore import Slot, QTimer, Qt
 from matplotlib import colormaps
@@ -12,161 +15,6 @@ from ..widget import Window, OrientationWidget, ROIWidget, DoubleValueSetWidget,
 from ..widget.figure_widget import FigureWidget, SourceFigureWidget
 
 logger = setup_logger("camera_window", terminator="\n")
-
-
-# ==== PreviewSettingsWindow ==========================================================================================
-class PreviewSettingsWindow(Window):
-    """
-    Settings for the camera preview window
-    """
-
-    def __init__(self, cmap_name: str, cmap_norm: Normalize, rotation:Rotation, flip: Flip, parent=None):
-        self.cmap_name: str = cmap_name
-        self.cmap_norm: Normalize = cmap_norm
-        self.rotation: Rotation = rotation
-        self.flip: Flip = flip
-
-        super().__init__(parent, Qt.WindowType.Dialog)
-        self.setWindowModality(Qt.WindowModality.WindowModal)
-        self.setWindowTitle("Preview Settings")
-        layout = QVBoxLayout()
-        layout.setContentsMargins(2, 2, 2, 2)
-        layout.addWidget(self.setup_preview_settings_widget())
-        self.setLayout(layout)
-
-    def setup_preview_settings_widget(self) -> QWidget:
-        widget = QWidget(self)
-        layout = QGridLayout(widget)
-        widget.setLayout(layout)
-
-        scale_label = QLabel("Scale", self)
-        self.log_checkbox = QCheckBox("Log", self)
-        self.log_checkbox.setToolTip("Log Scale")
-
-        if isinstance(self.cmap_norm, LogNorm):
-            self.log_checkbox.setChecked(True)
-        else:
-            self.log_checkbox.setChecked(False)
-
-        cmap_label = QLabel("Colormap", self)
-        self.cmap_combobox = QComboBox(self)
-        self.cmap_combobox.addItems(list(colormaps))
-        self.cmap_combobox.setCurrentIndex(list(colormaps).index(self.cmap_name))
-
-        orientation_label = QLabel("Orientation", self)
-        orientation_label.setFixedWidth(100)
-        self.orientation_widget = OrientationWidget(self.rotation, self.flip, self)
-
-        row = 0
-        col = 0
-        layout.addWidget(scale_label, row, col)
-        col += 1
-        layout.addWidget(self.log_checkbox, row, col)
-
-        row += 1
-        col = 0
-        layout.addWidget(cmap_label, row, col)
-        col += 1
-        layout.addWidget(self.cmap_combobox, row, col)
-
-
-        row += 1
-        col = 0
-        layout.addWidget(orientation_label, row, col)
-        col += 1
-        layout.addWidget(self.orientation_widget, row, col)
-
-        return widget
-
-
-# ==== PreviewWindow ==================================================================================================
-class PreviewWindow(Window):
-    """
-    Camera preview window
-    """
-    def __init__(self, camera: Camera, parent: QWidget | None = None):
-        super().__init__(parent, Qt.WindowType.Dialog)
-        self._camera = camera
-        self._sample = self._camera.sample
-
-        self.setWindowTitle(f"{self._camera.name} Preview")
-
-        layout = QVBoxLayout()
-        layout.setContentsMargins(2, 2, 2, 2)
-        layout.addWidget(self.setup_preview_widget())
-        self.setLayout(layout)
-
-        self.update_timer = QTimer(self)
-        self.update_timer.timeout.connect(self.on_update_timer_tick)
-        self.update_timer.start(100)  # Update window every 100 ms
-
-    @property
-    def camera(self) -> Camera:
-        return self._camera
-
-    @property
-    def sample(self) -> SourceSample:
-        return self._sample
-
-    @Slot(SourceSample)
-    def on_sampled(self, _sample: SourceSample):
-        self._sample = _sample
-
-    def setup_preview_widget(self) -> QWidget:
-        widget = QWidget(self)
-        layout = QVBoxLayout(widget)
-        layout.setContentsMargins(2, 2, 2, 2)
-        widget.setLayout(layout)
-
-        self._sample = self.camera.sample
-        self.preview_figure_widget = SourceFigureWidget(self.camera.blank, self.camera.pxmax, parent=self)
-        if self.preview_figure_widget.toolbar is not None:
-            self.preview_figure_widget.toolbar.settingsClicked.connect(self.on_preview_settings_clicked)
-
-        layout.addWidget(self.preview_figure_widget)
-
-        return widget
-
-    @Slot()
-    def on_preview_settings_clicked(self):
-        preview_settings_window = PreviewSettingsWindow(cmap_name=self.preview_figure_widget.cmap_name, cmap_norm=self.preview_figure_widget.cmap_norm, rotation=self.preview_figure_widget.rotation, flip=self.preview_figure_widget.flip, parent=self)
-        preview_settings_window.show()
-        preview_settings_window.raise_()
-        preview_settings_window.activateWindow()
-        preview_settings_window.log_checkbox.checkStateChanged.connect(self.on_cmap_norm_changed)
-        preview_settings_window.cmap_combobox.currentTextChanged.connect(self.on_cmap_name_changed)
-        preview_settings_window.orientation_widget.rotationChanged.connect(self.on_rotation_changed)
-        preview_settings_window.orientation_widget.flipChanged.connect(self.on_flip_changed)
-
-    @Slot(str)
-    def on_cmap_name_changed(self, colormap: str):
-        self.preview_figure_widget.cmap_name = colormap
-
-    @Slot(bool)
-    def on_cmap_norm_changed(self, checked: bool):
-        if checked == Qt.CheckState.Checked:
-            self.preview_figure_widget.cmap_norm = LogNorm(1, 2**12 - 1)
-        else:
-            self.preview_figure_widget.cmap_norm = Normalize(0, 2**12-1)
-
-    @Slot(str)
-    def on_rotation_changed(self, rotation: Rotation):
-        self.preview_figure_widget.rotation = rotation
-
-    @Slot(str)
-    def on_flip_changed(self, flip: Flip):
-        self.preview_figure_widget.flip = flip
-
-    @Slot()
-    def on_update_timer_tick(self):
-        self.preview_figure_widget.figure.get_image().set_data(flip_rotate(self.sample.capture, self.preview_figure_widget.flip, self.preview_figure_widget.rotation))
-        self.preview_figure_widget.figure.canvas.draw_idle()
-
-    def closeEvent(self, event):
-        if self.update_timer.isActive():
-            self.update_timer.stop()
-        self.deleteLater()
-        event.accept()
 
 
 # ==== InfoWindow =====================================================================================================
@@ -200,8 +48,8 @@ class InfoWindow(Window):
         return self._sample
 
     @Slot(SourceSample)
-    def on_sampled(self, _sample: SourceSample):
-        self._sample = _sample
+    def on_sampled(self, sample: SourceSample):
+        self._sample = sample
 
     def setup_info_widget(self):
         widget = QWidget(self)
@@ -430,8 +278,8 @@ class SettingsWindow(Window):
         return self._sample
 
     @Slot(SourceSample)
-    def on_sampled(self, _sample: SourceSample):
-        self._sample = _sample
+    def on_sampled(self, sample: SourceSample):
+        self._sample = sample
 
     def setup_settings_widget(self):
         widget = QWidget(self)
@@ -445,8 +293,8 @@ class SettingsWindow(Window):
             if "temperature_C" in self.camera.settings:
                 # ---- temperature setting --------------------------------------------------------------------------------
                 @Slot(float)
-                def on_temperature_set_clicked(_temperature: float):
-                    reply = self.camera.set_temperature_c(_temperature)
+                def on_temperature_set_clicked(temperature: float):
+                    reply = self.camera.set_temperature_c(temperature)
                     logger.info("reply = %s", reply)
                     temperature_widget.setValue(self.camera.temperature_c)
 
@@ -470,8 +318,8 @@ class SettingsWindow(Window):
             if "exposureTime_s" in self.camera.settings:
                 # ---- exposure time setting ------------------------------------------------------------------------------
                 @Slot(int)
-                def on_exposure_time_set_clicked(_expTime: float):
-                    reply = self.camera.set_exposure_time_s(_expTime)
+                def on_exposure_time_set_clicked(expTime: float):
+                    reply = self.camera.set_exposure_time_s(expTime)
                     logger.info("reply = %s", reply)
                     expTime_widget.setValue(self.camera.exposure_time_s)
 
@@ -496,8 +344,8 @@ class SettingsWindow(Window):
 
                 # ---- gain setting ---------------------------------------------------------------------------------------
                 @Slot(int)
-                def on_gain_set_clicked(_gain: float):
-                    reply = self.camera.set_gain(_gain)
+                def on_gain_set_clicked(gain: float):
+                    reply = self.camera.set_gain(gain)
                     logger.info("reply = %s", reply)
                     gain_widget.setValue(self.camera.gain)
 
@@ -563,3 +411,408 @@ class SettingsWindow(Window):
     def closeEvent(self, event):
         self.deleteLater()
         event.accept()
+
+
+# ==== SimplePreviewSettingsWindow ====================================================================================
+class SimplePreviewSettingsWindow(Window):
+    """
+    Settings for the simple preview window.
+    """
+
+    def __init__(self, cmap_name: str, cmap_norm: Normalize, parent=None):
+        self.cmap_name: str = cmap_name
+        self.cmap_norm: Normalize = cmap_norm
+
+        super().__init__(parent, Qt.WindowType.Dialog)
+
+        self.setWindowModality(Qt.WindowModality.WindowModal)
+        self.setWindowTitle("Preview Settings")
+        layout = QVBoxLayout()
+        layout.setContentsMargins(2, 2, 2, 2)
+        layout.addWidget(self.setup_preview_settings_widget())
+        self.setLayout(layout)
+
+    def setup_preview_settings_widget(self) -> QWidget:
+        widget = QWidget(self)
+        layout = QGridLayout(widget)
+        widget.setLayout(layout)
+
+        scale_label = QLabel("Scale", self)
+        self.log_checkbox = QCheckBox("Log", self)
+        self.log_checkbox.setToolTip("Log Scale")
+
+        if isinstance(self.cmap_norm, LogNorm):
+            self.log_checkbox.setChecked(True)
+        else:
+            self.log_checkbox.setChecked(False)
+
+        cmap_label = QLabel("Colormap", self)
+        self.cmap_combobox = QComboBox(self)
+        self.cmap_combobox.addItems(list(colormaps))
+        self.cmap_combobox.setCurrentIndex(list(colormaps).index(self.cmap_name))
+
+        row = 0
+        col = 0
+        layout.addWidget(scale_label, row, col)
+        col += 1
+        layout.addWidget(self.log_checkbox, row, col)
+
+        row += 1
+        col = 0
+        layout.addWidget(cmap_label, row, col)
+        col += 1
+        layout.addWidget(self.cmap_combobox, row, col)
+
+        return widget
+
+
+# ==== SimplePreviewWindow ==================================================================================================
+class SimplePreviewWindow(Window):
+    """
+    Simple preview window.
+    """
+
+    def __init__(self, camera: Camera, parent: QWidget | None = None):
+        self._camera = camera
+        self._sample = self._camera.sample
+
+        super().__init__(parent, Qt.WindowType.Dialog)
+
+        self.setWindowTitle(f"{self._camera.name} Preview")
+
+        layout = QVBoxLayout()
+        layout.setContentsMargins(2, 2, 2, 2)
+        layout.addWidget(self.setup_preview_widget())
+        self.setLayout(layout)
+
+        self.update_timer = QTimer(self)
+        self.update_timer.timeout.connect(self.on_update_timer_tick)
+        self.update_timer.start(100)  # Update window every 100 ms
+
+    @property
+    def camera(self) -> Camera:
+        return self._camera
+
+    @property
+    def sample(self) -> SourceSample:
+        return self._sample
+
+    @Slot(SourceSample)
+    def on_sampled(self, sample: SourceSample):
+        self._sample = sample
+
+    def setup_preview_widget(self) -> QWidget:
+        widget = QWidget(self)
+        layout = QVBoxLayout(widget)
+        layout.setContentsMargins(2, 2, 2, 2)
+        widget.setLayout(layout)
+
+        self._sample = self.camera.sample
+        self.preview_figure_widget = SourceFigureWidget(self.camera.blank, self.camera.pxmax, parent=self)
+        if self.preview_figure_widget.toolbar is not None:
+            self.preview_figure_widget.toolbar.settingsClicked.connect(self.on_preview_settings_clicked)
+
+        layout.addWidget(self.preview_figure_widget)
+
+        return widget
+
+    @Slot()
+    def on_preview_settings_clicked(self):
+        preview_settings_window = SimplePreviewSettingsWindow(self.preview_figure_widget.cmap_name, self.preview_figure_widget.cmap_norm, parent=self)
+        preview_settings_window.show()
+        preview_settings_window.raise_()
+        preview_settings_window.activateWindow()
+        preview_settings_window.log_checkbox.checkStateChanged.connect(self.on_cmap_norm_changed)
+        preview_settings_window.cmap_combobox.currentTextChanged.connect(self.on_cmap_name_changed)
+
+    @Slot(str)
+    def on_cmap_name_changed(self, colormap: str):
+        self.preview_figure_widget.cmap_name = colormap
+
+    @Slot(bool)
+    def on_cmap_norm_changed(self, checked: bool):
+        if checked == Qt.CheckState.Checked:
+            self.preview_figure_widget.cmap_norm = LogNorm(1, 2**12 - 1)
+        else:
+            self.preview_figure_widget.cmap_norm = Normalize(0, 2**12 - 1)
+
+    @Slot()
+    def on_update_timer_tick(self):
+        self.preview_figure_widget.figure.get_image().set_data(self.sample.capture)
+        self.preview_figure_widget.figure.canvas.draw_idle()
+
+    def closeEvent(self, event):
+        if self.update_timer.isActive():
+            self.update_timer.stop()
+        self.deleteLater()
+        event.accept()
+
+
+# ==== AltPreviewSettingsWindowWindow =================================================================================
+class AltPreviewSettingsWindowWindow(SimplePreviewSettingsWindow):
+    """
+    Settings for the alternate preview window (with orientation control).
+    """
+
+    def __init__(self, cmap_name: str, cmap_norm: Normalize, rotation: Rotation, flip: Flip, parent=None):
+        self.rotation: Rotation = rotation
+        self.flip: Flip = flip
+        super().__init__(cmap_name, cmap_norm, parent=parent)
+
+    def setup_preview_settings_widget(self) -> QWidget:
+        widget = QWidget(self)
+        layout = QGridLayout(widget)
+        widget.setLayout(layout)
+
+        scale_label = QLabel("Scale", self)
+        self.log_checkbox = QCheckBox("Log", self)
+        self.log_checkbox.setToolTip("Log Scale")
+
+        if isinstance(self.cmap_norm, LogNorm):
+            self.log_checkbox.setChecked(True)
+        else:
+            self.log_checkbox.setChecked(False)
+
+        cmap_label = QLabel("Colormap", self)
+        self.cmap_combobox = QComboBox(self)
+        self.cmap_combobox.addItems(list(colormaps))
+        self.cmap_combobox.setCurrentIndex(list(colormaps).index(self.cmap_name))
+
+        orientation_label = QLabel("Orientation", self)
+        orientation_label.setFixedWidth(100)
+        self.orientation_widget = OrientationWidget(self.rotation, self.flip, self)
+
+        row = 0
+        col = 0
+        layout.addWidget(scale_label, row, col)
+        col += 1
+        layout.addWidget(self.log_checkbox, row, col)
+
+        row += 1
+        col = 0
+        layout.addWidget(cmap_label, row, col)
+        col += 1
+        layout.addWidget(self.cmap_combobox, row, col)
+
+        row += 1
+        col = 0
+        layout.addWidget(orientation_label, row, col)
+        col += 1
+        layout.addWidget(self.orientation_widget, row, col)
+
+        return widget
+
+
+# ==== AltPreviewWindow ===============================================================================================
+class AltPreviewWindow(SimplePreviewWindow):
+    """
+    Alternate preview window (with orientation control).
+    """
+
+    def __init__(self, camera: Camera, parent: QWidget | None = None):
+        super().__init__(camera, parent=parent)
+
+    @Slot()
+    def on_preview_settings_clicked(self):
+        preview_settings_window = AltPreviewSettingsWindowWindow(self.preview_figure_widget.cmap_name, self.preview_figure_widget.cmap_norm, self.preview_figure_widget.rotation, self.preview_figure_widget.flip, parent=self)
+        preview_settings_window.show()
+        preview_settings_window.raise_()
+        preview_settings_window.activateWindow()
+        preview_settings_window.log_checkbox.checkStateChanged.connect(self.on_cmap_norm_changed)
+        preview_settings_window.cmap_combobox.currentTextChanged.connect(self.on_cmap_name_changed)
+        preview_settings_window.orientation_widget.rotationChanged.connect(self.on_rotation_changed)
+        preview_settings_window.orientation_widget.flipChanged.connect(self.on_flip_changed)
+
+    @Slot(str)
+    def on_rotation_changed(self, rotation: Rotation):
+        self.preview_figure_widget.rotation = rotation
+
+    @Slot(str)
+    def on_flip_changed(self, flip: Flip):
+        self.preview_figure_widget.flip = flip
+
+    @Slot()
+    def on_update_timer_tick(self):
+        self.preview_figure_widget.figure.get_image().set_data(flip_rotate(self.sample.capture, self.preview_figure_widget.flip, self.preview_figure_widget.rotation))
+        self.preview_figure_widget.figure.canvas.draw_idle()
+
+
+# ==== AdvancePreviewSettingsWindowWindow =============================================================================
+class AdvancePreviewSettingsWindowWindow(SimplePreviewSettingsWindow):
+    """
+    Settings for the advance preview window (with alpha mask and a single speckle).
+    """
+
+    def __init__(self, cmap_name: str, cmap_norm: Normalize, alpha_mask_show: bool, parent=None):
+        self.cmap_name: str = cmap_name
+        self.cmap_norm: Normalize = cmap_norm
+        self.alpha_mask_show: bool = alpha_mask_show
+        super().__init__(cmap_name, cmap_norm, parent=parent)
+
+    def setup_preview_settings_widget(self) -> QWidget:
+        widget = QWidget(self)
+        layout = QGridLayout(widget)
+        widget.setLayout(layout)
+
+        scale_label = QLabel("Scale", self)
+        self.log_checkbox = QCheckBox("Log", self)
+        self.log_checkbox.setToolTip("Log Scale")
+        if isinstance(self.cmap_norm, LogNorm):
+            self.log_checkbox.setChecked(True)
+        else:
+            self.log_checkbox.setChecked(False)
+
+        cmap_label = QLabel("Colormap", self)
+        self.cmap_combobox = QComboBox(self)
+        self.cmap_combobox.addItems(list(colormaps))
+        self.cmap_combobox.setCurrentIndex(list(colormaps).index(self.cmap_name))
+
+        dark_hole_mask_label = QLabel("Dark Hole Mask", self)
+        self.mask_checkbox = QCheckBox("Show", self)
+        self.mask_checkbox.setToolTip("Show dark hole mask")
+        self.mask_checkbox.setChecked(True)
+
+        row = 0
+        col = 0
+        layout.addWidget(scale_label, row, col)
+        col += 1
+        layout.addWidget(self.log_checkbox, row, col)
+
+        row += 1
+        col = 0
+        layout.addWidget(cmap_label, row, col)
+        col += 1
+        layout.addWidget(self.cmap_combobox, row, col)
+
+        row += 1
+        col = 0
+        layout.addWidget(dark_hole_mask_label, row, col)
+        col += 1
+        layout.addWidget(self.mask_checkbox, row, col)
+
+        return widget
+
+
+# ==== AdvancePreviewWindow ===========================================================================================
+class AdvancePreviewWindow(SimplePreviewWindow):
+    """
+    Advance preview window (with alpha mask and a single speckle).
+    """
+
+    def __init__(self, camera: Camera, alpha_mask: NDArray[np.bool], parent: QWidget | None = None):
+        self._alpha_mask = alpha_mask
+        self._speckle = [np.nan, np.nan]
+        super().__init__(camera, parent=parent)
+
+    @property
+    def alpha_mask(self) -> NDArray[np.bool]:
+        return self._alpha_mask
+
+    @property
+    def speckle(self) -> list[float]:
+        return self._speckle
+
+    def setup_preview_widget(self) -> QWidget:
+        widget = QWidget(self)
+        layout = QVBoxLayout(widget)
+        layout.setContentsMargins(2, 2, 2, 2)
+        widget.setLayout(layout)
+
+        self._sample = self.camera.sample
+        self.preview_figure_widget = SourceFigureWidget(self.camera.blank, self.camera.pxmax, alpha_mask=self.alpha_mask, parent=self)
+        self.speckle_axlines = (self.preview_figure_widget.figure.get_imshow_axes().axvline(np.nan, alpha=0.5, linewidth=0.5, color="red"), self.preview_figure_widget.figure.get_imshow_axes().axhline(np.nan, alpha=0.5, linewidth=0.5, color="red"))
+        if self.preview_figure_widget.toolbar is not None:
+            self.preview_figure_widget.toolbar.settingsClicked.connect(self.on_preview_settings_clicked)
+
+        layout.addWidget(self.preview_figure_widget)
+
+        return widget
+
+    @Slot(float, float, float, float)
+    def on_speckle_located(self, x: float, y: float, frequency: float, angle: float):
+        self._speckle[0], self._speckle[1] = x, y
+        # self.speckle_frequency = frequency
+        # self.speckle_angle = angle
+
+    @Slot()
+    def on_preview_settings_clicked(self):
+        preview_settings_window = AdvancePreviewSettingsWindowWindow(self.preview_figure_widget.cmap_name, self.preview_figure_widget.cmap_norm, self.preview_figure_widget.alpha_mask_show, parent=self)
+        preview_settings_window.show()
+        preview_settings_window.raise_()
+        preview_settings_window.activateWindow()
+        preview_settings_window.log_checkbox.checkStateChanged.connect(self.on_cmap_norm_changed)
+        preview_settings_window.cmap_combobox.currentTextChanged.connect(self.on_cmap_name_changed)
+        preview_settings_window.mask_checkbox.checkStateChanged.connect(self.on_mask_show_changed)
+
+    @Slot(bool)
+    def on_mask_show_changed(self, checked: Qt.CheckState):
+        self.preview_figure_widget.alpha_mask_show = checked == Qt.CheckState.Checked
+
+    @Slot()
+    def on_update_timer_tick(self):
+        self.preview_figure_widget.figure.get_image().set_data(self.sample.capture)
+        self.speckle_axlines[0].set_xdata([self.speckle[0], self.speckle[0]])
+        self.speckle_axlines[1].set_ydata([self.speckle[1], self.speckle[1]])
+        self.preview_figure_widget.figure.canvas.draw_idle()
+
+
+# ==== RecenterPreviewWindow ==========================================================================================
+class RecenterPreviewWindow(SimplePreviewWindow):
+    """
+    Simple preview window (with two speckles).
+    """
+
+    def __init__(self, camera: Camera, center: list[float] | None, parent: QWidget | None = None):
+        self._speckles = [[np.nan, np.nan], [np.nan, np.nan]]
+        if center is None:
+            self._center = [camera.shape[0] / 2, camera.shape[1] / 2]
+        else:
+            self._center = center
+        super().__init__(camera, parent=parent)
+
+    @property
+    def speckles(self) -> list[list[float]]:
+        return self._speckles
+
+    @property
+    def center(self) -> list[float]:
+        return self._center
+
+    def setup_preview_widget(self) -> QWidget:
+        widget = QWidget(self)
+        layout = QVBoxLayout(widget)
+        layout.setContentsMargins(2, 2, 2, 2)
+        widget.setLayout(layout)
+
+        self._sample = self.camera.sample
+        self.preview_figure_widget = SourceFigureWidget(self.camera.blank, self.camera.pxmax, parent=self)
+        self.speckles_axlines = ((self.preview_figure_widget.figure.get_imshow_axes().axvline(np.nan, alpha=0.5, linewidth=0.5, color="red"), self.preview_figure_widget.figure.get_imshow_axes().axhline(np.nan, alpha=0.5, linewidth=0.5, color="red")), (self.preview_figure_widget.figure.get_imshow_axes().axvline(np.nan, alpha=0.5, linewidth=0.5, color="red"), self.preview_figure_widget.figure.get_imshow_axes().axhline(np.nan, alpha=0.5, linewidth=0.5, color="red")))
+        self.center_axlines = (self.preview_figure_widget.figure.get_imshow_axes().axvline(np.nan, alpha=0.5, linewidth=0.5, color="blue"), self.preview_figure_widget.figure.get_imshow_axes().axhline(np.nan, alpha=0.5, linewidth=0.5, color="blue"))
+
+        if self.preview_figure_widget.toolbar is not None:
+            self.preview_figure_widget.toolbar.settingsClicked.connect(self.on_preview_settings_clicked)
+
+        layout.addWidget(self.preview_figure_widget)
+
+        return widget
+
+    @Slot(float, float, float, float)
+    def on_speckles_located(self, x0: float, y0: float, x1: float, y1: float):
+        # self._center = [np.nan, np.nan]
+        self._speckles = [[x0, y0], [x1, y1]]
+
+    @Slot(float, float)
+    def on_center_located(self, xc: float, yc: float):
+        self._center = [xc, yc]
+        # self._speckles = [[np.nan, np.nan], [np.nan, np.nan]]
+
+    @Slot()
+    def on_update_timer_tick(self):
+        self.preview_figure_widget.figure.get_image().set_data(self.sample.capture)
+        self.speckles_axlines[0][0].set_xdata([self.speckles[0][0], self.speckles[0][0]])
+        self.speckles_axlines[0][1].set_ydata([self.speckles[0][1], self.speckles[0][1]])
+        self.speckles_axlines[1][0].set_xdata([self.speckles[1][0], self.speckles[1][0]])
+        self.speckles_axlines[1][1].set_ydata([self.speckles[1][1], self.speckles[1][1]])
+        self.center_axlines[0].set_xdata([self.center[0], self.center[0]])
+        self.center_axlines[1].set_ydata([self.center[1], self.center[1]])
+        self.preview_figure_widget.figure.canvas.draw_idle()

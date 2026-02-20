@@ -11,10 +11,10 @@ from ..device.modulator import Modulator
 from ..worker.simple_loop_worker import ProcessWorker
 from ..worker.storage_worker import SinkStorageWorker, SourceStorageWorker
 from .camera_window import InfoWindow as CameraInfoWindow
-from .camera_window import PreviewWindow as CameraPreviewWindow
+from .camera_window import AltPreviewWindow as CameraPreviewWindow
 from .camera_window import SettingsWindow as CameraSettingsWindow
 from .modulator_window import InfoWindow as ModulatorInfoWindow
-from .modulator_window import PreviewWindow as ModulatorPreviewWindow
+from .modulator_window import AltPreviewWindow as ModulatorPreviewWindow
 from .modulator_window import SettingsWindow as ModulatorSettingsWindow
 from .dialog import MessageDialog
 from .resource import ICON_PAUSE, ICON_RUN
@@ -171,50 +171,50 @@ class ProcessWindow(Window):
     def sink(self) -> Modulator | None:
         return self._sink
 
-    def on_source_changed(self, _device: Camera):
+    def on_source_changed(self, device: Camera):
         self.devices_widget.source_info_button.setEnabled(True)
         self.devices_widget.source_settings_button.setEnabled(True)
         self.devices_widget.source_preview_button.setEnabled(True)
-        self._source = _device
-        device_preview_window_id = f"{_device.name}_preview_window"
+        self._source = device
+        device_preview_window_id = f"{device.name}_preview_window"
         if device_preview_window_id in testbed.data.windows:
             testbed.data.windows.pop(device_preview_window_id).close()
-        device_info_window_id = f"{_device.name}_info_window"
+        device_info_window_id = f"{device.name}_info_window"
         if device_info_window_id in testbed.data.windows:
             testbed.data.windows.pop(device_info_window_id).close()
-        device_settings_window_id = f"{_device.name}_settings_window"
+        device_settings_window_id = f"{device.name}_settings_window"
         if device_settings_window_id in testbed.data.windows:
             testbed.data.windows.pop(device_settings_window_id).close()
-        self.devices_widget.source_info_button.clicked.connect(lambda _, _device=_device: self.open_device_info_window(_device))
-        self.devices_widget.source_settings_button.clicked.connect(lambda _, _device=_device: self.open_device_settings_window(_device))
-        self.devices_widget.source_preview_button.clicked.connect(lambda _, _device=_device: self.open_device_preview_window(_device))
+        self.devices_widget.source_info_button.clicked.connect(lambda _, _device=device: self.open_device_info_window(_device))
+        self.devices_widget.source_settings_button.clicked.connect(lambda _, _device=device: self.open_device_settings_window(_device))
+        self.devices_widget.source_preview_button.clicked.connect(lambda _, _device=device: self.open_device_preview_window(_device))
         if self._source is not None and self._sink is not None:
             self.controls_widget.preview_button.setEnabled(True)
             self.controls_widget.play_pause_button.setEnabled(True)
 
-    def on_sink_changed(self, _device: Modulator):
+    def on_sink_changed(self, device: Modulator):
         self.devices_widget.sink_info_button.setEnabled(True)
         self.devices_widget.sink_settings_button.setEnabled(True)
         self.devices_widget.sink_preview_button.setEnabled(True)
-        self._sink = _device
-        device_preview_window_id = f"{_device.name}_preview_window"
+        self._sink = device
+        device_preview_window_id = f"{device.name}_preview_window"
         if device_preview_window_id in testbed.data.windows:
             testbed.data.windows.pop(device_preview_window_id).close()
-        device_info_window_id = f"{_device.name}_info_window"
+        device_info_window_id = f"{device.name}_info_window"
         if device_info_window_id in testbed.data.windows:
             testbed.data.windows.pop(device_info_window_id).close()
-        device_settings_window_id = f"{_device.name}_settings_window"
+        device_settings_window_id = f"{device.name}_settings_window"
         if device_settings_window_id in testbed.data.windows:
             testbed.data.windows.pop(device_settings_window_id).close()
-        self.devices_widget.sink_info_button.clicked.connect(lambda _, _device=_device: self.open_device_info_window(_device))
-        self.devices_widget.sink_settings_button.clicked.connect(lambda _, _device=_device: self.open_device_settings_window(_device))
-        self.devices_widget.sink_preview_button.clicked.connect(lambda _, _device=_device: self.open_device_preview_window(_device))
+        self.devices_widget.sink_info_button.clicked.connect(lambda _, _device=device: self.open_device_info_window(_device))
+        self.devices_widget.sink_settings_button.clicked.connect(lambda _, _device=device: self.open_device_settings_window(_device))
+        self.devices_widget.sink_preview_button.clicked.connect(lambda _, _device=device: self.open_device_preview_window(_device))
         if self._source is not None and self._sink is not None:
             self.controls_widget.preview_button.setEnabled(True)
             self.controls_widget.play_pause_button.setEnabled(True)
 
-    def open_device_info_window(self, _device: Camera | Modulator):
-        device_info_window_id = f"{_device.name}_info_window"
+    def open_device_info_window(self, device: Camera | Modulator):
+        device_info_window_id = f"{device.name}_info_window"
 
         @Slot()
         def on_window_closed():
@@ -222,12 +222,12 @@ class ProcessWindow(Window):
 
         if device_info_window_id not in testbed.data.windows:
             info_window: CameraInfoWindow | ModulatorInfoWindow | None = None
-            if isinstance(_device, Camera):
-                info_window = CameraInfoWindow(_device, self)
+            if isinstance(device, Camera):
+                info_window = CameraInfoWindow(device, self)
                 if process_worker_id in testbed.data.workers:  # an update worker is in progress
                     testbed.data.workers[process_worker_id].signals.srcSampled.connect(info_window.on_sampled)
-            elif isinstance(_device, Modulator):
-                info_window = ModulatorInfoWindow(_device, self)
+            elif isinstance(device, Modulator):
+                info_window = ModulatorInfoWindow(device, self)
                 if process_worker_id in testbed.data.workers:  # an update worker is in progress
                     testbed.data.workers[process_worker_id].signals.snkSampled.connect(info_window.on_sampled)
             else:
@@ -238,8 +238,8 @@ class ProcessWindow(Window):
             info_window.activateWindow()
             testbed.data.windows[device_info_window_id] = info_window
 
-    def open_device_settings_window(self, _device: Camera | Modulator):
-        device_settings_window_id = f"{_device.name}_settings_window"
+    def open_device_settings_window(self, device: Camera | Modulator):
+        device_settings_window_id = f"{device.name}_settings_window"
 
         @Slot()
         def on_window_closed():
@@ -247,10 +247,10 @@ class ProcessWindow(Window):
 
         if device_settings_window_id not in testbed.data.windows:
             settings_window: CameraSettingsWindow | ModulatorSettingsWindow | None = None
-            if isinstance(_device, Camera):
-                settings_window = CameraSettingsWindow(_device, self)
-            elif isinstance(_device, Modulator):
-                settings_window = ModulatorSettingsWindow(_device, self)
+            if isinstance(device, Camera):
+                settings_window = CameraSettingsWindow(device, self)
+            elif isinstance(device, Modulator):
+                settings_window = ModulatorSettingsWindow(device, self)
             else:
                 raise ValueError("Invalid device")
             settings_window.destroyed.connect(on_window_closed)
@@ -259,8 +259,8 @@ class ProcessWindow(Window):
             settings_window.activateWindow()
             testbed.data.windows[device_settings_window_id] = settings_window
 
-    def open_device_preview_window(self, _device: Camera | Modulator):
-        device_preview_window_id = f"{_device.name}_preview_window"
+    def open_device_preview_window(self, device: Camera | Modulator):
+        device_preview_window_id = f"{device.name}_preview_window"
 
         @Slot()
         def on_window_closed():
@@ -268,12 +268,12 @@ class ProcessWindow(Window):
 
         if device_preview_window_id not in testbed.data.windows:
             preview_window: CameraPreviewWindow | ModulatorPreviewWindow | None = None
-            if isinstance(_device, Camera):
-                preview_window = CameraPreviewWindow(_device, self)
+            if isinstance(device, Camera):
+                preview_window = CameraPreviewWindow(device, self)
                 if process_worker_id in testbed.data.workers:  # an update worker is in progress
                     testbed.data.workers[process_worker_id].signals.srcSampled.connect(preview_window.on_sampled)
-            elif isinstance(_device, Modulator):
-                preview_window = ModulatorPreviewWindow(_device, self)
+            elif isinstance(device, Modulator):
+                preview_window = ModulatorPreviewWindow(device, self)
                 if process_worker_id in testbed.data.workers:  # an update worker is in progress
                     testbed.data.workers[process_worker_id].signals.snkSampled.connect(preview_window.on_sampled)
             else:

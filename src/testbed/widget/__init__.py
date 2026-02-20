@@ -14,8 +14,7 @@ from ..function import Rotation, Flip
 
 
 class Window(QWidget):
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
+    """Window class"""
 
 
 class DevicesComboBox(QComboBox):
@@ -205,8 +204,8 @@ class ProgressBar(QWidget):
         self.setValue = self.bar.setValue
         self.reset = self.bar.reset
 
-    def setTime(self, _time: float):
-        self.time = _time
+    def setTime(self, timeVal: float):
+        self.time = timeVal
 
     def updateProgress(self):
         if self.bar.maximum() == 0:

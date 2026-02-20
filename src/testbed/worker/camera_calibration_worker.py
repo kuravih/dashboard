@@ -54,5 +54,5 @@ class ProcessWorker(Worker):
             self.signals.progressTicked.emit(i_exp, time.time() - t_start)
 
             logger.info("%s ProcessWorker.run : step %i of %i", self.source.name, i_exp, self.exp_array.size)
-            
+
         self.signals.finished.emit()

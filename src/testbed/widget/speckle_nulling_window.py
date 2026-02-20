@@ -17,12 +17,11 @@ from ..device.modulator import Modulator
 from ..function import is_speckle_calibration_file_valid, read_speckle_calibration_file, constrained_sin_fit_fn, quadratic_fit_fn
 from ..worker.speckle_nulling_worker import ProcessWorker
 from ..worker.storage_worker import SinkStorageWorker, SourceStorageWorker
-from ..widget.figure_widget import SourceFigureWidget
-from .camera_window import PreviewWindow as _CameraPreviewWindow
+from .camera_window import AdvancePreviewWindow as CameraPreviewWindow
 from .camera_window import InfoWindow as CameraInfoWindow
 from .camera_window import SettingsWindow as CameraSettingsWindow
 from .modulator_window import InfoWindow as ModulatorInfoWindow
-from .modulator_window import PreviewWindow as _ModulatorPreviewWindow
+from .modulator_window import SimplePreviewWindow as ModulatorPreviewWindow
 from .modulator_window import SettingsWindow as ModulatorSettingsWindow
 from .dialog import MessageDialog
 from .figure_widget import ContrastFigureWidget, SpeckleNullingFigureWidget
@@ -38,191 +37,6 @@ source_storage_worker_id = f"{_PROCESS_}_source_storage_worker"
 sink_storage_worker_id = f"{_PROCESS_}_sink_storage_worker"
 
 logger = setup_logger(f"{_PROCESS_}_window", terminator="\n")
-
-
-# ==== ModulatorPreviewSettingsWindow =================================================================================
-class ModulatorPreviewSettingsWindow(Window):
-    """
-    Settings for the modulator preview window
-    """
-
-    def __init__(self, cmap: str, parent=None):
-        super().__init__(parent, Qt.WindowType.Dialog)
-        self.cmap = cmap
-
-        self.setWindowModality(Qt.WindowModality.WindowModal)
-        self.setWindowTitle("Preview Settings")
-        layout = QVBoxLayout()
-        layout.setContentsMargins(2, 2, 2, 2)
-        layout.addWidget(self.setup_preview_settings_widget())
-        self.setLayout(layout)
-
-    def setup_preview_settings_widget(self) -> QWidget:
-        widget = QWidget(self)
-        layout = QGridLayout(widget)
-        widget.setLayout(layout)
-
-        cmap_label = QLabel("Colormap", self)
-        self.cmap_combobox = QComboBox(self)
-        self.cmap_combobox.addItems(list(colormaps))
-        self.cmap_combobox.setCurrentIndex(list(colormaps).index(self.cmap))
-
-        row = 0
-        col = 0
-        layout.addWidget(cmap_label, row, col)
-        col += 1
-        layout.addWidget(self.cmap_combobox, row, col)
-
-        return widget
-
-
-# ==== ModulatorPreviewWindow =========================================================================================
-class ModulatorPreviewWindow(_ModulatorPreviewWindow):
-    """
-    Modulator preview window
-    """
-
-    def __init__(self, modulator: Modulator, parent: QWidget | None = None):
-        super().__init__(modulator, parent=parent)
-
-    @Slot()
-    def on_preview_settings_clicked(self):
-        preview_settings_window = ModulatorPreviewSettingsWindow(cmap=self.preview_figure_widget.cmap_name, parent=self)
-        preview_settings_window.show()
-        preview_settings_window.raise_()
-        preview_settings_window.activateWindow()
-        preview_settings_window.cmap_combobox.currentTextChanged.connect(self.on_cmap_changed)
-
-    @Slot()
-    def on_update_timer_tick(self):
-        self.preview_figure_widget.figure.get_image().set_data(self.sample.command)
-        self.preview_figure_widget.figure.canvas.draw_idle()
-
-
-# ==== CameraPreviewSettingsWindow ====================================================================================
-class CameraPreviewSettingsWindow(Window):
-    """
-    Settings for the camera preview window
-    """
-
-    def __init__(self, cmap_name: str, cmap_norm: Normalize, alpha_mask_show: bool, parent=None):
-        super().__init__(parent, Qt.WindowType.Dialog)
-        self.cmap_name: str = cmap_name
-        self.cmap_norm: Normalize = cmap_norm
-        self.alpha_mask_show: bool = alpha_mask_show
-
-        self.setWindowModality(Qt.WindowModality.WindowModal)
-        self.setWindowTitle("Preview Settings")
-        layout = QVBoxLayout()
-        layout.setContentsMargins(2, 2, 2, 2)
-        layout.addWidget(self.setup_preview_settings_widget())
-        self.setLayout(layout)
-
-    def setup_preview_settings_widget(self) -> QWidget:
-        widget = QWidget(self)
-        layout = QGridLayout(widget)
-        widget.setLayout(layout)
-
-        scale_label = QLabel("Scale", self)
-        self.log_checkbox = QCheckBox("Log", self)
-        self.log_checkbox.setToolTip("Log Scale")
-        if isinstance(self.cmap_norm, LogNorm):
-            self.log_checkbox.setChecked(True)
-        else:
-            self.log_checkbox.setChecked(False)
-
-        cmap_label = QLabel("Colormap", self)
-        self.cmap_combobox = QComboBox(self)
-        self.cmap_combobox.addItems(list(colormaps))
-        self.cmap_combobox.setCurrentIndex(list(colormaps).index(self.cmap_name))
-
-        dark_hole_mask_label = QLabel("Dark Hole Mask", self)
-        self.mask_checkbox = QCheckBox("Show", self)
-        self.mask_checkbox.setToolTip("Show dark hole mask")
-        self.mask_checkbox.setChecked(True)
-
-        row = 0
-        col = 0
-        layout.addWidget(scale_label, row, col)
-        col += 1
-        layout.addWidget(self.log_checkbox, row, col)
-
-        row += 1
-        col = 0
-        layout.addWidget(cmap_label, row, col)
-        col += 1
-        layout.addWidget(self.cmap_combobox, row, col)
-
-        row += 1
-        col = 0
-        layout.addWidget(dark_hole_mask_label, row, col)
-        col += 1
-        layout.addWidget(self.mask_checkbox, row, col)
-
-        return widget
-
-
-# ==== CameraPreviewWindow ============================================================================================
-class CameraPreviewWindow(_CameraPreviewWindow):
-    """
-    Camera speckle preview window
-    """
-
-    def __init__(self, camera: Camera, alpha_mask: NDArray[np.bool], parent: QWidget | None = None):
-        self._alpha_mask = alpha_mask
-        self._speckle = [np.nan, np.nan]
-        super().__init__(camera, parent=parent)
-
-    @property
-    def alpha_mask(self) -> NDArray[np.bool]:
-        return self._alpha_mask
-
-    @property
-    def speckle(self) -> list[float]:
-        return self._speckle
-
-    def setup_preview_widget(self) -> QWidget:
-        widget = QWidget(self)
-        layout = QVBoxLayout(widget)
-        layout.setContentsMargins(2, 2, 2, 2)
-        widget.setLayout(layout)
-
-        self._sample = self.camera.sample
-        self.preview_figure_widget = SourceFigureWidget(self.camera.blank, self.camera.pxmax, alpha_mask=self.alpha_mask, parent=self)
-        self.speckle_axlines = (self.preview_figure_widget.figure.get_imshow_axes().axvline(np.nan, alpha=0.5, linewidth=0.5, color="red"), self.preview_figure_widget.figure.get_imshow_axes().axhline(np.nan, alpha=0.5, linewidth=0.5, color="red"))
-        if self.preview_figure_widget.toolbar is not None:
-            self.preview_figure_widget.toolbar.settingsClicked.connect(self.on_preview_settings_clicked)
-
-        layout.addWidget(self.preview_figure_widget)
-
-        return widget
-
-    @Slot(float, float, float, float)
-    def on_speckle_located(self, x: float, y: float, frequency: float, angle: float):
-        self._speckle[0], self._speckle[1] = x, y
-        # self.speckle_frequency = frequency
-        # self.speckle_angle = angle
-
-    @Slot()
-    def on_preview_settings_clicked(self):
-        preview_settings_window = CameraPreviewSettingsWindow(cmap_name=self.preview_figure_widget.cmap_name, cmap_norm=self.preview_figure_widget.cmap_norm, alpha_mask_show=self.preview_figure_widget.alpha_mask_show, parent=self)
-        preview_settings_window.show()
-        preview_settings_window.raise_()
-        preview_settings_window.activateWindow()
-        preview_settings_window.log_checkbox.checkStateChanged.connect(self.on_cmap_norm_changed)
-        preview_settings_window.cmap_combobox.currentTextChanged.connect(self.on_cmap_name_changed)
-        preview_settings_window.mask_checkbox.checkStateChanged.connect(self.on_mask_show_changed)
-
-    @Slot(bool)
-    def on_mask_show_changed(self, checked: Qt.CheckState):
-        self.preview_figure_widget.alpha_mask_show = checked == Qt.CheckState.Checked
-
-    @Slot()
-    def on_update_timer_tick(self):
-        self.preview_figure_widget.figure.get_image().set_data(self.sample.capture)
-        self.speckle_axlines[0].set_xdata([self.speckle[0], self.speckle[0]])
-        self.speckle_axlines[1].set_ydata([self.speckle[1], self.speckle[1]])
-        self.preview_figure_widget.figure.canvas.draw_idle()
 
 
 # ==== ProcessSettingsWidget ==========================================================================================
@@ -669,23 +483,23 @@ class ProcessWindow(Window):
                 self.controls_widget.play_pause_button.setEnabled(True)
 
     @Slot()
-    def on_source_changed(self, _device: Camera):
+    def on_source_changed(self, device: Camera):
         self.devices_widget.source_info_button.setEnabled(True)
         self.devices_widget.source_settings_button.setEnabled(True)
         self.devices_widget.source_preview_button.setEnabled(True)
-        self.source = _device
-        device_preview_window_id = f"{_device.name}_preview_window"
+        self.source = device
+        device_preview_window_id = f"{device.name}_preview_window"
         if device_preview_window_id in testbed.data.windows:
             testbed.data.windows.pop(device_preview_window_id).close()
-        device_info_window_id = f"{_device.name}_info_window"
+        device_info_window_id = f"{device.name}_info_window"
         if device_info_window_id in testbed.data.windows:
             testbed.data.windows.pop(device_info_window_id).close()
-        device_settings_window_id = f"{_device.name}_settings_window"
+        device_settings_window_id = f"{device.name}_settings_window"
         if device_settings_window_id in testbed.data.windows:
             testbed.data.windows.pop(device_settings_window_id).close()
-        self.devices_widget.source_info_button.clicked.connect(lambda _, _device=_device: self.open_device_info_window(_device))
-        self.devices_widget.source_settings_button.clicked.connect(lambda _, _device=_device: self.open_device_settings_window(_device))
-        self.devices_widget.source_preview_button.clicked.connect(lambda _, _device=_device: self.open_device_preview_window(_device))
+        self.devices_widget.source_info_button.clicked.connect(lambda _, _device=device: self.open_device_info_window(_device))
+        self.devices_widget.source_settings_button.clicked.connect(lambda _, _device=device: self.open_device_settings_window(_device))
+        self.devices_widget.source_preview_button.clicked.connect(lambda _, _device=device: self.open_device_preview_window(_device))
         if self.source is not None:
             self.settings_widget.dark_hole_mask = chord(self.source.shape, self.source.shape[0] * 7 / 16, 0.65)
             if self.sink is not None:
@@ -696,23 +510,23 @@ class ProcessWindow(Window):
                     self.controls_widget.play_pause_button.setEnabled(True)
 
     @Slot()
-    def on_sink_changed(self, _device: Modulator):
+    def on_sink_changed(self, device: Modulator):
         self.devices_widget.sink_info_button.setEnabled(True)
         self.devices_widget.sink_settings_button.setEnabled(True)
         self.devices_widget.sink_preview_button.setEnabled(True)
-        self.sink = _device
-        device_preview_window_id = f"{_device.name}_preview_window"
+        self.sink = device
+        device_preview_window_id = f"{device.name}_preview_window"
         if device_preview_window_id in testbed.data.windows:
             testbed.data.windows.pop(device_preview_window_id).close()
-        device_info_window_id = f"{_device.name}_info_window"
+        device_info_window_id = f"{device.name}_info_window"
         if device_info_window_id in testbed.data.windows:
             testbed.data.windows.pop(device_info_window_id).close()
-        device_settings_window_id = f"{_device.name}_settings_window"
+        device_settings_window_id = f"{device.name}_settings_window"
         if device_settings_window_id in testbed.data.windows:
             testbed.data.windows.pop(device_settings_window_id).close()
-        self.devices_widget.sink_info_button.clicked.connect(lambda _, _device=_device: self.open_device_info_window(_device))
-        self.devices_widget.sink_settings_button.clicked.connect(lambda _, _device=_device: self.open_device_settings_window(_device))
-        self.devices_widget.sink_preview_button.clicked.connect(lambda _, _device=_device: self.open_device_preview_window(_device))
+        self.devices_widget.sink_info_button.clicked.connect(lambda _, _device=device: self.open_device_info_window(_device))
+        self.devices_widget.sink_settings_button.clicked.connect(lambda _, _device=device: self.open_device_settings_window(_device))
+        self.devices_widget.sink_preview_button.clicked.connect(lambda _, _device=device: self.open_device_preview_window(_device))
         if self.source is not None:
             self.settings_widget.dark_hole_mask = chord(self.source.shape, self.source.shape[0] * 7 / 16, 0.65)
             if self.sink is not None:
@@ -722,8 +536,8 @@ class ProcessWindow(Window):
                     self.speckle_calibration = read_speckle_calibration_file(self.settings_widget.calibration_widget.filepath)
                     self.controls_widget.play_pause_button.setEnabled(True)
 
-    def open_device_info_window(self, _device: Camera | Modulator):
-        device_info_window_id = f"{_device.name}_info_window"
+    def open_device_info_window(self, device: Camera | Modulator):
+        device_info_window_id = f"{device.name}_info_window"
 
         @Slot()
         def on_window_closed():
@@ -731,12 +545,12 @@ class ProcessWindow(Window):
 
         if device_info_window_id not in testbed.data.windows:
             info_window: CameraInfoWindow | ModulatorInfoWindow | None = None
-            if isinstance(_device, Camera):
-                info_window = CameraInfoWindow(_device, parent=self)
+            if isinstance(device, Camera):
+                info_window = CameraInfoWindow(device, parent=self)
                 if process_worker_id in testbed.data.workers:  # an update worker is in progress
                     testbed.data.workers[process_worker_id].signals.srcSampled.connect(info_window.on_sampled)
-            elif isinstance(_device, Modulator):
-                info_window = ModulatorInfoWindow(_device, parent=self)
+            elif isinstance(device, Modulator):
+                info_window = ModulatorInfoWindow(device, parent=self)
                 if process_worker_id in testbed.data.workers:  # an update worker is in progress
                     testbed.data.workers[process_worker_id].signals.snkSampled.connect(info_window.on_sampled)
             else:
@@ -747,8 +561,8 @@ class ProcessWindow(Window):
             info_window.activateWindow()
             testbed.data.windows[device_info_window_id] = info_window
 
-    def open_device_settings_window(self, _device: Camera | Modulator):
-        device_settings_window_id = f"{_device.name}_settings_window"
+    def open_device_settings_window(self, device: Camera | Modulator):
+        device_settings_window_id = f"{device.name}_settings_window"
 
         @Slot()
         def on_window_closed():
@@ -756,10 +570,10 @@ class ProcessWindow(Window):
 
         if device_settings_window_id not in testbed.data.windows:
             settings_window: CameraSettingsWindow | ModulatorSettingsWindow | None = None
-            if isinstance(_device, Camera):
-                settings_window = CameraSettingsWindow(_device, parent=self)
-            elif isinstance(_device, Modulator):
-                settings_window = ModulatorSettingsWindow(_device, parent=self)
+            if isinstance(device, Camera):
+                settings_window = CameraSettingsWindow(device, parent=self)
+            elif isinstance(device, Modulator):
+                settings_window = ModulatorSettingsWindow(device, parent=self)
             else:
                 raise ValueError("Invalid device")
             settings_window.destroyed.connect(on_window_closed)
@@ -768,20 +582,20 @@ class ProcessWindow(Window):
             settings_window.activateWindow()
             testbed.data.windows[device_settings_window_id] = settings_window
 
-    def open_device_preview_window(self, _device: Camera | Modulator):
-        device_preview_window_id = f"{_device.name}_preview_window"
+    def open_device_preview_window(self, device: Camera | Modulator):
+        device_preview_window_id = f"{device.name}_preview_window"
 
         def on_window_closed():
             testbed.data.windows.pop(device_preview_window_id, None)
 
         if device_preview_window_id not in testbed.data.windows:
             preview_window: CameraPreviewWindow | ModulatorPreviewWindow | None = None
-            if isinstance(_device, Camera):
-                preview_window = CameraPreviewWindow(_device, alpha_mask=self.settings_widget.dark_hole_mask, parent=self)
+            if isinstance(device, Camera):
+                preview_window = CameraPreviewWindow(device, alpha_mask=self.settings_widget.dark_hole_mask, parent=self)
                 if process_worker_id in testbed.data.workers:  # an update worker is in progress
                     testbed.data.workers[process_worker_id].signals.srcSampled.connect(preview_window.on_sampled)
-            elif isinstance(_device, Modulator):
-                preview_window = ModulatorPreviewWindow(_device, parent=self)
+            elif isinstance(device, Modulator):
+                preview_window = ModulatorPreviewWindow(device, parent=self)
                 if process_worker_id in testbed.data.workers:  # an update worker is in progress
                     testbed.data.workers[process_worker_id].signals.snkSampled.connect(preview_window.on_sampled)
             else:

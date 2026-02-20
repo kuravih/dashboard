@@ -15,10 +15,10 @@ class UpdateWorkerSignals(WorkerSignals):
 
 
 class UpdateWorker(Worker):
-    def __init__(self, _camera: Camera):
+    def __init__(self, camera: Camera):
         super().__init__()
         self.signals = UpdateWorkerSignals()
-        self._camera = _camera
+        self._camera = camera
 
     @Slot()
     def run(self):
