@@ -3,6 +3,7 @@ from numpy.typing import NDArray
 
 from pykato.function import chord, timestamp_string
 from pykato.log import setup_logger
+
 from PySide6.QtCore import Qt, QTimer, Slot
 from PySide6.QtGui import QIcon
 from PySide6.QtWidgets import QCheckBox, QGridLayout, QHBoxLayout, QLabel, QMessageBox, QSpinBox, QVBoxLayout, QWidget, QComboBox
@@ -21,7 +22,7 @@ from .camera_window import PreviewWindow as _CameraPreviewWindow
 from .camera_window import InfoWindow as CameraInfoWindow
 from .camera_window import SettingsWindow as CameraSettingsWindow
 from .modulator_window import InfoWindow as ModulatorInfoWindow
-from .modulator_window import SpecklePreviewWindow as ModulatorPreviewWindow
+from .modulator_window import PreviewWindow as _ModulatorPreviewWindow
 from .modulator_window import SettingsWindow as ModulatorSettingsWindow
 from .dialog import MessageDialog
 from .figure_widget import ContrastFigureWidget, SpeckleNullingFigureWidget
@@ -39,9 +40,66 @@ sink_storage_worker_id = f"{_PROCESS_}_sink_storage_worker"
 logger = setup_logger(f"{_PROCESS_}_window", terminator="\n")
 
 
+# ==== ModulatorPreviewSettingsWindow =================================================================================
+class ModulatorPreviewSettingsWindow(Window):
+    """
+    Settings for the modulator preview window
+    """
+
+    def __init__(self, cmap: str, parent=None):
+        super().__init__(parent, Qt.WindowType.Dialog)
+        self.cmap = cmap
+
+        self.setWindowModality(Qt.WindowModality.WindowModal)
+        self.setWindowTitle("Preview Settings")
+        layout = QVBoxLayout()
+        layout.setContentsMargins(2, 2, 2, 2)
+        layout.addWidget(self.setup_preview_settings_widget())
+        self.setLayout(layout)
+
+    def setup_preview_settings_widget(self) -> QWidget:
+        widget = QWidget(self)
+        layout = QGridLayout(widget)
+        widget.setLayout(layout)
+
+        cmap_label = QLabel("Colormap", self)
+        self.cmap_combobox = QComboBox(self)
+        self.cmap_combobox.addItems(list(colormaps))
+        self.cmap_combobox.setCurrentIndex(list(colormaps).index(self.cmap))
+
+        row = 0
+        col = 0
+        layout.addWidget(cmap_label, row, col)
+        col += 1
+        layout.addWidget(self.cmap_combobox, row, col)
+
+        return widget
 
 
-# ==== CameraPreviewSettingsWindow ==========================================================================================
+# ==== ModulatorPreviewWindow =========================================================================================
+class ModulatorPreviewWindow(_ModulatorPreviewWindow):
+    """
+    Modulator preview window
+    """
+
+    def __init__(self, modulator: Modulator, parent: QWidget | None = None):
+        super().__init__(modulator, parent=parent)
+
+    @Slot()
+    def on_preview_settings_clicked(self):
+        preview_settings_window = ModulatorPreviewSettingsWindow(cmap=self.preview_figure_widget.cmap_name, parent=self)
+        preview_settings_window.show()
+        preview_settings_window.raise_()
+        preview_settings_window.activateWindow()
+        preview_settings_window.cmap_combobox.currentTextChanged.connect(self.on_cmap_changed)
+
+    @Slot()
+    def on_update_timer_tick(self):
+        self.preview_figure_widget.figure.get_image().set_data(self.sample.command)
+        self.preview_figure_widget.figure.canvas.draw_idle()
+
+
+# ==== CameraPreviewSettingsWindow ====================================================================================
 class CameraPreviewSettingsWindow(Window):
     """
     Settings for the camera preview window
@@ -104,12 +162,12 @@ class CameraPreviewSettingsWindow(Window):
         return widget
 
 
-
-# ==== CameraPreviewwWindow ==================================================================================================
+# ==== CameraPreviewWindow ============================================================================================
 class CameraPreviewWindow(_CameraPreviewWindow):
     """
     Camera speckle preview window
     """
+
     def __init__(self, camera: Camera, alpha_mask: NDArray[np.bool], parent: QWidget | None = None):
         self._alpha_mask = alpha_mask
         self._speckle = [np.nan, np.nan]
@@ -119,6 +177,10 @@ class CameraPreviewWindow(_CameraPreviewWindow):
     def alpha_mask(self) -> NDArray[np.bool]:
         return self._alpha_mask
 
+    @property
+    def speckle(self) -> list[float]:
+        return self._speckle
+
     def setup_preview_widget(self) -> QWidget:
         widget = QWidget(self)
         layout = QVBoxLayout(widget)
@@ -127,7 +189,7 @@ class CameraPreviewWindow(_CameraPreviewWindow):
 
         self._sample = self.camera.sample
         self.preview_figure_widget = SourceFigureWidget(self.camera.blank, self.camera.pxmax, alpha_mask=self.alpha_mask, parent=self)
-        self.speckle_axvline, self.speckle_axhline = self.preview_figure_widget.figure.get_imshow_axes().axvline(np.nan, alpha=0.5, linewidth=0.5, color="red"), self.preview_figure_widget.figure.get_imshow_axes().axhline(np.nan, alpha=0.5, linewidth=0.5, color="red")
+        self.speckle_axlines = (self.preview_figure_widget.figure.get_imshow_axes().axvline(np.nan, alpha=0.5, linewidth=0.5, color="red"), self.preview_figure_widget.figure.get_imshow_axes().axhline(np.nan, alpha=0.5, linewidth=0.5, color="red"))
         if self.preview_figure_widget.toolbar is not None:
             self.preview_figure_widget.toolbar.settingsClicked.connect(self.on_preview_settings_clicked)
 
@@ -135,10 +197,6 @@ class CameraPreviewWindow(_CameraPreviewWindow):
 
         return widget
 
-    @property
-    def speckle(self) -> list[float]:
-        return self._speckle
-    
     @Slot(float, float, float, float)
     def on_speckle_located(self, x: float, y: float, frequency: float, angle: float):
         self._speckle[0], self._speckle[1] = x, y
@@ -155,17 +213,6 @@ class CameraPreviewWindow(_CameraPreviewWindow):
         preview_settings_window.cmap_combobox.currentTextChanged.connect(self.on_cmap_name_changed)
         preview_settings_window.mask_checkbox.checkStateChanged.connect(self.on_mask_show_changed)
 
-    @Slot(str)
-    def on_cmap_name_changed(self, colormap: str):
-        self.preview_figure_widget.cmap_name = colormap
-
-    @Slot(bool)
-    def on_cmap_norm_changed(self, checked: bool):
-        if checked == Qt.CheckState.Checked:
-            self.preview_figure_widget.cmap_norm = LogNorm(1, 2**12 - 1)
-        else:
-            self.preview_figure_widget.cmap_norm = Normalize(0, 2**12-1)
-
     @Slot(bool)
     def on_mask_show_changed(self, checked: Qt.CheckState):
         self.preview_figure_widget.alpha_mask_show = checked == Qt.CheckState.Checked
@@ -173,15 +220,9 @@ class CameraPreviewWindow(_CameraPreviewWindow):
     @Slot()
     def on_update_timer_tick(self):
         self.preview_figure_widget.figure.get_image().set_data(self.sample.capture)
-        self.speckle_axvline.set_xdata([self.speckle[0], self.speckle[0]])
-        self.speckle_axhline.set_ydata([self.speckle[1], self.speckle[1]])
+        self.speckle_axlines[0].set_xdata([self.speckle[0], self.speckle[0]])
+        self.speckle_axlines[1].set_ydata([self.speckle[1], self.speckle[1]])
         self.preview_figure_widget.figure.canvas.draw_idle()
-
-    def closeEvent(self, event):
-        if self.update_timer.isActive():
-            self.update_timer.stop()
-        self.deleteLater()
-        event.accept()
 
 
 # ==== ProcessSettingsWidget ==========================================================================================
@@ -191,6 +232,9 @@ class ProcessSettingsWidget(QWidget):
     """
 
     def __init__(self, parent=None):
+        self.dark_hole_mask = None  # chord(self.source.shape, self.source.shape[0] * 7 / 16, 0.65)
+        self.speckle_calibration = None
+
         super().__init__(parent)
 
         phs_steps_label = QLabel("Phase steps", self)
@@ -224,11 +268,6 @@ class ProcessSettingsWidget(QWidget):
                 self._n_iterations_spinbox.setEnabled(True)
 
         self._continuous_checkbox.toggled.connect(on_continuous_toggled)
-
-        self.dark_hole_mask = None
-        # self.dark_hole_mask = chord(self.source.shape, self.source.shape[0] * 7 / 16, 0.65)
-
-        self.speckle_calibration = None
 
         # ---- speckle calibration file -------------------------------------------------------------------------------
         speckle_calibration_label = QLabel("Speckle Calibration", self)
@@ -310,6 +349,22 @@ class ProcessSettingsWidget(QWidget):
     @property
     def amp_array(self) -> np.ndarray:
         return self._amp_steps.value()
+
+    @property
+    def dark_hole_mask(self) -> NDArray[np.bool] | None:
+        return self._dark_hole_mask  # chord(self.source.shape, self.source.shape[0] * 7 / 16, 0.65)
+
+    @dark_hole_mask.setter
+    def dark_hole_mask(self, value: NDArray[np.bool] | None):
+        self._dark_hole_mask = value
+
+    @property
+    def speckle_calibration(self) -> dict | None:
+        return self._speckle_calibration
+
+    @speckle_calibration.setter
+    def speckle_calibration(self, value: dict | None):
+        self._speckle_calibration = value
 
 
 # ==== ProcessInfoWindow ==============================================================================================
@@ -631,13 +686,14 @@ class ProcessWindow(Window):
         self.devices_widget.source_info_button.clicked.connect(lambda _, _device=_device: self.open_device_info_window(_device))
         self.devices_widget.source_settings_button.clicked.connect(lambda _, _device=_device: self.open_device_settings_window(_device))
         self.devices_widget.source_preview_button.clicked.connect(lambda _, _device=_device: self.open_device_preview_window(_device))
-        if self.source is not None and self.sink is not None:
-            self.controls_widget.preview_button.setEnabled(True)
-            self.controls_widget.info_button.setEnabled(True)
+        if self.source is not None:
             self.settings_widget.dark_hole_mask = chord(self.source.shape, self.source.shape[0] * 7 / 16, 0.65)
-            if self.settings_widget.calibration_widget.filepath is not None:
-                self.speckle_calibration = read_speckle_calibration_file(self.settings_widget.calibration_widget.filepath)
-                self.controls_widget.play_pause_button.setEnabled(True)
+            if self.sink is not None:
+                self.controls_widget.preview_button.setEnabled(True)
+                self.controls_widget.info_button.setEnabled(True)
+                if self.settings_widget.calibration_widget.filepath is not None:
+                    self.speckle_calibration = read_speckle_calibration_file(self.settings_widget.calibration_widget.filepath)
+                    self.controls_widget.play_pause_button.setEnabled(True)
 
     @Slot()
     def on_sink_changed(self, _device: Modulator):
@@ -657,12 +713,14 @@ class ProcessWindow(Window):
         self.devices_widget.sink_info_button.clicked.connect(lambda _, _device=_device: self.open_device_info_window(_device))
         self.devices_widget.sink_settings_button.clicked.connect(lambda _, _device=_device: self.open_device_settings_window(_device))
         self.devices_widget.sink_preview_button.clicked.connect(lambda _, _device=_device: self.open_device_preview_window(_device))
-        if self.source is not None and self.sink is not None:
-            self.controls_widget.preview_button.setEnabled(True)
-            self.controls_widget.info_button.setEnabled(True)
-            if self.settings_widget.calibration_widget.filepath is not None:
-                self.speckle_calibration = read_speckle_calibration_file(self.settings_widget.calibration_widget.filepath)
-                self.controls_widget.play_pause_button.setEnabled(True)
+        if self.source is not None:
+            self.settings_widget.dark_hole_mask = chord(self.source.shape, self.source.shape[0] * 7 / 16, 0.65)
+            if self.sink is not None:
+                self.controls_widget.preview_button.setEnabled(True)
+                self.controls_widget.info_button.setEnabled(True)
+                if self.settings_widget.calibration_widget.filepath is not None:
+                    self.speckle_calibration = read_speckle_calibration_file(self.settings_widget.calibration_widget.filepath)
+                    self.controls_widget.play_pause_button.setEnabled(True)
 
     def open_device_info_window(self, _device: Camera | Modulator):
         device_info_window_id = f"{_device.name}_info_window"
@@ -882,12 +940,12 @@ class ProcessWindow(Window):
         layout = QVBoxLayout(widget)
         widget.setLayout(layout)
 
+        self.settings_widget = ProcessSettingsWidget(self)
+        self.settings_widget.calibration_widget.fileChanged.connect(self.on_calibration_change)
+
         self.devices_widget = DevicesSetupWidget(testbed.data.devices, parent=self)
         self.devices_widget.sourceChanged.connect(self.on_source_changed)
         self.devices_widget.sinkChanged.connect(self.on_sink_changed)
-
-        self.settings_widget = ProcessSettingsWidget(self)
-        self.settings_widget.calibration_widget.fileChanged.connect(self.on_calibration_change)
 
         self.controls_widget = TaskControlsWidget(self)
         self.controls_widget.play_pause_button.clicked.connect(self.on_start_stop_clicked)

@@ -1,21 +1,23 @@
 import numpy as np
 
 from pykato.log import setup_logger
-from PySide6.QtCore import Qt, Slot, QTimer
+from PySide6.QtCore import Qt, Slot
 from PySide6.QtGui import QIcon
-from PySide6.QtWidgets import QCheckBox, QDoubleSpinBox, QGridLayout, QHBoxLayout, QLabel, QSpinBox, QVBoxLayout, QWidget, QMessageBox, QComboBox
+from PySide6.QtWidgets import QCheckBox, QPushButton, QDoubleSpinBox, QGridLayout, QHBoxLayout, QLabel, QSpinBox, QVBoxLayout, QWidget, QMessageBox, QComboBox
 from matplotlib import colormaps
+from matplotlib.colors import Normalize, LogNorm
 
 import testbed
 
-from ..device.camera import Camera, SourceSample
-from ..device.modulator import Modulator, SinkSample
+from ..device.camera import Camera
+from ..device.modulator import Modulator
 from ..worker.recenter_worker import ProcessWorker
+from ..widget.figure_widget import SourceFigureWidget
 from .camera_window import InfoWindow as CameraInfoWindow
-from .camera_window import PreviewWindow as CameraPreviewWindow
+from .camera_window import PreviewWindow as _CameraPreviewWindow
 from .camera_window import SettingsWindow as CameraSettingsWindow
 from .modulator_window import InfoWindow as ModulatorInfoWindow
-from .modulator_window import PreviewWindow as ModulatorPreviewWindow
+from .modulator_window import PreviewWindow as _ModulatorPreviewWindow
 from .modulator_window import SettingsWindow as ModulatorSettingsWindow
 from .dialog import MessageDialog
 from .resource import ICON_PAUSE, ICON_RUN
@@ -31,12 +33,211 @@ sink_storage_worker_id = f"{_PROCESS_}_sink_storage_worker"
 logger = setup_logger(f"{_PROCESS_}_window", terminator="\n")
 
 
+# ==== ModulatorPreviewSettingsWindow =================================================================================
+class ModulatorPreviewSettingsWindow(Window):
+    """
+    Settings for the modulator preview window
+    """
+
+    def __init__(self, cmap: str, parent=None):
+        super().__init__(parent, Qt.WindowType.Dialog)
+        self.cmap = cmap
+
+        self.setWindowModality(Qt.WindowModality.WindowModal)
+        self.setWindowTitle("Preview Settings")
+        layout = QVBoxLayout()
+        layout.setContentsMargins(2, 2, 2, 2)
+        layout.addWidget(self.setup_preview_settings_widget())
+        self.setLayout(layout)
+
+    def setup_preview_settings_widget(self) -> QWidget:
+        widget = QWidget(self)
+        layout = QGridLayout(widget)
+        widget.setLayout(layout)
+
+        cmap_label = QLabel("Colormap", self)
+        self.cmap_combobox = QComboBox(self)
+        self.cmap_combobox.addItems(list(colormaps))
+        self.cmap_combobox.setCurrentIndex(list(colormaps).index(self.cmap))
+
+        row = 0
+        col = 0
+        layout.addWidget(cmap_label, row, col)
+        col += 1
+        layout.addWidget(self.cmap_combobox, row, col)
+
+        return widget
+
+
+# ==== ModulatorPreviewWindow =========================================================================================
+class ModulatorPreviewWindow(_ModulatorPreviewWindow):
+    """
+    Modulator preview window
+    """
+
+    def __init__(self, modulator: Modulator, parent: QWidget | None = None):
+        super().__init__(modulator, parent=parent)
+
+    @Slot()
+    def on_preview_settings_clicked(self):
+        preview_settings_window = ModulatorPreviewSettingsWindow(cmap=self.preview_figure_widget.cmap_name, parent=self)
+        preview_settings_window.show()
+        preview_settings_window.raise_()
+        preview_settings_window.activateWindow()
+        preview_settings_window.cmap_combobox.currentTextChanged.connect(self.on_cmap_changed)
+
+    @Slot()
+    def on_update_timer_tick(self):
+        self.preview_figure_widget.figure.get_image().set_data(self.sample.command)
+        self.preview_figure_widget.figure.canvas.draw_idle()
+
+
+# ==== CameraPreviewSettingsWindow ====================================================================================
+class CameraPreviewSettingsWindow(Window):
+    """
+    Settings for the camera preview window
+    """
+
+    def __init__(self, cmap_name: str, cmap_norm: Normalize, parent=None):
+        super().__init__(parent, Qt.WindowType.Dialog)
+        self.cmap_name: str = cmap_name
+        self.cmap_norm: Normalize = cmap_norm
+
+        self.setWindowModality(Qt.WindowModality.WindowModal)
+        self.setWindowTitle("Preview Settings")
+        layout = QVBoxLayout()
+        layout.setContentsMargins(2, 2, 2, 2)
+        layout.addWidget(self.setup_preview_settings_widget())
+        self.setLayout(layout)
+
+    def setup_preview_settings_widget(self) -> QWidget:
+        widget = QWidget(self)
+        layout = QGridLayout(widget)
+        widget.setLayout(layout)
+
+        scale_label = QLabel("Scale", self)
+        self.log_checkbox = QCheckBox("Log", self)
+        self.log_checkbox.setToolTip("Log Scale")
+        if isinstance(self.cmap_norm, LogNorm):
+            self.log_checkbox.setChecked(True)
+        else:
+            self.log_checkbox.setChecked(False)
+
+        cmap_label = QLabel("Colormap", self)
+        self.cmap_combobox = QComboBox(self)
+        self.cmap_combobox.addItems(list(colormaps))
+        self.cmap_combobox.setCurrentIndex(list(colormaps).index(self.cmap_name))
+
+        row = 0
+        col = 0
+        layout.addWidget(scale_label, row, col)
+        col += 1
+        layout.addWidget(self.log_checkbox, row, col)
+
+        row += 1
+        col = 0
+        layout.addWidget(cmap_label, row, col)
+        col += 1
+        layout.addWidget(self.cmap_combobox, row, col)
+
+        return widget
+
+
+# ==== CameraPreviewWindow ============================================================================================
+class CameraPreviewWindow(_CameraPreviewWindow):
+    """
+    Camera speckle preview window
+    """
+
+    def __init__(self, camera: Camera, center: list[float] | None, parent: QWidget | None = None):
+        self._speckles = [[np.nan, np.nan], [np.nan, np.nan]]
+        if center is None:
+            self._center = [camera.shape[0] / 2, camera.shape[1] / 2]
+        else:
+            self._center = center
+        super().__init__(camera, parent=parent)
+
+    @property
+    def speckles(self) -> list[list[float]]:
+        return self._speckles
+
+    @property
+    def center(self) -> list[float]:
+        return self._center
+
+    def setup_preview_widget(self) -> QWidget:
+        widget = QWidget(self)
+        layout = QVBoxLayout(widget)
+        layout.setContentsMargins(2, 2, 2, 2)
+        widget.setLayout(layout)
+
+        self._sample = self.camera.sample
+        self.preview_figure_widget = SourceFigureWidget(self.camera.blank, self.camera.pxmax, parent=self)
+        self.speckles_axlines = ((self.preview_figure_widget.figure.get_imshow_axes().axvline(np.nan, alpha=0.5, linewidth=0.5, color="red"), self.preview_figure_widget.figure.get_imshow_axes().axhline(np.nan, alpha=0.5, linewidth=0.5, color="red")), (self.preview_figure_widget.figure.get_imshow_axes().axvline(np.nan, alpha=0.5, linewidth=0.5, color="red"), self.preview_figure_widget.figure.get_imshow_axes().axhline(np.nan, alpha=0.5, linewidth=0.5, color="red")))
+        self.center_axlines = (self.preview_figure_widget.figure.get_imshow_axes().axvline(np.nan, alpha=0.5, linewidth=0.5, color="blue"), self.preview_figure_widget.figure.get_imshow_axes().axhline(np.nan, alpha=0.5, linewidth=0.5, color="blue"))
+
+        if self.preview_figure_widget.toolbar is not None:
+            self.preview_figure_widget.toolbar.settingsClicked.connect(self.on_preview_settings_clicked)
+
+        layout.addWidget(self.preview_figure_widget)
+
+        return widget
+
+    @Slot(float, float, float, float)
+    def on_speckles_located(self, x0: float, y0: float, x1: float, y1: float):
+        # self._center = [np.nan, np.nan]
+        self._speckles = [[x0, y0], [x1, y1]]
+
+    @Slot(float, float)
+    def on_center_located(self, xc: float, yc: float):
+        self._center = [xc, yc]
+        # self._speckles = [[np.nan, np.nan], [np.nan, np.nan]]
+
+    @Slot()
+    def on_preview_settings_clicked(self):
+        preview_settings_window = CameraPreviewSettingsWindow(cmap_name=self.preview_figure_widget.cmap_name, cmap_norm=self.preview_figure_widget.cmap_norm, parent=self)
+        preview_settings_window.show()
+        preview_settings_window.raise_()
+        preview_settings_window.activateWindow()
+        preview_settings_window.log_checkbox.checkStateChanged.connect(self.on_cmap_norm_changed)
+        preview_settings_window.cmap_combobox.currentTextChanged.connect(self.on_cmap_name_changed)
+
+    @Slot(str)
+    def on_cmap_name_changed(self, colormap: str):
+        self.preview_figure_widget.cmap_name = colormap
+
+    @Slot(bool)
+    def on_cmap_norm_changed(self, checked: bool):
+        if checked == Qt.CheckState.Checked:
+            self.preview_figure_widget.cmap_norm = LogNorm(1, 2**12 - 1)
+        else:
+            self.preview_figure_widget.cmap_norm = Normalize(0, 2**12 - 1)
+
+    @Slot()
+    def on_update_timer_tick(self):
+        self.preview_figure_widget.figure.get_image().set_data(self.sample.capture)
+        self.speckles_axlines[0][0].set_xdata([self.speckles[0][0], self.speckles[0][0]])
+        self.speckles_axlines[0][1].set_ydata([self.speckles[0][1], self.speckles[0][1]])
+        self.speckles_axlines[1][0].set_xdata([self.speckles[1][0], self.speckles[1][0]])
+        self.speckles_axlines[1][1].set_ydata([self.speckles[1][1], self.speckles[1][1]])
+        self.center_axlines[0].set_xdata([self.center[0], self.center[0]])
+        self.center_axlines[1].set_ydata([self.center[1], self.center[1]])
+        self.preview_figure_widget.figure.canvas.draw_idle()
+
+    def closeEvent(self, event):
+        if self.update_timer.isActive():
+            self.update_timer.stop()
+        self.deleteLater()
+        event.accept()
+
+
 class ProcessSettingsWidget(QWidget):
     """
     Re-centering process settings window
     """
 
     def __init__(self, parent=None):
+        self._center = [np.nan, np.nan]
         super().__init__(parent)
 
         n_steps_label = QLabel("Steps", self)
@@ -61,6 +262,14 @@ class ProcessSettingsWidget(QWidget):
         self._sleep_s_spinbox.setValue(0.1)
         self._sleep_s_spinbox.setSuffix(" s")
 
+        center_label = QLabel("Center", self)
+        sleep_label.setFixedWidth(100)
+
+        self._center_values_label = QLabel(f"[[{self._center[0]:.0f}], [{self._center[1]:.0f}]]", self)
+        sleep_label.setFixedWidth(100)
+
+        self.move_pushbutton = QPushButton("Move", self)
+
         widget_layout = QGridLayout()
 
         row = 0
@@ -75,6 +284,14 @@ class ProcessSettingsWidget(QWidget):
         col += 1
         widget_layout.addWidget(self._sleep_s_spinbox, row, col, 1, 3)
 
+        row += 1
+        col = 0
+        widget_layout.addWidget(center_label, row, col)
+        col += 1
+        widget_layout.addWidget(self._center_values_label, row, col)
+        col += 1
+        widget_layout.addWidget(self.move_pushbutton, row, col, 1, 2)
+
         self.setLayout(widget_layout)
 
     @property
@@ -85,145 +302,14 @@ class ProcessSettingsWidget(QWidget):
     def sleep_s(self) -> float:
         return self._sleep_s_spinbox.value()
 
+    @property
+    def center(self) -> list[float]:
+        return self._center
 
-# class ProcessInfoSettingsWindow(Window):
-#     """
-#     Settings for the re-centering process info window
-#     """
-
-#     def __init__(self, src_cmap_name: str, src_cmap_norm: bool, snk_cmap_name: str, parent=None):
-#         super().__init__(parent, Qt.WindowType.Dialog)
-#         self.src_cmap_name = src_cmap_name
-#         self.src_cmap_norm = src_cmap_norm
-#         self.snk_cmap_name = snk_cmap_name
-#         self.setWindowModality(Qt.WindowModality.WindowModal)
-#         self.setWindowTitle("Process Info Settings")
-#         layout = QVBoxLayout()
-#         layout.setContentsMargins(2, 2, 2, 2)
-#         layout.addWidget(self.setup_settings_widget())
-#         self.setLayout(layout)
-
-#     def setup_settings_widget(self) -> QWidget:
-#         widget = QWidget(self)
-#         layout = QGridLayout(widget)
-#         widget.setLayout(layout)
-
-#         source_cmap_label = QLabel("Source Colormap", self)
-#         self.source_cmap_combobox = QComboBox(self)
-#         self.source_cmap_combobox.addItems(list(colormaps))
-#         self.source_cmap_combobox.setCurrentIndex(list(colormaps).index(self.src_cmap_name))
-#         self.source_log_checkbox = QCheckBox("Log", self)
-#         self.source_log_checkbox.setToolTip("Log Scale")
-#         self.source_log_checkbox.setChecked(self.src_cmap_norm)
-
-#         sink_cmap_label = QLabel("Sink Colormap", self)
-#         self.sink_cmap_combobox = QComboBox(self)
-#         self.sink_cmap_combobox.addItems(list(colormaps))
-#         self.sink_cmap_combobox.setCurrentIndex(list(colormaps).index(self.snk_cmap_name))
-
-#         row = 0
-#         col = 0
-#         layout.addWidget(source_cmap_label, row, col)
-#         col += 1
-#         layout.addWidget(self.source_cmap_combobox, row, col)
-#         col += 1
-#         layout.addWidget(self.source_log_checkbox, row, col)
-
-#         row += 1
-#         col = 0
-#         layout.addWidget(sink_cmap_label, row, col)
-#         col += 1
-#         layout.addWidget(self.sink_cmap_combobox, row, col)
-
-#         return widget
-
-
-# class ProcessInfoWindow(Window):
-#     """
-#     Re-centering process info window
-#     """
-
-#     def __init__(self, source_sample: SourceSample, sink_sample: SinkSample, parent: QWidget | None = None):
-#         super().__init__(parent, Qt.WindowType.Dialog)
-#         self.source_sample = source_sample
-#         self.sink_sample = sink_sample
-
-#         self.speckles = [[np.nan, np.nan], [np.nan, np.nan]]
-#         self.center = [np.nan, np.nan]
-
-#         self.setWindowTitle("Re-centering")
-
-#         layout = QVBoxLayout()
-#         layout.setContentsMargins(2, 2, 2, 2)
-#         # layout.addWidget(self.setup_info_widget())
-#         self.setLayout(layout)
-
-#         self.update_timer = QTimer(self)
-#         self.update_timer.timeout.connect(self.on_update_timer_tick)
-#         self.update_timer.start(100)  # Update window every 100 ms
-
-#     @Slot(SourceSample)
-#     def on_src_sampled(self, sample: SourceSample):
-#         self.source_sample = sample
-
-#     @Slot(SinkSample)
-#     def on_snk_sampled(self, sample: SinkSample):
-#         self.sink_sample = sample
-
-#     @Slot(float, float, float, float)
-#     def on_speckles_located(self, x1: float, y1: float, x2: float, y2: float):
-#         self.speckles = [[x1, y1], [x2, y2]]
-
-#     @Slot(float, float)
-#     def on_center_located(self, x: float, y: float):
-#         self.center = [x, y]
-
-#     # def setup_info_widget(self) -> QWidget:
-#     #     widget = QWidget(self)
-#     #     layout = QVBoxLayout(widget)
-#     #     layout.setContentsMargins(2, 2, 2, 2)
-#     #     widget.setLayout(layout)
-#     #     self.process_info_figure = RecenteringFigureWidget(self.source_sample.capture, self.sink_sample.command, show_toolbar=True, parent=self)
-#     #     if self.process_info_figure.toolbar is not None:
-#     #         self.process_info_figure.toolbar.settingsClicked.connect(self.on_info_settings_clicked)
-#     #     layout.addWidget(self.process_info_figure)
-#     #     return widget
-
-#     @Slot()
-#     def on_info_settings_clicked(self):
-#         process_info_settings_window = ProcessInfoSettingsWindow(self.process_info_figure.snk_cmap_name, self.process_info_figure.src_cmap_norm, self.process_info_figure.src_cmap_name, parent=self)
-#         process_info_settings_window.show()
-#         process_info_settings_window.raise_()
-#         process_info_settings_window.activateWindow()
-#         process_info_settings_window.source_log_checkbox.checkStateChanged.connect(self.on_src_cmap_log_changed)
-#         process_info_settings_window.source_cmap_combobox.currentTextChanged.connect(self.on_src_cmap_changed)
-#         process_info_settings_window.sink_cmap_combobox.currentTextChanged.connect(self.on_snk_cmap_changed)
-
-#     @Slot(str)
-#     def on_src_cmap_changed(self, colormap: str):
-#         self.process_info_figure.src_cmap_name = colormap
-
-#     @Slot(str)
-#     def on_snk_cmap_changed(self, colormap: str):
-#         self.process_info_figure.snk_cmap_name = colormap
-
-#     @Slot(bool)
-#     def on_src_cmap_log_changed(self, checked: Qt.CheckState):
-#         self.process_info_figure.src_cmap_norm = checked == Qt.CheckState.Checked
-
-#     @Slot()
-#     def on_update_timer_tick(self):
-#         self.process_info_figure.set_command(self.sink_sample.command)
-#         self.process_info_figure.set_capture(self.source_sample.capture)
-#         self.process_info_figure.set_speckles(self.speckles)
-#         self.process_info_figure.set_center(self.center)
-#         self.process_info_figure.figure.canvas.draw_idle()
-
-#     def closeEvent(self, event):
-#         if self.update_timer.isActive():
-#             self.update_timer.stop()
-#         self.deleteLater()
-#         event.accept()
+    @center.setter
+    def center(self, value: list[float]):
+        self._center = value
+        self._center_values_label.setText(f"[[{self._center[0]:.0f}], [{self._center[1]:.0f}]]")
 
 
 class ProcessWindow(Window):
@@ -237,6 +323,7 @@ class ProcessWindow(Window):
         self.setWindowTitle("Recenter Process")
         self._sink = None
         self._source = None
+        self._center = [np.nan, np.nan]
 
         layout = QVBoxLayout()
         layout.setContentsMargins(2, 2, 2, 2)
@@ -268,9 +355,10 @@ class ProcessWindow(Window):
         self.devices_widget.source_info_button.clicked.connect(lambda _, _device=_device: self.open_device_info_window(_device))
         self.devices_widget.source_settings_button.clicked.connect(lambda _, _device=_device: self.open_device_settings_window(_device))
         self.devices_widget.source_preview_button.clicked.connect(lambda _, _device=_device: self.open_device_preview_window(_device))
-        if self._source is not None and self._sink is not None:
-            self.controls_widget.info_button.setEnabled(True)
-            self.controls_widget.play_pause_button.setEnabled(True)
+        if self._source is not None:
+            self.settings_widget.center = [self._source.shape[0] / 2, self._source.shape[1] / 2]
+            if self._sink is not None:
+                self.controls_widget.play_pause_button.setEnabled(True)
 
     def on_sink_changed(self, _device: Modulator):
         self.devices_widget.sink_info_button.setEnabled(True)
@@ -289,9 +377,10 @@ class ProcessWindow(Window):
         self.devices_widget.sink_info_button.clicked.connect(lambda _, _device=_device: self.open_device_info_window(_device))
         self.devices_widget.sink_settings_button.clicked.connect(lambda _, _device=_device: self.open_device_settings_window(_device))
         self.devices_widget.sink_preview_button.clicked.connect(lambda _, _device=_device: self.open_device_preview_window(_device))
-        if self._source is not None and self._sink is not None:
-            self.controls_widget.info_button.setEnabled(True)
-            self.controls_widget.play_pause_button.setEnabled(True)
+        if self._source is not None:
+            self.settings_widget.center = [self._source.shape[0] / 2, self._source.shape[1] / 2]
+            if self._sink is not None:
+                self.controls_widget.play_pause_button.setEnabled(True)
 
     def open_device_info_window(self, _device: Camera | Modulator):
         device_info_window_id = f"{_device.name}_info_window"
@@ -349,11 +438,11 @@ class ProcessWindow(Window):
         if device_preview_window_id not in testbed.data.windows:
             preview_window: CameraPreviewWindow | ModulatorPreviewWindow | None = None
             if isinstance(_device, Camera):
-                preview_window = CameraPreviewWindow(_device, self)
+                preview_window = CameraPreviewWindow(_device, self.settings_widget.center, parent=self)
                 if process_worker_id in testbed.data.workers:  # an update worker is in progress
                     testbed.data.workers[process_worker_id].signals.srcSampled.connect(preview_window.on_sampled)
             elif isinstance(_device, Modulator):
-                preview_window = ModulatorPreviewWindow(_device, self)
+                preview_window = ModulatorPreviewWindow(_device, parent=self)
                 if process_worker_id in testbed.data.workers:  # an update worker is in progress
                     testbed.data.workers[process_worker_id].signals.snkSampled.connect(preview_window.on_sampled)
             else:
@@ -427,50 +516,41 @@ class ProcessWindow(Window):
 
             if source_preview_window_id in testbed.data.windows:
                 worker.signals.srcSampled.connect(testbed.data.windows[source_preview_window_id].on_sampled)
+                worker.signals.specklesLocated.connect(testbed.data.windows[source_preview_window_id].on_speckles_located)
+                worker.signals.centerLocated.connect(testbed.data.windows[source_preview_window_id].on_center_located)
             if sink_preview_window_id in testbed.data.windows:
                 worker.signals.snkSampled.connect(testbed.data.windows[sink_preview_window_id].on_sampled)
-            if process_info_window_id in testbed.data.windows:
-                worker.signals.srcSampled.connect(testbed.data.windows[process_info_window_id].on_src_sampled)
-                worker.signals.snkSampled.connect(testbed.data.windows[process_info_window_id].on_snk_sampled)
-                worker.signals.specklesLocated.connect(testbed.data.windows[process_info_window_id].on_speckles_located)
-                worker.signals.centerLocated.connect(testbed.data.windows[process_info_window_id].on_center_located)
+
+            worker.signals.centerLocated.connect(self.on_center_located)
 
             testbed.data.workers[process_worker_id] = worker
             testbed.data.threadpool.start(worker)
 
-    def open_process_info_clicked(self):
-        @Slot()
-        def on_window_closed():
-            testbed.data.windows.pop(process_info_window_id, None)
-
-        if process_info_window_id not in testbed.data.windows and self._source is not None and self._sink is not None:
-            process_info_window = ProcessInfoWindow(self._source.sample, self._sink.sample, parent=self)
-            process_info_window.destroyed.connect(on_window_closed)
-            process_info_window.show()
-            process_info_window.raise_()
-            process_info_window.activateWindow()
-            testbed.data.windows[process_info_window_id] = process_info_window
-
-            if process_worker_id in testbed.data.workers:
-                testbed.data.workers[process_worker_id].signals.srcSampled.connect(testbed.data.windows[process_info_window_id].on_src_sampled)
-                testbed.data.workers[process_worker_id].signals.snkSampled.connect(testbed.data.windows[process_info_window_id].on_snk_sampled)
-                testbed.data.workers[process_worker_id].signals.specklesLocated.connect(testbed.data.windows[process_info_window_id].on_speckles_located)
-                testbed.data.workers[process_worker_id].signals.centerLocated.connect(testbed.data.windows[process_info_window_id].on_center_located)
+    def on_center_move_clicked(self):
+        if self.source is None:
+            message_dialog = MessageDialog("Devices not selected", "Source device not selected.", icon=QMessageBox.Icon.Information, buttons=QMessageBox.StandardButton.Ok)
+            message_dialog.exec()
+        else:
+            delta = [self.source.shape[0]/2 - self.settings_widget.center[0], self.source.shape[1]/2 - self.settings_widget.center[1]]
+            # reply = self.source.move_roi(delta[0], delta[1])
+            # logger.info("reply = %s", reply)
+            logger.info("delta %s", delta)
 
     def setup_main_widget(self) -> QWidget:
         widget = QWidget(self)
         layout = QVBoxLayout(widget)
         widget.setLayout(layout)
 
+        self.settings_widget = ProcessSettingsWidget(self)
+        self.settings_widget.move_pushbutton.clicked.connect(self.on_center_move_clicked)
+
         self.devices_widget = DevicesSetupWidget(testbed.data.devices, parent=self)
         self.devices_widget.sourceChanged.connect(self.on_source_changed)
         self.devices_widget.sinkChanged.connect(self.on_sink_changed)
 
-        self.settings_widget = ProcessSettingsWidget(self)
-
         self.controls_widget = TaskControlsWidget(self)
         self.controls_widget.play_pause_button.clicked.connect(self.on_start_stop_clicked)
-        self.controls_widget.info_button.clicked.connect(self.open_process_info_clicked)
+        self.controls_widget.info_button.hide()
         self.controls_widget.preview_button.hide()
 
         layout.addWidget(self.devices_widget)
@@ -479,6 +559,10 @@ class ProcessWindow(Window):
         layout.addStretch(5)
 
         return widget
+
+    @Slot(float, float)
+    def on_center_located(self, xc: float, yc: float):
+        self.settings_widget.center = [xc, yc]
 
     def closeEvent(self, event):
         while testbed.data.workers:

@@ -150,134 +150,6 @@ class PreviewWindow(Window):
         event.accept()
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-# ==== SpecklePreviewSettingsWindow ===================================================================================
-class SpecklePreviewSettingsWindow(Window):
-    """
-    Settings for the modulator preview window
-    """
-
-    def __init__(self, cmap: str, parent=None):
-        super().__init__(parent, Qt.WindowType.Dialog)
-        self.cmap = cmap
-
-        self.setWindowModality(Qt.WindowModality.WindowModal)
-        self.setWindowTitle("Preview Settings")
-        layout = QVBoxLayout()
-        layout.setContentsMargins(2, 2, 2, 2)
-        layout.addWidget(self.setup_preview_settings_widget())
-        self.setLayout(layout)
-
-    def setup_preview_settings_widget(self) -> QWidget:
-        widget = QWidget(self)
-        layout = QGridLayout(widget)
-        widget.setLayout(layout)
-
-        cmap_label = QLabel("Colormap", self)
-        self.cmap_combobox = QComboBox(self)
-        self.cmap_combobox.addItems(list(colormaps))
-        self.cmap_combobox.setCurrentIndex(list(colormaps).index(self.cmap))
-
-        row = 0
-        col = 0
-        layout.addWidget(cmap_label, row, col)
-        col += 1
-        layout.addWidget(self.cmap_combobox, row, col)
-
-        return widget
-
-
-# ==== SpecklePreviewWindow ===========================================================================================
-class SpecklePreviewWindow(Window):
-    """
-    Modulator preview window
-    """
-
-    def __init__(self, modulator: Modulator, parent: QWidget | None = None):
-        super().__init__(parent, Qt.WindowType.Dialog)
-        self._modulator = modulator
-        self._sample = self._modulator.sample
-
-        self.setWindowTitle(f"{self._modulator.name} Preview")
-
-        layout = QVBoxLayout()
-        layout.setContentsMargins(2, 2, 2, 2)
-        layout.addWidget(self.setup_preview_widget())
-        self.setLayout(layout)
-
-        self.update_timer = QTimer(self)
-        self.update_timer.timeout.connect(self.on_update_timer_tick)
-        self.update_timer.start(100)  # Update window every 100 ms
-
-    @property
-    def modulator(self) -> Modulator:
-        return self._modulator
-
-    @property
-    def sample(self) -> SinkSample:
-        return self._sample
-
-    @Slot(SinkSample)
-    def on_sampled(self, _sample: SinkSample):
-        self._sample = _sample
-
-    def setup_preview_widget(self) -> QWidget:
-        widget = QWidget(self)
-        layout = QVBoxLayout(widget)
-        layout.setContentsMargins(2, 2, 2, 2)
-        widget.setLayout(layout)
-
-        self._sample = self.modulator.sample
-        self.preview_figure_widget = ModulatorFigureWidget(self.modulator.blank, self.modulator.pxmax, parent=self)
-        if self.preview_figure_widget.toolbar is not None:
-            self.preview_figure_widget.toolbar.settingsClicked.connect(self.on_preview_settings_clicked)
-
-        layout.addWidget(self.preview_figure_widget)
-
-        return widget
-
-    @Slot()
-    def on_preview_settings_clicked(self):
-        preview_settings_window = SpecklePreviewSettingsWindow(cmap=self.preview_figure_widget.cmap_name, parent=self)
-        preview_settings_window.show()
-        preview_settings_window.raise_()
-        preview_settings_window.activateWindow()
-        preview_settings_window.cmap_combobox.currentTextChanged.connect(self.on_cmap_changed)
-
-    @Slot(str)
-    def on_cmap_changed(self, colormap: str):
-        self.preview_figure_widget.cmap_name = colormap
-
-    @Slot()
-    def on_update_timer_tick(self):
-        self.preview_figure_widget.figure.get_image().set_data(flip_rotate(self.sample.command, self.preview_figure_widget.flip, self.preview_figure_widget.rotation))
-        self.preview_figure_widget.figure.canvas.draw_idle()
-
-    def closeEvent(self, event):
-        if self.update_timer.isActive():
-            self.update_timer.stop()
-        self.deleteLater()
-        event.accept()
-
-
-
-
-
-
-
 # ==== InfoWindow =====================================================================================================
 class InfoWindow(Window):
     """
@@ -387,7 +259,7 @@ class InfoWindow(Window):
         self.info_radius_value_label = QLabel(f"{self.modulator.radius}", self)
         self.info_radius_value_label.setToolTip("Radius")
 
-        self.info_hist_figure_widget = FigureWidget(Histogram_Colorbar_Preset(self.modulator.sample.command, position="bottom", vmin=0, vmax=self.modulator.pxmax, nbins=256), show_toolbar=True)
+        self.info_hist_figure_widget = FigureWidget(Histogram_Colorbar_Preset(self.modulator.sample.command, position="bottom", vmin=0, vmax=self.modulator.pxmax, nbins=256), parent=self)
         self.info_hist_figure_widget.figure.get_histogram_ax().set_ylabel("count", size=10)
         self.info_hist_figure_widget.figure.set_vlim(0, self.modulator.pxmax)
         self.info_hist_figure_widget.figure.get_cbar_ax().set_xlabel("nadu", size=10)
@@ -597,7 +469,7 @@ class SettingsWindow(Window):
             # self.modulator.push_command(np.clip(current.command + self.preset_widget.command - np.nanmean(self.preset_widget.command), 0, self.modulator.pxmax))
             pass
 
-        preset_figure_widget = ModulatorFigureWidget(self.modulator.blank, self.modulator.pxmax, True, self)
+        preset_figure_widget = ModulatorFigureWidget(self.modulator.blank, self.modulator.pxmax, parent=self)
 
         @Slot(np.ndarray)
         def on_preset_changed(command):

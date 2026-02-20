@@ -108,7 +108,7 @@ def Speckle_Nulling_Process_Plot_Preset(phs_lim: tuple[float, float], amp_lim: t
 
     """
 
-    figure = GridSpec_Layout(nrows=2, ncols=1, figure=figure)
+    figure = GridSpec_Layout(nrows=2, ncols=1, hspace=0.5, figure=figure)
 
     plot_ax_phs, plot_ax_amp = figure.get_axes()
 

@@ -286,7 +286,7 @@ class InfoWindow(Window):
         self.info_roi_value_label = QLabel(f"[({self.camera.roi['br'][0]}, {self.camera.roi['br'][1]})," f"({self.camera.roi['tl'][0]}, {self.camera.roi['tl'][1]})]", self)  # pylint: disable=W1405:inconsistent-quotes
         self.info_roi_value_label.setToolTip("Region of interest [(x1,y1),(x2,y2)]")
 
-        self.info_hist_figure_widget = FigureWidget(Histogram_Colorbar_Preset(self.camera.blank, position="bottom", vmin=0, vmax=self.camera.pxmax, nbins=256), show_toolbar=True)
+        self.info_hist_figure_widget = FigureWidget(Histogram_Colorbar_Preset(self.camera.blank, position="bottom", vmin=0, vmax=self.camera.pxmax, nbins=256), parent=self)
         self.info_hist_figure_widget.figure.get_histogram_ax().set_ylabel("count", size=10)
         self.info_hist_figure_widget.figure.get_histogram_ax().set_ylim((0, 100))
         self.info_hist_figure_widget.figure.set_vlim(0, self.camera.pxmax)

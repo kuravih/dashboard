@@ -184,7 +184,7 @@ class ProcessInfoWindow(Window):
         layout = QVBoxLayout(widget)
         layout.setContentsMargins(2, 2, 2, 2)
         widget.setLayout(layout)
-        self.process_info_figure = DOTFMeasureFigureWidget(self.source_sample.capture, self.sink_sample.command, show_toolbar=True, parent=self)
+        self.process_info_figure = DOTFMeasureFigureWidget(self.source_sample.capture, self.sink_sample.command, parent=self)
         if self.process_info_figure.toolbar is not None:
             self.process_info_figure.toolbar.settingsClicked.connect(self.on_info_settings_clicked)
         layout.addWidget(self.process_info_figure)
