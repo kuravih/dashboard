@@ -332,5 +332,5 @@ class DOTFMeasureFigureWidget(FigureWidget):
     DOTF measure figure widget
     """
 
-    def __init__(self, capture: np.ndarray, command: np.ndarray, toolitems: list[str] | None = None, parent: QWidget | None = None):
-        super().__init__(DOTF_Measure_Process_Plot_Preset(capture, command), toolitems, parent=parent)
+    def __init__(self, dotf_maps: list[NDArray[np.complex64]], toolitems: list[str] | None = None, parent: QWidget | None = None):
+        super().__init__(DOTF_Measure_Process_Plot_Preset(dotf_maps), toolitems, parent)

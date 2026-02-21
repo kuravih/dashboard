@@ -387,7 +387,7 @@ class MainWindow(QMainWindow):
     @Slot()
     def on_open_pairwise_fpwfs_clicked(self):
 
-        pairwise_fpwfs_window_id = f"{testbed.DOTF_MEASUREMENT}_window"
+        pairwise_fpwfs_window_id = f"{testbed.PAIRWISE_FPWFS}_window"
 
         @Slot()
         def on_window_closed():

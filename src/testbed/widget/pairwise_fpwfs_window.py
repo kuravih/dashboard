@@ -3,19 +3,20 @@ import numpy as np
 from pykato.log import setup_logger
 from PySide6.QtCore import Qt, Slot, QTimer
 from PySide6.QtGui import QIcon
-from PySide6.QtWidgets import QCheckBox, QDoubleSpinBox, QGridLayout, QHBoxLayout, QLabel, QSpinBox, QVBoxLayout, QWidget, QMessageBox, QComboBox
-from matplotlib import colormaps
+from PySide6.QtWidgets import QDoubleSpinBox, QGridLayout, QHBoxLayout, QLabel, QSpinBox, QVBoxLayout, QWidget, QMessageBox
 
 import testbed
 
+from ..function import DOTFProbeDirection
+from ..widget import NSpinBoxesWidget, DOTFDirectionWidget
 from ..device.camera import Camera, SourceSample
 from ..device.modulator import Modulator, SinkSample
 from ..worker.recenter_worker import ProcessWorker
 from .camera_window import InfoWindow as CameraInfoWindow
-from .camera_window import AltPreviewWindow as CameraPreviewWindow
+from .camera_window import SimplePreviewWindow as CameraPreviewWindow
 from .camera_window import SettingsWindow as CameraSettingsWindow
 from .modulator_window import InfoWindow as ModulatorInfoWindow
-from .modulator_window import AltPreviewWindow as ModulatorPreviewWindow
+from .modulator_window import SimplePreviewWindow as ModulatorPreviewWindow
 from .modulator_window import SettingsWindow as ModulatorSettingsWindow
 from .dialog import MessageDialog
 from .figure_widget import DOTFMeasureFigureWidget
@@ -34,13 +35,39 @@ logger = setup_logger(f"{_PROCESS_}_window", terminator="\n")
 
 class ProcessSettingsWidget(QWidget):
     """
-    Re-centering process settings window
+    Pairwise FPWFS process settings window
     """
 
     def __init__(self, parent=None):
         super().__init__(parent)
 
-        n_steps_label = QLabel("Steps", self)
+        probe_amp_label = QLabel("Probe Amp.", self)
+        probe_amp_label.setFixedWidth(100)
+
+        self._probe_amp_spinbox = QDoubleSpinBox(self)
+        self._probe_amp_spinbox.setMinimum(0.0)
+        self._probe_amp_spinbox.setMaximum(1.0)
+        self._probe_amp_spinbox.setSingleStep(0.1)
+        self._probe_amp_spinbox.setValue(0.5)
+        self._probe_amp_spinbox.setToolTip("Probe amplitude")
+
+        probe_size_label = QLabel("Probe size", self)
+        probe_size_label.setFixedWidth(100)
+
+        self._probe_size = NSpinBoxesWidget(2, self)
+        self._probe_size[0].setMinimum(0)
+        self._probe_size[0].setValue(2)
+        self._probe_size[0].setToolTip("Probe length")
+        self._probe_size[1].setMinimum(0)
+        self._probe_size[1].setValue(1)
+        self._probe_size[1].setToolTip("Probe width")
+
+        probe_dir_label = QLabel("Probe dir.", self)
+        probe_dir_label.setFixedWidth(100)
+
+        self._probe_dir_checkboxes = DOTFDirectionWidget(self)
+
+        n_steps_label = QLabel("Avg. Steps", self)
         n_steps_label.setFixedWidth(100)
 
         self._n_steps_spinbox = QSpinBox(self)
@@ -66,6 +93,24 @@ class ProcessSettingsWidget(QWidget):
 
         row = 0
         col = 0
+        widget_layout.addWidget(probe_amp_label, row, col)
+        col += 1
+        widget_layout.addWidget(self._probe_amp_spinbox, row, col, 1, 3)
+
+        row += 1
+        col = 0
+        widget_layout.addWidget(probe_size_label, row, col)
+        col += 1
+        widget_layout.addWidget(self._probe_size, row, col, 1, 3)
+
+        row += 1
+        col = 0
+        widget_layout.addWidget(probe_dir_label, row, col)
+        col += 1
+        widget_layout.addWidget(self._probe_dir_checkboxes, row, col, 1, 3)
+
+        row += 1
+        col = 0
         widget_layout.addWidget(n_steps_label, row, col)
         col += 1
         widget_layout.addLayout(n_steps_layout, row, col, 1, 3)
@@ -79,6 +124,18 @@ class ProcessSettingsWidget(QWidget):
         self.setLayout(widget_layout)
 
     @property
+    def probe_amplitude(self) -> float:
+        return self._probe_amp_spinbox.value()
+
+    @property
+    def probe_size(self) -> list[int]:
+        return self._probe_size.value()
+
+    @property
+    def probe_directions(self) -> list[DOTFProbeDirection]:
+        return self._probe_dir_checkboxes.value()
+
+    @property
     def n_steps(self) -> int:
         return self._n_steps_spinbox.value()
 
@@ -87,70 +144,15 @@ class ProcessSettingsWidget(QWidget):
         return self._sleep_s_spinbox.value()
 
 
-class ProcessInfoSettingsWindow(Window):
-    """
-    Settings for the re-centering process info window
-    """
-
-    def __init__(self, src_cmap_name: str, src_cmap_norm: bool, snk_cmap_name: str, parent=None):
-        super().__init__(parent, Qt.WindowType.Dialog)
-        self.src_cmap_name = src_cmap_name
-        self.src_cmap_norm = src_cmap_norm
-        self.snk_cmap_name = snk_cmap_name
-        self.setWindowModality(Qt.WindowModality.WindowModal)
-        self.setWindowTitle("Process Info Settings")
-        layout = QVBoxLayout()
-        layout.setContentsMargins(2, 2, 2, 2)
-        layout.addWidget(self.setup_settings_widget())
-        self.setLayout(layout)
-
-    def setup_settings_widget(self) -> QWidget:
-        widget = QWidget(self)
-        layout = QGridLayout(widget)
-        widget.setLayout(layout)
-
-        source_cmap_label = QLabel("Source Colormap", self)
-        self.source_cmap_combobox = QComboBox(self)
-        self.source_cmap_combobox.addItems(list(colormaps))
-        self.source_cmap_combobox.setCurrentIndex(list(colormaps).index(self.src_cmap_name))
-        self.source_log_checkbox = QCheckBox("Log", self)
-        self.source_log_checkbox.setToolTip("Log Scale")
-        self.source_log_checkbox.setChecked(self.src_cmap_norm)
-
-        sink_cmap_label = QLabel("Sink Colormap", self)
-        self.sink_cmap_combobox = QComboBox(self)
-        self.sink_cmap_combobox.addItems(list(colormaps))
-        self.sink_cmap_combobox.setCurrentIndex(list(colormaps).index(self.snk_cmap_name))
-
-        row = 0
-        col = 0
-        layout.addWidget(source_cmap_label, row, col)
-        col += 1
-        layout.addWidget(self.source_cmap_combobox, row, col)
-        col += 1
-        layout.addWidget(self.source_log_checkbox, row, col)
-
-        row += 1
-        col = 0
-        layout.addWidget(sink_cmap_label, row, col)
-        col += 1
-        layout.addWidget(self.sink_cmap_combobox, row, col)
-
-        return widget
-
-
 class ProcessInfoWindow(Window):
     """
-    Re-centering process info window
+    Pairwise FPWFS process info window
     """
 
     def __init__(self, source_sample: SourceSample, sink_sample: SinkSample, parent: QWidget | None = None):
         super().__init__(parent, Qt.WindowType.Dialog)
         self.source_sample = source_sample
         self.sink_sample = sink_sample
-
-        self.speckles = [[np.nan, np.nan], [np.nan, np.nan]]
-        self.center = [np.nan, np.nan]
 
         self.setWindowTitle("DOTF Measurement")
 
@@ -171,53 +173,17 @@ class ProcessInfoWindow(Window):
     def on_snk_sampled(self, sample: SinkSample):
         self.sink_sample = sample
 
-    @Slot(float, float, float, float)
-    def on_speckles_located(self, x1: float, y1: float, x2: float, y2: float):
-        self.speckles = [[x1, y1], [x2, y2]]
-
-    @Slot(float, float)
-    def on_center_located(self, x: float, y: float):
-        self.center = [x, y]
-
     def setup_info_widget(self) -> QWidget:
         widget = QWidget(self)
         layout = QVBoxLayout(widget)
         layout.setContentsMargins(2, 2, 2, 2)
         widget.setLayout(layout)
-        self.process_info_figure = DOTFMeasureFigureWidget(self.source_sample.capture, self.sink_sample.command, parent=self)
-        if self.process_info_figure.toolbar is not None:
-            self.process_info_figure.toolbar.settingsClicked.connect(self.on_info_settings_clicked)
+        self.process_info_figure = DOTFMeasureFigureWidget([np.zeros_like(self.source_sample.capture, dtype=np.complex64)], ["Home", "Pan", "Zoom", "Save"], parent=self)
         layout.addWidget(self.process_info_figure)
         return widget
 
     @Slot()
-    def on_info_settings_clicked(self):
-        process_info_settings_window = ProcessInfoSettingsWindow(self.process_info_figure.snk_cmap_name, self.process_info_figure.src_cmap_norm, self.process_info_figure.src_cmap_name, parent=self)
-        process_info_settings_window.show()
-        process_info_settings_window.raise_()
-        process_info_settings_window.activateWindow()
-        process_info_settings_window.source_log_checkbox.checkStateChanged.connect(self.on_src_cmap_log_changed)
-        process_info_settings_window.source_cmap_combobox.currentTextChanged.connect(self.on_src_cmap_changed)
-        process_info_settings_window.sink_cmap_combobox.currentTextChanged.connect(self.on_snk_cmap_changed)
-
-    @Slot(str)
-    def on_src_cmap_changed(self, colormap: str):
-        self.process_info_figure.src_cmap_name = colormap
-
-    @Slot(str)
-    def on_snk_cmap_changed(self, colormap: str):
-        self.process_info_figure.snk_cmap_name = colormap
-
-    @Slot(bool)
-    def on_src_cmap_log_changed(self, checked: Qt.CheckState):
-        self.process_info_figure.src_cmap_norm = checked == Qt.CheckState.Checked
-
-    @Slot()
     def on_update_timer_tick(self):
-        self.process_info_figure.set_command(self.sink_sample.command)
-        self.process_info_figure.set_capture(self.source_sample.capture)
-        self.process_info_figure.set_speckles(self.speckles)
-        self.process_info_figure.set_center(self.center)
         self.process_info_figure.figure.canvas.draw_idle()
 
     def closeEvent(self, event):
@@ -227,15 +193,17 @@ class ProcessInfoWindow(Window):
         event.accept()
 
 
+
+
 class ProcessWindow(Window):
     """
-    Re-centering process window
+    Pairwise FPWFS process window
     """
 
     def __init__(self, parent=None):
         super().__init__(parent, Qt.WindowType.Dialog)
         self.setWindowModality(Qt.WindowModality.WindowModal)
-        self.setWindowTitle("Recenter Process")
+        self.setWindowTitle("DOTF Measurement Process")
         self._sink = None
         self._source = None
 

@@ -10,7 +10,7 @@ from ..device.camera import Camera
 from ..device.modulator import Modulator
 from ..widget.resource import ICON_RUN, ICON_EYE, ICON_UP_ARROW, ICON_DOWN_ARROW, ICON_LEFT_ARROW, ICON_RIGHT_ARROW, ICON_INFO, ICON_GEAR, ICON_FOLDER, ICON_BACKSPACE
 from ..widget.dialog import MessageDialog
-from ..function import Rotation, Flip
+from ..function import Rotation, Flip, DOTFProbeDirection
 
 
 class Window(QWidget):
@@ -303,6 +303,8 @@ class NDoubleSpinBoxesWidget(QWidget):
             self._spinboxes.append(spinbox)
             layout.addWidget(spinbox)
 
+        layout.setContentsMargins(0, 0, 0, 0)
+
         self.setLayout(layout)
 
     def __getitem__(self, index) -> QDoubleSpinBox:
@@ -332,13 +334,14 @@ class NSpinBoxesWidget(QWidget):
         super().__init__(parent)
 
         layout = QHBoxLayout()
-        layout.setContentsMargins(0, 0, 0, 0)
 
         self._spinboxes = []
         for _ in range(count):
             spinbox = QSpinBox(self)
             self._spinboxes.append(spinbox)
             layout.addWidget(spinbox)
+
+        layout.setContentsMargins(0, 0, 0, 0)
 
         self.setLayout(layout)
 
@@ -915,3 +918,47 @@ class FileLoadWidget(QWidget):
         else:
             self.file_browse_button.hide()
             self.file_clear_button.show()
+
+
+class DOTFDirectionWidget(QWidget):
+    """
+    Widget with four checkboxes for the four DOTF probes (03, 06, 09 & 12 o'clock).
+
+    Function:
+        value(): List[DOTFProbeDirection]
+            List of DOTFProbeDirection.
+    """
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+
+        layout = QHBoxLayout()
+
+        self._checkboxes: list[QCheckBox] = []
+
+        for _direction in DOTFProbeDirection:  # pylint: disable=invalid-name
+            checkbox = QCheckBox(_direction.to_str(), self)
+            checkbox.toggled.connect(self._on_checkbox_toggled)
+            self._checkboxes.append(checkbox)
+            layout.addWidget(checkbox)
+
+        layout.setContentsMargins(0, 0, 0, 0)
+
+        self.setLayout(layout)
+
+    def __getitem__(self, index) -> QCheckBox:
+        return self._checkboxes[index]
+
+    def __iter__(self) -> Iterator[QCheckBox]:
+        return iter(self._checkboxes)
+
+    def _on_checkbox_toggled(self, checked: bool):
+        if not any(checkbox.isChecked() for checkbox in self._checkboxes):
+            sender = self.sender()
+            if isinstance(sender, QCheckBox):
+                sender.blockSignals(True)
+                sender.setChecked(True)
+                sender.blockSignals(False)
+
+    def value(self) -> list[DOTFProbeDirection]:
+        return [direction for checkbox, direction in zip(self._checkboxes, DOTFProbeDirection) if checkbox.isChecked()]
