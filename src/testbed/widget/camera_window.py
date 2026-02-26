@@ -720,7 +720,8 @@ class AdvancePreviewWindow(SimplePreviewWindow):
 
         self._sample = self.camera.sample
         self.preview_figure_widget = SourceFigureWidget(self.camera.blank, self.camera.pxmax, alpha_mask=self.alpha_mask, parent=self)
-        self.speckle_axlines = (self.preview_figure_widget.figure.get_imshow_axes().axvline(np.nan, alpha=0.5, linewidth=0.5, color="red"), self.preview_figure_widget.figure.get_imshow_axes().axhline(np.nan, alpha=0.5, linewidth=0.5, color="red"))
+        # self.speckle_axlines = (self.preview_figure_widget.figure.get_imshow_axes().axvline(np.nan, alpha=0.5, linewidth=0.5, color="red"), self.preview_figure_widget.figure.get_imshow_axes().axhline(np.nan, alpha=0.5, linewidth=0.5, color="red"))
+        (self.speckle_plot,) = self.preview_figure_widget.figure.get_imshow_axes().plot([], [], color="red", marker="o", markersize=10, markerfacecolor="none", linestyle="none")
         if self.preview_figure_widget.toolbar is not None:
             self.preview_figure_widget.toolbar.settingsClicked.connect(self.on_preview_settings_clicked)
 
@@ -751,8 +752,10 @@ class AdvancePreviewWindow(SimplePreviewWindow):
     @Slot()
     def on_update_timer_tick(self):
         self.preview_figure_widget.figure.get_image().set_data(self.sample.capture)
-        self.speckle_axlines[0].set_xdata([self.speckle[0], self.speckle[0]])
-        self.speckle_axlines[1].set_ydata([self.speckle[1], self.speckle[1]])
+        # self.speckle_axlines[0].set_xdata([self.speckle[0], self.speckle[0]])
+        # self.speckle_axlines[1].set_ydata([self.speckle[1], self.speckle[1]])
+        self.speckle_plot.set_xdata([self.speckle[0]])
+        self.speckle_plot.set_ydata([self.speckle[1]])
         self.preview_figure_widget.figure.canvas.draw_idle()
 
 
@@ -786,8 +789,8 @@ class RecenterPreviewWindow(SimplePreviewWindow):
 
         self._sample = self.camera.sample
         self.preview_figure_widget = SourceFigureWidget(self.camera.blank, self.camera.pxmax, parent=self)
-        self.speckles_axlines = ((self.preview_figure_widget.figure.get_imshow_axes().axvline(np.nan, alpha=0.5, linewidth=0.5, color="red"), self.preview_figure_widget.figure.get_imshow_axes().axhline(np.nan, alpha=0.5, linewidth=0.5, color="red")), (self.preview_figure_widget.figure.get_imshow_axes().axvline(np.nan, alpha=0.5, linewidth=0.5, color="red"), self.preview_figure_widget.figure.get_imshow_axes().axhline(np.nan, alpha=0.5, linewidth=0.5, color="red")))
-        self.center_axlines = (self.preview_figure_widget.figure.get_imshow_axes().axvline(np.nan, alpha=0.5, linewidth=0.5, color="blue"), self.preview_figure_widget.figure.get_imshow_axes().axhline(np.nan, alpha=0.5, linewidth=0.5, color="blue"))
+        (self.speckles_plot,) = self.preview_figure_widget.figure.get_imshow_axes().plot([], [], color="red", marker="o", markersize=10, markerfacecolor="none", linestyle="none")
+        (self.center_plot,) = self.preview_figure_widget.figure.get_imshow_axes().plot([], [], color="blue", marker="o", markersize=10, markerfacecolor="none", linestyle="none")
 
         if self.preview_figure_widget.toolbar is not None:
             self.preview_figure_widget.toolbar.settingsClicked.connect(self.on_preview_settings_clicked)
@@ -809,10 +812,8 @@ class RecenterPreviewWindow(SimplePreviewWindow):
     @Slot()
     def on_update_timer_tick(self):
         self.preview_figure_widget.figure.get_image().set_data(self.sample.capture)
-        self.speckles_axlines[0][0].set_xdata([self.speckles[0][0], self.speckles[0][0]])
-        self.speckles_axlines[0][1].set_ydata([self.speckles[0][1], self.speckles[0][1]])
-        self.speckles_axlines[1][0].set_xdata([self.speckles[1][0], self.speckles[1][0]])
-        self.speckles_axlines[1][1].set_ydata([self.speckles[1][1], self.speckles[1][1]])
-        self.center_axlines[0].set_xdata([self.center[0], self.center[0]])
-        self.center_axlines[1].set_ydata([self.center[1], self.center[1]])
+        self.speckles_plot.set_xdata([self.speckles[0][0], self.speckles[1][0]])
+        self.speckles_plot.set_ydata([self.speckles[0][1], self.speckles[1][1]])
+        self.center_plot.set_xdata([self.center[0]])
+        self.center_plot.set_ydata([self.center[1]])
         self.preview_figure_widget.figure.canvas.draw_idle()

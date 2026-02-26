@@ -153,7 +153,7 @@ class ProcessWindow(Window):
         self.devices_widget.source_info_button.clicked.connect(lambda _, _device=device: self.open_device_info_window(_device))
         self.devices_widget.source_settings_button.clicked.connect(lambda _, _device=device: self.open_device_settings_window(_device))
         self.devices_widget.source_preview_button.clicked.connect(lambda _, _device=device: self.open_device_preview_window(_device))
-        if self._source is not None and self._sink is not None:
+        if self.source is not None and self.sink is not None:
             self.controls_widget.preview_button.setEnabled(True)
             self.controls_widget.play_pause_button.setEnabled(True)
 
@@ -174,7 +174,7 @@ class ProcessWindow(Window):
         self.devices_widget.sink_info_button.clicked.connect(lambda _, _device=device: self.open_device_info_window(_device))
         self.devices_widget.sink_settings_button.clicked.connect(lambda _, _device=device: self.open_device_settings_window(_device))
         self.devices_widget.sink_preview_button.clicked.connect(lambda _, _device=device: self.open_device_preview_window(_device))
-        if self._source is not None and self._sink is not None:
+        if self.source is not None and self.sink is not None:
             self.controls_widget.preview_button.setEnabled(True)
             self.controls_widget.play_pause_button.setEnabled(True)
 
@@ -263,6 +263,8 @@ class ProcessWindow(Window):
             current_worker = testbed.data.workers.pop(process_worker_id)
             current_worker.stop()
             self.controls_widget.play_pause_button.setIcon(QIcon(ICON_RUN))
+            self.devices_widget.sink_settings_button.setEnabled(True)
+            self.devices_widget.source_settings_button.setEnabled(True)
 
     @Slot()
     def on_source_storage_finished(self):

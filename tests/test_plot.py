@@ -3,24 +3,24 @@ from matplotlib.figure import Figure
 
 import numpy as np
 
-from testbed.plot.preset import Speckle_Nulling_Process_Plot_Preset, Contrast_Evolution_Plot_Preset, DOTF_Measure_Process_Plot_Preset, Pairwise_FPWFS_Process_Plot_Preset
+from testbed.plot.preset import Speckle_Modulation_Plot_Preset, Contrast_Evolution_Plot_Preset, DOTF_Measurement_Plot_Preset, Pairwise_FPWFS_Process_Plot_Preset
 
 
 class TestPlotPreset(unittest.TestCase):
 
-    def test_Speckle_Nulling_Process_Plot_Preset(self):
+    def test_Speckle_Modulation_Plot_Preset(self):
         capture = np.zeros((256, 256), dtype=np.float64)
         command = np.zeros((360, 360), dtype=np.float64)
         mask = np.zeros((360, 360), dtype=np.bool)
         amp_lim = (0, 360)
         phs_lim = (0, 0.1)
 
-        speckle_nulling_process_figure = Speckle_Nulling_Process_Plot_Preset(capture, command, phs_lim, amp_lim, mask)
+        speckle_nulling_process_figure = Speckle_Modulation_Plot_Preset(capture, command, phs_lim, amp_lim, mask)
         speckle_nulling_process_figure.set_figwidth(10)
 
         self.assertIsInstance(speckle_nulling_process_figure, Figure, "Figure not created by gridspec_layout.GridSpec_Layout")
 
-        speckle_nulling_process_figure.savefig("tests/output/test_Speckle_Nulling_Process_Plot_Preset.png")
+        speckle_nulling_process_figure.savefig("tests/output/test_Speckle_Modulation_Plot_Preset.png")
 
     def test_Contrast_Evolution_Plot_Preset(self):
         contrast = np.zeros((256, 256), dtype=np.float64)
@@ -37,7 +37,7 @@ class TestPlotPreset(unittest.TestCase):
         capture = np.zeros((256, 256), dtype=np.float64)
         command = np.zeros((360, 360), dtype=np.float64)
 
-        dotf_sensing_figure = DOTF_Measure_Process_Plot_Preset(capture, command)
+        dotf_sensing_figure = DOTF_Measurement_Plot_Preset(capture, command)
         self.assertIsInstance(dotf_sensing_figure, Figure, "Figure not created by gridspec_layout.GridSpec_Layout")
         dotf_sensing_figure.set_figwidth(20)
 

@@ -26,10 +26,11 @@ from testbed.widget.pairwise_fpwfs_window import ProcessWindow as PairwiseFPWFSW
 from testbed.widget.dialog import MessageDialog
 from testbed.widget.resource import ICON_EYE, ICON_GEAR, ICON_INFO, ICON_PLAY, ICON_PAUSE
 
+from testbed.widget import IconButton
+
 from pykato.log import setup_logger
 
 logger = setup_logger("dashboard", terminator="\n")
-
 
 class MainWindow(QMainWindow):
     """
@@ -222,22 +223,22 @@ class MainWindow(QMainWindow):
                 button_layout = QHBoxLayout(cell_widget)
                 button_layout.setContentsMargins(0, 0, 0, 0)
 
-                info_button = QPushButton(QIcon(ICON_INFO), "", flat=True, parent=self)
+                info_button = IconButton(QIcon(ICON_INFO), flat=True, parent=self)
                 info_button.setFixedWidth(info_button.sizeHint().height())
                 info_button.setToolTip("Information")
                 button_layout.addWidget(info_button)
 
-                settings_button = QPushButton(QIcon(ICON_GEAR), "", flat=True, parent=self)
+                settings_button = IconButton(QIcon(ICON_GEAR), flat=True, parent=self)
                 settings_button.setFixedWidth(settings_button.sizeHint().height())
                 settings_button.setToolTip("Settings")
                 button_layout.addWidget(settings_button)
 
-                preview_button = QPushButton(QIcon(ICON_EYE), "", flat=True, parent=self)
+                preview_button = IconButton(QIcon(ICON_EYE), flat=True, parent=self)
                 preview_button.setFixedWidth(preview_button.sizeHint().height())
                 preview_button.setToolTip("Preview")
                 button_layout.addWidget(preview_button)
 
-                play_pause_button = QPushButton(QIcon(ICON_PLAY), "", flat=True, parent=self)
+                play_pause_button = IconButton(QIcon(ICON_PLAY), flat=True, parent=self)
                 play_pause_button.setFixedWidth(play_pause_button.sizeHint().height())
                 play_pause_button.setToolTip("Start")
                 button_layout.addWidget(play_pause_button)

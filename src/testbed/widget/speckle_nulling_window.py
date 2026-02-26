@@ -497,6 +497,10 @@ class ProcessWindow(Window):
         device_settings_window_id = f"{device.name}_settings_window"
         if device_settings_window_id in testbed.data.windows:
             testbed.data.windows.pop(device_settings_window_id).close()
+        if process_info_window_id in testbed.data.windows:
+            testbed.data.windows.pop(process_info_window_id).close()
+        if process_preview_window_id in testbed.data.windows:
+            testbed.data.windows.pop(process_preview_window_id).close()
         self.devices_widget.source_info_button.clicked.connect(lambda _, _device=device: self.open_device_info_window(_device))
         self.devices_widget.source_settings_button.clicked.connect(lambda _, _device=device: self.open_device_settings_window(_device))
         self.devices_widget.source_preview_button.clicked.connect(lambda _, _device=device: self.open_device_preview_window(_device))
@@ -524,6 +528,10 @@ class ProcessWindow(Window):
         device_settings_window_id = f"{device.name}_settings_window"
         if device_settings_window_id in testbed.data.windows:
             testbed.data.windows.pop(device_settings_window_id).close()
+        if process_info_window_id in testbed.data.windows:
+            testbed.data.windows.pop(process_info_window_id).close()
+        if process_preview_window_id in testbed.data.windows:
+            testbed.data.windows.pop(process_preview_window_id).close()
         self.devices_widget.sink_info_button.clicked.connect(lambda _, _device=device: self.open_device_info_window(_device))
         self.devices_widget.sink_settings_button.clicked.connect(lambda _, _device=device: self.open_device_settings_window(_device))
         self.devices_widget.sink_preview_button.clicked.connect(lambda _, _device=device: self.open_device_preview_window(_device))
@@ -620,6 +628,8 @@ class ProcessWindow(Window):
             current_worker = testbed.data.workers.pop(process_worker_id)
             current_worker.stop()
             self.controls_widget.play_pause_button.setIcon(QIcon(ICON_RUN))
+            self.devices_widget.sink_settings_button.setEnabled(True)
+            self.devices_widget.source_settings_button.setEnabled(True)
 
     @Slot()
     def on_source_storage_finish(self):
@@ -754,12 +764,12 @@ class ProcessWindow(Window):
         layout = QVBoxLayout(widget)
         widget.setLayout(layout)
 
-        self.settings_widget = ProcessSettingsWidget(self)
-        self.settings_widget.calibration_widget.fileChanged.connect(self.on_calibration_change)
-
         self.devices_widget = DevicesSetupWidget(testbed.data.devices, parent=self)
         self.devices_widget.sourceChanged.connect(self.on_source_changed)
         self.devices_widget.sinkChanged.connect(self.on_sink_changed)
+
+        self.settings_widget = ProcessSettingsWidget(self)
+        self.settings_widget.calibration_widget.fileChanged.connect(self.on_calibration_change)
 
         self.controls_widget = TaskControlsWidget(self)
         self.controls_widget.play_pause_button.clicked.connect(self.on_start_stop_clicked)

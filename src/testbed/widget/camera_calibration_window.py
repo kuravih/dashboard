@@ -81,7 +81,7 @@ class ProcessWindow(Window):
         self.device_widget.source_info_button.clicked.connect(lambda _, _device=device: self.open_device_info_window(_device))
         self.device_widget.source_settings_button.clicked.connect(lambda _, _device=device: self.open_device_settings_window(_device))
         self.device_widget.source_preview_button.clicked.connect(lambda _, _device=device: self.open_device_preview_window(_device))
-        if self._source is not None:
+        if self.source is not None:
             self.controls_widget.preview_button.setEnabled(True)
             self.controls_widget.play_pause_button.setEnabled(True)
 

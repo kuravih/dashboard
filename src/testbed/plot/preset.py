@@ -5,9 +5,7 @@ from matplotlib.axes import Axes
 from matplotlib.image import AxesImage
 from matplotlib.lines import Line2D
 from matplotlib.figure import Figure
-from matplotlib.gridspec import GridSpecFromSubplotSpec
 from matplotlib.ticker import MaxNLocator
-from matplotlib.ticker import FuncFormatter, LinearLocator
 from matplotlib.colors import LogNorm, Normalize
 
 import matplotlib.pyplot as plt
@@ -16,7 +14,7 @@ import matplotlib.patches as patches
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 
 from pykato.plotfunction.gridspec_layout import GridSpec_Layout
-from pykato.plotfunction.preset import _pi_formatter, patch_alpha_mask_show, patch_cmap_name, patch_cmap_norm, Imshow_Colorbar_Preset, Complex_ImageGrid_TwoColorbars_Preset
+from pykato.plotfunction.preset import patch_alpha_mask_show, patch_cmap_name, patch_cmap_norm, Imshow_Colorbar_Preset, Complex_ImageGrid_TwoColorbars_Preset
 from pykato.log import setup_logger
 
 logger = setup_logger("preset", terminator="\n")
@@ -63,13 +61,13 @@ def Image_Plot_Preset(capture: NDArray[np.float64], cmap_norm: Normalize | None 
     return figure
 
 
-def Speckle_Nulling_Process_Plot_Preset(phs_lim: tuple[float, float], amp_lim: tuple[float, float], figure: Figure | None = None) -> Figure:
+def Speckle_Modulation_Plot_Preset(phs_lim: tuple[float, float], amp_lim: tuple[float, float], figure: Figure | None = None) -> Figure:
     """
     Plot preset used to illustrate speckle nulling process.
     Consists of two plot axes for the phase and the intensity sweeps.
 
     Examples:
-        figure = Speckle_Nulling_Process_Plot_Preset(phs_lim, amp_lim)
+        figure = Speckle_Modulation_Plot_Preset(phs_lim, amp_lim)
 
     Parameters:
         phs_lim: tuple[float, float]
@@ -239,7 +237,8 @@ def Contrast_Evolution_Plot_Preset(contrast: np.ndarray, n_iteration: int, dark_
     image_ax.set_ylabel("px", size=10)
     image_ax.axhline(contrast.shape[0] / 2 - 0.5, alpha=0.25, linewidth=0.5, color="white")
     image_ax.axvline(contrast.shape[1] / 2 - 0.5, alpha=0.25, linewidth=0.5, color="white")
-    speckle = (image_ax.axvline(np.nan, alpha=0.5, linewidth=0.5, color="red"), image_ax.axhline(np.nan, alpha=0.5, linewidth=0.5, color="red"))
+    # speckle = (image_ax.axvline(np.nan, alpha=0.5, linewidth=0.5, color="red"), image_ax.axhline(np.nan, alpha=0.5, linewidth=0.5, color="red"))
+    (speckle,) = image_ax.plot([], [], color="red", marker="o", markersize=10, markerfacecolor="none", linestyle="none")
     image_ax.add_patch(patches.Circle((contrast.shape[0] / 2 - 0.5, contrast.shape[1] / 2 - 0.5), radius=contrast.shape[1] / 2, fill=False, alpha=0.25, linewidth=0.5, color="white", transform=image_ax.transData))
     imshow_image = image_ax.imshow(contrast)
     image_ax.set_facecolor("black")
@@ -269,10 +268,10 @@ def Contrast_Evolution_Plot_Preset(contrast: np.ndarray, n_iteration: int, dark_
     # -----------------------------------------------------------------------------------------------------------------
 
     # -----------------------------------------------------------------------------------------------------------------
-    def _get_image_ax() -> Axes:
-        return image_ax
+    def _get_image_axes() -> Axes:
+        return image_axes
 
-    figure.get_image_ax = _get_image_ax
+    figure.get_image_axes = _get_image_axes
     # -----------------------------------------------------------------------------------------------------------------
 
     # -----------------------------------------------------------------------------------------------------------------
@@ -283,14 +282,14 @@ def Contrast_Evolution_Plot_Preset(contrast: np.ndarray, n_iteration: int, dark_
     # -----------------------------------------------------------------------------------------------------------------
 
     # -----------------------------------------------------------------------------------------------------------------
-    def _get_plot_ax() -> Axes:
-        return plot_ax
+    def _get_plot_axes() -> Axes:
+        return plot_axes
 
-    figure.get_plot_ax = _get_plot_ax
+    figure.get_plot_axes = _get_plot_axes
     # -----------------------------------------------------------------------------------------------------------------
 
     # -----------------------------------------------------------------------------------------------------------------
-    def _get_speckle() -> tuple[Line2D, Line2D]:
+    def _get_speckle() -> Line2D:
         return speckle
 
     figure.get_speckle = _get_speckle
@@ -315,183 +314,45 @@ def Contrast_Evolution_Plot_Preset(contrast: np.ndarray, n_iteration: int, dark_
     return figure
 
 
-def DOTF_Measure_Process_Plot_Preset(dotf_maps: list[NDArray[np.complex64]], figure: Figure | None = None) -> Figure:
+def DOTF_Measurement_Plot_Preset(dotf_maps: dict[int, NDArray[np.complex64]], figure: Figure | None = None) -> Figure:
+    """
+    Plot preset used to illustrate DOTF wavefront measurement process.
+    Consists of complex image plot axes to display DOTF maps.
 
-    # """
-    # Plot preset used to illustrate DOTF wavefront measurement process.
-    # Consists of complex image plot axes to display DOTF maps.
+    Examples:
+        figure = DOTF_Sensing_Process_Plot_Preset(capture, command)
+    """
 
-    # Examples:
-    #     figure = DOTF_Sensing_Process_Plot_Preset(capture, command)
-    # """
+    figure = Complex_ImageGrid_TwoColorbars_Preset(dotf_maps.values(), figure=figure)
 
-    figure = Complex_ImageGrid_TwoColorbars_Preset(dotf_maps, figure=figure)
-
-    for index, imshow_ax in enumerate(figure.get_imshow_axes_list()):
-        imshow_ax.set_xlabel("px", size=10)
+    imshow_image_dict = {}
+    for index, (imshow_axes, image, key) in enumerate(zip(figure.get_imshow_axes_list(), figure.get_image_list(), dotf_maps.keys())):
+        imshow_axes.set_title(f"{key:02d}", size=10)
+        imshow_axes.set_xlabel("px", size=10)
         if index == 0:
-            imshow_ax.set_ylabel("px", size=10)
+            imshow_axes.set_ylabel("px", size=10)
+        imshow_image_dict[key] = image
 
-    # gs = figure.get_gridspec()
+    # -----------------------------------------------------------------------------------------------------------------
+    def _get_image_dict() -> dict[int, AxesImage]:
+        return imshow_image_dict
 
-    # # ---- sink -------------------------------------------------------------------------------------------------------
-    # imshow_ax_sink = figure.add_subplot(gs[0])
-    # imshow_ax_sink.set_title("Command", size=10)
-    # imshow_ax_sink.set_xlabel("px", size=10)
-    # imshow_ax_sink.set_ylabel("px", size=10)
-    # imshow_ax_sink.axhline(command.shape[0] / 2 - 0.5, alpha=0.25, linewidth=0.5, color="white")
-    # imshow_ax_sink.axvline(command.shape[1] / 2 - 0.5, alpha=0.25, linewidth=0.5, color="white")
-    # imshow_ax_sink.add_patch(patches.Circle((command.shape[0] / 2 - 0.5, command.shape[1] / 2 - 0.5), radius=command.shape[1] / 2, fill=False, alpha=0.25, linewidth=0.5, color="white", transform=imshow_ax_sink.transData))
-    # imshow_image_sink = imshow_ax_sink.imshow(command)
-    # imshow_image_sink.set_clim(0, 2**16 - 1)
-    # imshow_ax_sink.invert_yaxis()
-
-    # divider = make_axes_locatable(imshow_ax_sink)
-
-    # colorbar_ax_sink = divider.append_axes("right", size="5%", pad=0.1)
-    # figure.colorbar(imshow_image_sink, cax=colorbar_ax_sink)
-    # colorbar_ax_sink.set_title("adu", size=10)
-    # # ---- sink -------------------------------------------------------------------------------------------------------
-
-    # # ---- source -----------------------------------------------------------------------------------------------------
-    # imshow_ax_source = divider.append_axes("right", size="100%", pad=1.5)
-    # imshow_ax_source.set_title("Capture", size=10)
-    # imshow_ax_source.set_xlabel("px", size=10)
-    # imshow_ax_source.set_ylabel("px", size=10)
-    # imshow_ax_source.axhline(capture.shape[0] / 2, alpha=0.25, linewidth=0.5, color="white")
-    # imshow_ax_source.axvline(capture.shape[1] / 2, alpha=0.25, linewidth=0.5, color="white")
-    # imshow_ax_source.add_patch(patches.Circle((capture.shape[0] / 2, capture.shape[1] / 2), radius=225, fill=False, alpha=0.25, linewidth=0.5, color="white", transform=imshow_ax_source.transData))
-    # imshow_image_source = imshow_ax_source.imshow(capture)
-    # imshow_ax_source.set_facecolor("black")
-    # imshow_ax_source.invert_yaxis()
-
-    # colorbar_ax_source = divider.append_axes("right", size="5%", pad=0.1)
-    # figure.colorbar(imshow_image_source, cax=colorbar_ax_source)
-    # colorbar_ax_source.set_title("adu", size=10)
-    # # ---- source -----------------------------------------------------------------------------------------------------
-
-    # # ---- dotf -------------------------------------------------------------------------------------------------------
-    # imshow_ax_dotf = divider.append_axes("right", size="100%", pad=1.5)
-    # imshow_ax_dotf.set_title("DOTF", size=10)
-    # imshow_ax_dotf.set_xlabel("px", size=10)
-    # imshow_ax_dotf.set_ylabel("px", size=10)
-    # imshow_ax_dotf.axhline(capture.shape[0] / 2, alpha=0.25, linewidth=0.5, color="white")
-    # imshow_ax_dotf.axvline(capture.shape[1] / 2, alpha=0.25, linewidth=0.5, color="white")
-    # bg_imshow_image_dotf = imshow_ax_dotf.imshow(np.zeros_like(capture, dtype=float), "gray", vmin=0, vmax=1)
-    # imshow_image_dotf = imshow_ax_dotf.imshow(np.zeros_like(capture, dtype=float), alpha=np.zeros_like(capture, dtype=float), cmap="hsv", vmin=-np.pi, vmax=np.pi)
-    # imshow_ax_dotf.set_facecolor("black")
-    # imshow_ax_dotf.invert_yaxis()
-
-    # arg_colorbar_ax_dotf = divider.append_axes("right", size="5%", pad=0.1)
-    # figure.colorbar(imshow_image_dotf, cax=arg_colorbar_ax_dotf)
-    # arg_colorbar_ax_dotf.yaxis.set_major_locator(LinearLocator(numticks=9))
-    # arg_colorbar_ax_dotf.yaxis.set_major_formatter(FuncFormatter(_pi_formatter))
-    # arg_colorbar_ax_dotf.set_title("arg", size=10)
-
-    # mod_colorbar_ax_dotf = divider.append_axes("right", size="5%", pad=0.4)
-    # figure.colorbar(bg_imshow_image_dotf, cax=mod_colorbar_ax_dotf)
-    # mod_colorbar_ax_dotf.set_title("mod", size=10)
-    # # ---- source -----------------------------------------------------------------------------------------------------
-
-    # # ---- wavefront --------------------------------------------------------------------------------------------------
-    # imshow_ax_wf = divider.append_axes("right", size="100%", pad=1.5)
-    # imshow_ax_wf.set_title("Wavefront", size=10)
-    # imshow_ax_wf.set_xlabel("px", size=10)
-    # imshow_ax_wf.set_ylabel("px", size=10)
-    # imshow_ax_wf.axhline(capture.shape[0] / 2, alpha=0.25, linewidth=0.5, color="white")
-    # imshow_ax_wf.axvline(capture.shape[1] / 2, alpha=0.25, linewidth=0.5, color="white")
-    # imshow_ax_wf.add_patch(patches.Circle((capture.shape[0] / 2, capture.shape[1] / 2), radius=225, fill=False, alpha=0.25, linewidth=0.5, color="white", transform=imshow_ax_wf.transData))
-    # bg_imshow_image_wf = imshow_ax_wf.imshow(np.zeros_like(capture, dtype=float), "gray", vmin=0, vmax=1)
-    # imshow_image_wf = imshow_ax_wf.imshow(np.zeros_like(capture, dtype=float), alpha=np.zeros_like(capture, dtype=float), cmap="hsv", vmin=-np.pi, vmax=np.pi)
-    # imshow_ax_wf.set_facecolor("black")
-    # imshow_ax_wf.invert_yaxis()
-
-    # arg_colorbar_ax_wf = divider.append_axes("right", size="5%", pad=0.1)
-    # figure.colorbar(imshow_image_wf, cax=arg_colorbar_ax_wf)
-    # arg_colorbar_ax_wf.yaxis.set_major_locator(LinearLocator(numticks=9))
-    # arg_colorbar_ax_wf.yaxis.set_major_formatter(FuncFormatter(_pi_formatter))
-    # arg_colorbar_ax_wf.set_title("arg", size=10)
-
-    # mod_colorbar_ax_wf = divider.append_axes("right", size="5%", pad=0.4)
-    # figure.colorbar(bg_imshow_image_wf, cax=mod_colorbar_ax_wf)
-    # mod_colorbar_ax_wf.set_title("mod", size=10)
-    # # ---- wavefront --------------------------------------------------------------------------------------------------
+    figure.get_image_dict = _get_image_dict
+    # -----------------------------------------------------------------------------------------------------------------
 
     return figure
 
 
-def Pairwise_FPWFS_Process_Plot_Preset(capture: NDArray[np.float64], command: NDArray[np.float64], figure: Figure | None = None) -> Figure:
+def Wavefront_Plot_Preset(wavefront: NDArray[np.complex64], figure: Figure | None = None) -> Figure:
     """
-    Plot preset used to illustrate pairwise FPWF process.
-    Consists of two Imshow axes with corresponding colorbars for the capture and the command.
-    Third Imshow displays the measure wavefront.
+    Plot preset used to illustrate wavefronts.
 
     Examples:
-        figure = Pairwise_FPWFS_Process_Plot_Preset(capture, command)
+        figure = Wavefront_Plot_Preset(wavefront)
     """
 
-    figure = GridSpec_Layout(nrows=1, ncols=1, init=False, figure=figure)
-
-    gs = figure.get_gridspec()
-
-    # ---- sink -------------------------------------------------------------------------------------------------------
-    imshow_ax_sink = figure.add_subplot(gs[0])
-    imshow_ax_sink.set_title("Command", size=10)
-    imshow_ax_sink.set_xlabel("px", size=10)
-    imshow_ax_sink.set_ylabel("px", size=10)
-    imshow_ax_sink.axhline(command.shape[0] / 2 - 0.5, alpha=0.25, linewidth=0.5, color="white")
-    imshow_ax_sink.axvline(command.shape[1] / 2 - 0.5, alpha=0.25, linewidth=0.5, color="white")
-    imshow_ax_sink.add_patch(patches.Circle((command.shape[0] / 2 - 0.5, command.shape[1] / 2 - 0.5), radius=command.shape[1] / 2, fill=False, alpha=0.25, linewidth=0.5, color="white", transform=imshow_ax_sink.transData))
-    imshow_image_sink = imshow_ax_sink.imshow(command)
-    imshow_image_sink.set_clim(0, 2**16 - 1)
-    imshow_ax_sink.invert_yaxis()
-
-    divider = make_axes_locatable(imshow_ax_sink)
-
-    colorbar_ax_sink = divider.append_axes("right", size="5%", pad=0.1)
-    figure.colorbar(imshow_image_sink, cax=colorbar_ax_sink)
-    colorbar_ax_sink.set_title("adu", size=10)
-    # ---- sink -------------------------------------------------------------------------------------------------------
-
-    # ---- source -----------------------------------------------------------------------------------------------------
-    imshow_ax_source = divider.append_axes("right", size="100%", pad=1.5)
-    imshow_ax_source.set_title("Capture", size=10)
-    imshow_ax_source.set_xlabel("px", size=10)
-    imshow_ax_source.set_ylabel("px", size=10)
-    imshow_ax_source.axhline(capture.shape[0] / 2, alpha=0.25, linewidth=0.5, color="white")
-    imshow_ax_source.axvline(capture.shape[1] / 2, alpha=0.25, linewidth=0.5, color="white")
-    imshow_ax_source.add_patch(patches.Circle((capture.shape[0] / 2, capture.shape[1] / 2), radius=225, fill=False, alpha=0.25, linewidth=0.5, color="white", transform=imshow_ax_source.transData))
-    imshow_image_source = imshow_ax_source.imshow(capture)
-    imshow_ax_source.set_facecolor("black")
-    imshow_ax_source.invert_yaxis()
-
-    colorbar_ax_source = divider.append_axes("right", size="5%", pad=0.1)
-    figure.colorbar(imshow_image_source, cax=colorbar_ax_source)
-    colorbar_ax_source.set_title("adu", size=10)
-    # ---- source -----------------------------------------------------------------------------------------------------
-
-    # ---- wavefront --------------------------------------------------------------------------------------------------
-    imshow_ax_wf = divider.append_axes("right", size="100%", pad=1.5)
-    imshow_ax_wf.set_title("Wavefront", size=10)
-    imshow_ax_wf.set_xlabel("px", size=10)
-    imshow_ax_wf.set_ylabel("px", size=10)
-    imshow_ax_wf.axhline(capture.shape[0] / 2, alpha=0.25, linewidth=0.5, color="white")
-    imshow_ax_wf.axvline(capture.shape[1] / 2, alpha=0.25, linewidth=0.5, color="white")
-    imshow_ax_wf.add_patch(patches.Circle((capture.shape[0] / 2, capture.shape[1] / 2), radius=225, fill=False, alpha=0.25, linewidth=0.5, color="white", transform=imshow_ax_wf.transData))
-    bg_imshow_image_wf = imshow_ax_wf.imshow(np.zeros_like(capture, dtype=float), "gray", vmin=0, vmax=1)
-    imshow_image_wf = imshow_ax_wf.imshow(np.zeros_like(capture, dtype=float), alpha=np.zeros_like(capture, dtype=float), cmap="hsv", vmin=-np.pi, vmax=np.pi)
-    imshow_ax_wf.set_facecolor("black")
-    imshow_ax_wf.invert_yaxis()
-
-    arg_colorbar_ax_wf = divider.append_axes("right", size="5%", pad=0.1)
-    figure.colorbar(imshow_image_wf, cax=arg_colorbar_ax_wf)
-    arg_colorbar_ax_wf.yaxis.set_major_locator(LinearLocator(numticks=9))
-    arg_colorbar_ax_wf.yaxis.set_major_formatter(FuncFormatter(_pi_formatter))
-    arg_colorbar_ax_wf.set_title("arg", size=10)
-
-    mod_colorbar_ax_wf = divider.append_axes("right", size="5%", pad=0.4)
-    figure.colorbar(bg_imshow_image_wf, cax=mod_colorbar_ax_wf)
-    mod_colorbar_ax_wf.set_title("mod", size=10)
-    # ---- wavefront --------------------------------------------------------------------------------------------------
+    figure = Complex_Imshow_TwoColorbars_Preset(wavefront)
+    figure.get_imshow_axes().set_xlabel("px", size=10)
+    figure.get_imshow_axes().set_ylabel("px", size=10)
 
     return figure

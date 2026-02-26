@@ -7,10 +7,9 @@ from PySide6.QtWidgets import QDoubleSpinBox, QGridLayout, QHBoxLayout, QLabel, 
 
 import testbed
 
-from ..function import DOTFProbeDirection
-from ..widget import NSpinBoxesWidget, DOTFDirectionWidget
-from ..device.camera import Camera, SourceSample
-from ..device.modulator import Modulator, SinkSample
+from ..widget import NSpinBoxesWidget
+from ..device.camera import Camera
+from ..device.modulator import Modulator
 from ..worker.recenter_worker import ProcessWorker
 from .camera_window import InfoWindow as CameraInfoWindow
 from .camera_window import SimplePreviewWindow as CameraPreviewWindow
@@ -62,22 +61,17 @@ class ProcessSettingsWidget(QWidget):
         self._probe_size[1].setValue(1)
         self._probe_size[1].setToolTip("Probe width")
 
-        probe_dir_label = QLabel("Probe dir.", self)
-        probe_dir_label.setFixedWidth(100)
+        n_reps_label = QLabel("Reps", self)
+        n_reps_label.setFixedWidth(100)
 
-        self._probe_dir_checkboxes = DOTFDirectionWidget(self)
+        self._n_reps_spinbox = QSpinBox(self)
+        self._n_reps_spinbox.setRange(0, 9999)
+        self._n_reps_spinbox.setSingleStep(1)
+        self._n_reps_spinbox.setValue(2)
+        self._n_reps_spinbox.setToolTip("Number of reps to average")
 
-        n_steps_label = QLabel("Avg. Steps", self)
-        n_steps_label.setFixedWidth(100)
-
-        self._n_steps_spinbox = QSpinBox(self)
-        self._n_steps_spinbox.setRange(0, 9999)
-        self._n_steps_spinbox.setSingleStep(1)
-        self._n_steps_spinbox.setValue(2)
-        self._n_steps_spinbox.setToolTip("Number of steps")
-
-        n_steps_layout = QHBoxLayout()
-        n_steps_layout.addWidget(self._n_steps_spinbox)
+        n_reps_layout = QHBoxLayout()
+        n_reps_layout.addWidget(self._n_reps_spinbox)
 
         sleep_label = QLabel("Sleep", self)
         sleep_label.setFixedWidth(100)
@@ -105,15 +99,9 @@ class ProcessSettingsWidget(QWidget):
 
         row += 1
         col = 0
-        widget_layout.addWidget(probe_dir_label, row, col)
+        widget_layout.addWidget(n_reps_label, row, col)
         col += 1
-        widget_layout.addWidget(self._probe_dir_checkboxes, row, col, 1, 3)
-
-        row += 1
-        col = 0
-        widget_layout.addWidget(n_steps_label, row, col)
-        col += 1
-        widget_layout.addLayout(n_steps_layout, row, col, 1, 3)
+        widget_layout.addLayout(n_reps_layout, row, col, 1, 3)
 
         row += 1
         col = 0
@@ -128,16 +116,12 @@ class ProcessSettingsWidget(QWidget):
         return self._probe_amp_spinbox.value()
 
     @property
-    def probe_size(self) -> list[int]:
-        return self._probe_size.value()
+    def probe_size(self) -> tuple[int, int]:
+        return tuple(self._probe_size.value())
 
     @property
-    def probe_directions(self) -> list[DOTFProbeDirection]:
-        return self._probe_dir_checkboxes.value()
-
-    @property
-    def n_steps(self) -> int:
-        return self._n_steps_spinbox.value()
+    def n_reps(self) -> int:
+        return self._n_reps_spinbox.value()
 
     @property
     def sleep_s(self) -> float:
@@ -149,12 +133,10 @@ class ProcessInfoWindow(Window):
     Pairwise FPWFS process info window
     """
 
-    def __init__(self, source_sample: SourceSample, sink_sample: SinkSample, parent: QWidget | None = None):
+    def __init__(self, parent: QWidget | None = None):
         super().__init__(parent, Qt.WindowType.Dialog)
-        self.source_sample = source_sample
-        self.sink_sample = sink_sample
 
-        self.setWindowTitle("DOTF Measurement")
+        self.setWindowTitle("Focal Plane Wavefront Measurement")
 
         layout = QVBoxLayout()
         layout.setContentsMargins(2, 2, 2, 2)
@@ -164,14 +146,6 @@ class ProcessInfoWindow(Window):
         self.update_timer = QTimer(self)
         self.update_timer.timeout.connect(self.on_update_timer_tick)
         self.update_timer.start(100)  # Update window every 100 ms
-
-    @Slot(SourceSample)
-    def on_src_sampled(self, sample: SourceSample):
-        self.source_sample = sample
-
-    @Slot(SinkSample)
-    def on_snk_sampled(self, sample: SinkSample):
-        self.sink_sample = sample
 
     def setup_info_widget(self) -> QWidget:
         widget = QWidget(self)
@@ -203,7 +177,7 @@ class ProcessWindow(Window):
     def __init__(self, parent=None):
         super().__init__(parent, Qt.WindowType.Dialog)
         self.setWindowModality(Qt.WindowModality.WindowModal)
-        self.setWindowTitle("DOTF Measurement Process")
+        self.setWindowTitle("Pairwise FPWFS Process")
         self._sink = None
         self._source = None
 
@@ -237,7 +211,7 @@ class ProcessWindow(Window):
         self.devices_widget.source_info_button.clicked.connect(lambda _, _device=device: self.open_device_info_window(_device))
         self.devices_widget.source_settings_button.clicked.connect(lambda _, _device=device: self.open_device_settings_window(_device))
         self.devices_widget.source_preview_button.clicked.connect(lambda _, _device=device: self.open_device_preview_window(_device))
-        if self._source is not None and self._sink is not None:
+        if self.source is not None and self.sink is not None:
             self.controls_widget.info_button.setEnabled(True)
             self.controls_widget.play_pause_button.setEnabled(True)
 
@@ -258,7 +232,7 @@ class ProcessWindow(Window):
         self.devices_widget.sink_info_button.clicked.connect(lambda _, _device=device: self.open_device_info_window(_device))
         self.devices_widget.sink_settings_button.clicked.connect(lambda _, _device=device: self.open_device_settings_window(_device))
         self.devices_widget.sink_preview_button.clicked.connect(lambda _, _device=device: self.open_device_preview_window(_device))
-        if self._source is not None and self._sink is not None:
+        if self.source is not None and self.sink is not None:
             self.controls_widget.info_button.setEnabled(True)
             self.controls_widget.play_pause_button.setEnabled(True)
 
@@ -412,7 +386,7 @@ class ProcessWindow(Window):
         def on_window_closed():
             testbed.data.windows.pop(process_info_window_id, None)
 
-        if process_info_window_id not in testbed.data.windows and self._source is not None and self._sink is not None:
+        if process_info_window_id not in testbed.data.windows and self.source is not None and self.sink is not None:
             process_info_window = ProcessInfoWindow(self._source.sample, self._sink.sample, parent=self)
             process_info_window.destroyed.connect(on_window_closed)
             process_info_window.show()

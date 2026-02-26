@@ -8,7 +8,7 @@ from ..device.camera import Camera
 from ..device.modulator import Modulator
 from . import Worker, WorkerSignals
 
-_PROCESS_ = testbed.DOTF_MEASUREMENT
+_PROCESS_ = testbed.PAIRWISE_FPWFS
 
 logger = setup_logger(f"{_PROCESS_}_worker", terminator="\n")
 

@@ -1,9 +1,9 @@
 from collections.abc import Iterator, Callable
 import numpy as np
 import time
-from PySide6.QtWidgets import QWidget, QHBoxLayout, QVBoxLayout, QDoubleSpinBox, QSpinBox, QComboBox, QPushButton, QLabel, QProgressBar, QGridLayout, QSpacerItem, QSizePolicy, QToolTip, QRadioButton, QButtonGroup, QCheckBox, QLineEdit, QFileDialog, QMessageBox
-from PySide6.QtCore import Signal, Slot, Qt, QFileInfo
-from PySide6.QtGui import QIcon, QCursor
+from PySide6.QtWidgets import QWidget, QHBoxLayout, QVBoxLayout, QDoubleSpinBox, QSpinBox, QComboBox, QPushButton, QLabel, QProgressBar, QGridLayout, QSpacerItem, QSizePolicy, QToolTip, QRadioButton, QButtonGroup, QCheckBox, QLineEdit, QFileDialog, QMessageBox, QStyle
+from PySide6.QtCore import Signal, Slot, Qt, QFileInfo, QSize
+from PySide6.QtGui import QIcon, QCursor, QPixmap, QPainter, QColor
 
 from ..device import Device
 from ..device.camera import Camera
@@ -94,19 +94,19 @@ class DevicesSetupWidget(QWidget):
 
         sink_device_combobox.currentTextChanged.connect(on_sink_device_select)
 
-        self.sink_info_button = QPushButton(QIcon(ICON_INFO), "")
+        self.sink_info_button = IconButton(QIcon(ICON_INFO), parent=self)
         self.sink_info_button.setEnabled(False)
         self.sink_info_button.setFixedWidth(sink_device_combobox.sizeHint().height())
         self.sink_info_button.setFixedHeight(sink_device_combobox.sizeHint().height())
         self.sink_info_button.setToolTip("Information")
 
-        self.sink_settings_button = QPushButton(QIcon(ICON_GEAR), "")
+        self.sink_settings_button = IconButton(QIcon(ICON_GEAR), parent=self)
         self.sink_settings_button.setEnabled(False)
         self.sink_settings_button.setFixedWidth(sink_device_combobox.sizeHint().height())
         self.sink_settings_button.setFixedHeight(sink_device_combobox.sizeHint().height())
         self.sink_settings_button.setToolTip("Settings")
 
-        self.sink_preview_button = QPushButton(QIcon(ICON_EYE), "")
+        self.sink_preview_button = IconButton(QIcon(ICON_EYE), parent=self)
         self.sink_preview_button.setEnabled(False)
         self.sink_preview_button.setFixedWidth(sink_device_combobox.sizeHint().height())
         self.sink_preview_button.setFixedHeight(sink_device_combobox.sizeHint().height())
@@ -126,19 +126,19 @@ class DevicesSetupWidget(QWidget):
 
         source_device_combobox.currentTextChanged.connect(on_source_device_select)
 
-        self.source_info_button = QPushButton(QIcon(ICON_INFO), "")
+        self.source_info_button = IconButton(QIcon(ICON_INFO), parent=self)
         self.source_info_button.setEnabled(False)
         self.source_info_button.setFixedWidth(source_device_combobox.sizeHint().height())
         self.source_info_button.setFixedHeight(source_device_combobox.sizeHint().height())
         self.source_info_button.setToolTip("Information")
 
-        self.source_settings_button = QPushButton(QIcon(ICON_GEAR), "")
+        self.source_settings_button = IconButton(QIcon(ICON_GEAR), parent=self)
         self.source_settings_button.setEnabled(False)
         self.source_settings_button.setFixedWidth(source_device_combobox.sizeHint().height())
         self.source_settings_button.setFixedHeight(source_device_combobox.sizeHint().height())
         self.source_settings_button.setToolTip("Settings")
 
-        self.source_preview_button = QPushButton(QIcon(ICON_EYE), "")
+        self.source_preview_button = IconButton(QIcon(ICON_EYE), parent=self)
         self.source_preview_button.setEnabled(False)
         self.source_preview_button.setFixedWidth(source_device_combobox.sizeHint().height())
         self.source_preview_button.setFixedHeight(source_device_combobox.sizeHint().height())
@@ -816,19 +816,19 @@ class TaskControlsWidget(QWidget):
 
         self.progressbar = ProgressBar(self)
 
-        self.play_pause_button = QPushButton(QIcon(ICON_RUN), "", parent=self)
+        self.play_pause_button = IconButton(QIcon(ICON_RUN), parent=self)
         self.play_pause_button.setFixedHeight(self.progressbar.bar.sizeHint().height())
         self.play_pause_button.setFixedWidth(self.progressbar.bar.sizeHint().height())
         self.play_pause_button.setToolTip("Run Process")
         self.play_pause_button.setEnabled(False)
 
-        self.preview_button = QPushButton(QIcon(ICON_EYE), "", parent=self)
+        self.preview_button = IconButton(QIcon(ICON_EYE), parent=self)
         self.preview_button.setFixedHeight(self.progressbar.bar.sizeHint().height())
         self.preview_button.setFixedWidth(self.progressbar.bar.sizeHint().height())
         self.preview_button.setToolTip("Preview")
         self.preview_button.setEnabled(False)
 
-        self.info_button = QPushButton(QIcon(ICON_INFO), "", parent=self)
+        self.info_button = IconButton(QIcon(ICON_INFO), parent=self)
         self.info_button.setFixedHeight(self.progressbar.bar.sizeHint().height())
         self.info_button.setFixedWidth(self.progressbar.bar.sizeHint().height())
         self.info_button.setToolTip("Info")
@@ -929,6 +929,8 @@ class DOTFDirectionWidget(QWidget):
             List of DOTFProbeDirection.
     """
 
+    valueChanged = Signal(list)  # emits List[DOTFProbeDirection]
+
     def __init__(self, parent=None):
         super().__init__(parent)
 
@@ -938,6 +940,7 @@ class DOTFDirectionWidget(QWidget):
 
         for _direction in DOTFProbeDirection:  # pylint: disable=invalid-name
             checkbox = QCheckBox(_direction.to_str(), self)
+            checkbox.setChecked(True)
             checkbox.toggled.connect(self._on_checkbox_toggled)
             self._checkboxes.append(checkbox)
             layout.addWidget(checkbox)
@@ -952,6 +955,9 @@ class DOTFDirectionWidget(QWidget):
     def __iter__(self) -> Iterator[QCheckBox]:
         return iter(self._checkboxes)
 
+    def value(self) -> list[DOTFProbeDirection]:
+        return [direction for checkbox, direction in zip(self._checkboxes, DOTFProbeDirection) if checkbox.isChecked()]
+
     def _on_checkbox_toggled(self, checked: bool):
         if not any(checkbox.isChecked() for checkbox in self._checkboxes):
             sender = self.sender()
@@ -960,5 +966,74 @@ class DOTFDirectionWidget(QWidget):
                 sender.setChecked(True)
                 sender.blockSignals(False)
 
-    def value(self) -> list[DOTFProbeDirection]:
-        return [direction for checkbox, direction in zip(self._checkboxes, DOTFProbeDirection) if checkbox.isChecked()]
+        self.valueChanged.emit(self.value())
+
+
+def _tint_pixmap(src: QPixmap, color: QColor) -> QPixmap:
+    out = QPixmap(src.size())
+    out.setDevicePixelRatio(src.devicePixelRatio())
+    out.fill(Qt.transparent)  # REQUIRED
+    p = QPainter(out)
+    p.drawPixmap(0, 0, src)
+    p.setCompositionMode(QPainter.CompositionMode.CompositionMode_SourceIn)
+    p.fillRect(out.rect(), color)
+    p.end()
+    return out
+
+
+class IconButton(QPushButton):
+    """
+    A QPushButton whose icon is generated from a base QIcon and tinted
+    for Normal/Disabled, using the button's current iconSize (or style default).
+    """
+
+    def __init__(self, base_icon: QIcon, normal_hex: str = "#FFFFFF", disabled_hex: str = "#555555", *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._base_icon = base_icon
+        self._normal = QColor(normal_hex)
+        self._disabled = QColor(disabled_hex)
+        self._last_size: QSize | None = None
+        self._rebuild_icon()
+
+    def setTintColors(self, normal_hex: str, disabled_hex: str) -> None:
+        self._normal = QColor(normal_hex)
+        self._disabled = QColor(disabled_hex)
+        self._rebuild_icon(force=True)
+
+    def setBaseIcon(self, base_icon: QIcon) -> None:
+        self._base_icon = base_icon
+        self._rebuild_icon(force=True)
+
+    def _effective_icon_size(self) -> QSize:
+        sz = self.iconSize()
+        if not sz.isValid() or sz.isEmpty():
+            px = self.style().pixelMetric(QStyle.PixelMetric.PM_SmallIconSize, None, self)
+            sz = QSize(px, px)
+        return sz
+
+    def _rebuild_icon(self, force: bool = False) -> None:
+        sz = self._effective_icon_size()
+        if not force and self._last_size == sz:
+            return
+        self._last_size = QSize(sz)
+
+        # Rasterize base icon at the current size (Qt will pick DPR for the target)
+        src = self._base_icon.pixmap(sz, QIcon.Mode.Normal, QIcon.State.Off)
+
+        icon = QIcon()
+        icon.addPixmap(_tint_pixmap(src, self._normal), QIcon.Mode.Normal)
+        icon.addPixmap(_tint_pixmap(src, self._disabled), QIcon.Mode.Disabled)
+
+        super().setIcon(icon)
+
+    def changeEvent(self, event):
+        # Rebuild when style/palette/screen changes can affect icon sizes/DPR
+        t = event.type()
+        if t in (event.Type.EnabledChange, event.Type.StyleChange, event.Type.PaletteChange, event.Type.FontChange, event.Type.ScreenChangeInternal):
+            self._rebuild_icon(force=(t == event.Type.EnabledChange))
+        super().changeEvent(event)
+
+    def resizeEvent(self, event):
+        # If some code updates iconSize indirectly with layout changes, catch it
+        self._rebuild_icon()
+        super().resizeEvent(event)

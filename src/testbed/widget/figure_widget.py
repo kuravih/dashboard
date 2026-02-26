@@ -14,8 +14,8 @@ from matplotlib.colors import Normalize, LogNorm
 from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.backends.backend_qtagg import NavigationToolbar2QT
 
-from testbed.function import Flip, Rotation
-from testbed.plot.preset import Speckle_Nulling_Process_Plot_Preset, Contrast_Evolution_Plot_Preset, DOTF_Measure_Process_Plot_Preset, Image_Plot_Preset
+from testbed.function import Flip, Rotation, DOTFProbeDirection
+from testbed.plot.preset import Speckle_Modulation_Plot_Preset, Contrast_Evolution_Plot_Preset, DOTF_Measurement_Plot_Preset, Image_Plot_Preset, Wavefront_Plot_Preset
 
 from .resource import ICON_HOUSE, ICON_MOVE, ICON_MAGNIFY, ICON_DISK, ICON_GEAR
 
@@ -199,7 +199,9 @@ class SourceFigureWidget(FigureWidget):
         self.figure.get_image().set_clim(1, pxmax)
         self.figure.get_imshow_axes().set_title("Source", size=10)
         self.figure.get_imshow_axes().set_xlabel("px", size=10)
+        self.figure.get_imshow_axes().set_xlim((0-0.5, frame.shape[0]-1+0.5))
         self.figure.get_imshow_axes().set_ylabel("px", size=10)
+        self.figure.get_imshow_axes().set_ylim((0-0.5, frame.shape[1]-1+0.5))
         self.figure.get_cbar_axes().set_title("adu", size=10)
         self.figure.get_imshow_axes().axhline(frame.shape[0] / 2, alpha=0.25, linewidth=0.5, color="white")
         self.figure.get_imshow_axes().axvline(frame.shape[1] / 2, alpha=0.25, linewidth=0.5, color="white")
@@ -265,8 +267,8 @@ class ContrastFigureWidget(FigureWidget):
         self.figure.get_plot().set_ydata(contrast_curve["avg"])
 
     def set_speckle_location_data(self, speckle_location: list[float]):
-        self.figure.get_speckle()[0].set_xdata([speckle_location[0], speckle_location[0]])
-        self.figure.get_speckle()[1].set_ydata([speckle_location[1], speckle_location[1]])
+        self.figure.get_speckle().set_xdata([speckle_location[0]])
+        self.figure.get_speckle().set_ydata([speckle_location[1]])
 
     @property
     def cmap_name(self) -> str:
@@ -298,7 +300,7 @@ class SpeckleNullingFigureWidget(FigureWidget):
     """
 
     def __init__(self, phs_lim: tuple[float, float], amp_lim: tuple[float, float], toolitems: list[str] | None = None, parent: QWidget | None = None):
-        super().__init__(Speckle_Nulling_Process_Plot_Preset(phs_lim, amp_lim), toolitems, parent)
+        super().__init__(Speckle_Modulation_Plot_Preset(phs_lim, amp_lim), toolitems, parent)
         self.setMinimumHeight(512)
 
     def set_phs_data_plot(self, phs_array: np.ndarray, phs_intensity_data_array: np.ndarray):
@@ -332,5 +334,18 @@ class DOTFMeasureFigureWidget(FigureWidget):
     DOTF measure figure widget
     """
 
-    def __init__(self, dotf_maps: list[NDArray[np.complex64]], toolitems: list[str] | None = None, parent: QWidget | None = None):
-        super().__init__(DOTF_Measure_Process_Plot_Preset(dotf_maps), toolitems, parent)
+    def __init__(self, dotf_maps: dict[DOTFProbeDirection, NDArray[np.complex64]], toolitems: list[str] | None = None, parent: QWidget | None = None):
+        super().__init__(DOTF_Measurement_Plot_Preset(dotf_maps), toolitems, parent=parent)
+        self.setMinimumHeight(512)
+
+    def set_dotf_map_data(self, dotf_map: NDArray[np.complex64], direction: DOTFProbeDirection):
+        logger.info("self.figure.get_image_dict(%s) = %s", direction, self.figure.get_image_dict()[direction])
+        self.figure.get_image_dict()[direction].set_data(dotf_map)
+
+class WavefrontFigureWidget(FigureWidget):
+    """
+    DOTF measure figure widget
+    """
+
+    def __init__(self, wavefront: NDArray[np.complex64], toolitems: list[str] | None = None, parent: QWidget | None = None):
+        super().__init__(Wavefront_Plot_Preset(wavefront), toolitems, parent)
