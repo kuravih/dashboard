@@ -1,16 +1,17 @@
 import numpy as np
+from numpy.typing import NDArray
 
-from pykato.log import setup_logger
 from PySide6.QtCore import Qt, Slot, QTimer
 from PySide6.QtGui import QIcon
-from PySide6.QtWidgets import QDoubleSpinBox, QGridLayout, QHBoxLayout, QLabel, QSpinBox, QVBoxLayout, QWidget, QMessageBox
+from PySide6.QtWidgets import QDoubleSpinBox, QGridLayout, QHBoxLayout, QLabel, QSpinBox, QVBoxLayout, QWidget, QMessageBox, QCheckBox
 
 import testbed
 
-from ..widget import NSpinBoxesWidget
+from ..function import PairwiseProbeDirection
+from ..widget import PairwiseDirectionWidget
 from ..device.camera import Camera
 from ..device.modulator import Modulator
-from ..worker.recenter_worker import ProcessWorker
+from ..worker.pairwise_fpwfs_worker import ProcessWorker
 from .camera_window import InfoWindow as CameraInfoWindow
 from .camera_window import SimplePreviewWindow as CameraPreviewWindow
 from .camera_window import SettingsWindow as CameraSettingsWindow
@@ -18,10 +19,12 @@ from .modulator_window import InfoWindow as ModulatorInfoWindow
 from .modulator_window import SimplePreviewWindow as ModulatorPreviewWindow
 from .modulator_window import SettingsWindow as ModulatorSettingsWindow
 from .dialog import MessageDialog
-from .figure_widget import DOTFMeasureFigureWidget
+from .figure_widget import WavefrontFigureWidget
 from .resource import ICON_PAUSE, ICON_RUN
 
 from . import DevicesSetupWidget, TaskControlsWidget, Window
+
+from pykato.log import setup_logger
 
 _PROCESS_ = testbed.PAIRWISE_FPWFS
 process_worker_id = f"{_PROCESS_}_worker"
@@ -50,16 +53,30 @@ class ProcessSettingsWidget(QWidget):
         self._probe_amp_spinbox.setValue(0.5)
         self._probe_amp_spinbox.setToolTip("Probe amplitude")
 
-        probe_size_label = QLabel("Probe size", self)
-        probe_size_label.setFixedWidth(100)
+        probe_dξ_label = QLabel("Probe dξ", self)
+        probe_dξ_label.setFixedWidth(100)
 
-        self._probe_size = NSpinBoxesWidget(2, self)
-        self._probe_size[0].setMinimum(0)
-        self._probe_size[0].setValue(2)
-        self._probe_size[0].setToolTip("Probe length")
-        self._probe_size[1].setMinimum(0)
-        self._probe_size[1].setValue(1)
-        self._probe_size[1].setToolTip("Probe width")
+        self._probe_dξ = QDoubleSpinBox(self)
+        self._probe_dξ.setToolTip("Probe dξ")
+
+        probe_dη_label = QLabel("Probe dη", self)
+        probe_dη_label.setFixedWidth(100)
+
+        self._probe_dη = QDoubleSpinBox(self)
+        self._probe_dη.setToolTip("Probe dη")
+
+        probe_ξc_label = QLabel("Probe ξc", self)
+        probe_ξc_label.setFixedWidth(100)
+
+        self._probe_ξc = QDoubleSpinBox(self)
+        self._probe_ξc.setToolTip("Probe ξc")
+
+        probe_dir_label = QLabel("Probe dir.", self)
+        probe_dir_label.setFixedWidth(100)
+
+        self.probe_dir_checkboxes = PairwiseDirectionWidget(self)
+        self.probe_dir_checkboxes[1].setChecked(False)
+        self.probe_dir_checkboxes.setEnabled(False)
 
         n_reps_label = QLabel("Reps", self)
         n_reps_label.setFixedWidth(100)
@@ -70,8 +87,22 @@ class ProcessSettingsWidget(QWidget):
         self._n_reps_spinbox.setValue(2)
         self._n_reps_spinbox.setToolTip("Number of reps to average")
 
+        self._continuous_checkbox = QCheckBox("continuous", self)
+        self._continuous_checkbox.setToolTip("Run till stop/pause button is clicked")
+        self._continuous_checkbox.setMaximumWidth(90)
+
+        @Slot(bool)
+        def on_continuous_toggled(checked: bool):
+            if checked:
+                self._n_reps_spinbox.setEnabled(False)
+            else:
+                self._n_reps_spinbox.setEnabled(True)
+
+        self._continuous_checkbox.toggled.connect(on_continuous_toggled)
+
         n_reps_layout = QHBoxLayout()
         n_reps_layout.addWidget(self._n_reps_spinbox)
+        n_reps_layout.addWidget(self._continuous_checkbox)
 
         sleep_label = QLabel("Sleep", self)
         sleep_label.setFixedWidth(100)
@@ -93,9 +124,27 @@ class ProcessSettingsWidget(QWidget):
 
         row += 1
         col = 0
-        widget_layout.addWidget(probe_size_label, row, col)
+        widget_layout.addWidget(probe_dξ_label, row, col)
         col += 1
-        widget_layout.addWidget(self._probe_size, row, col, 1, 3)
+        widget_layout.addWidget(self._probe_dξ, row, col, 1, 3)
+
+        row += 1
+        col = 0
+        widget_layout.addWidget(probe_dη_label, row, col)
+        col += 1
+        widget_layout.addWidget(self._probe_dη, row, col, 1, 3)
+
+        row += 1
+        col = 0
+        widget_layout.addWidget(probe_ξc_label, row, col)
+        col += 1
+        widget_layout.addWidget(self._probe_ξc, row, col, 1, 3)
+
+        row += 1
+        col = 0
+        widget_layout.addWidget(probe_dir_label, row, col)
+        col += 1
+        widget_layout.addWidget(self.probe_dir_checkboxes, row, col, 1, 3)
 
         row += 1
         col = 0
@@ -116,8 +165,24 @@ class ProcessSettingsWidget(QWidget):
         return self._probe_amp_spinbox.value()
 
     @property
-    def probe_size(self) -> tuple[int, int]:
-        return tuple(self._probe_size.value())
+    def probe_dξ(self) -> float:
+        return self._probe_dξ.value()
+
+    @property
+    def probe_dη(self) -> float:
+        return self._probe_dη.value()
+
+    @property
+    def probe_ξc(self) -> float:
+        return self._probe_ξc.value()
+
+    @property
+    def probe_directions(self) -> list[PairwiseProbeDirection]:
+        return self.probe_dir_checkboxes.value()
+
+    @property
+    def continuous(self) -> bool:
+        return self._continuous_checkbox.isChecked()
 
     @property
     def n_reps(self) -> int:
@@ -133,8 +198,10 @@ class ProcessInfoWindow(Window):
     Pairwise FPWFS process info window
     """
 
-    def __init__(self, parent: QWidget | None = None):
+    def __init__(self, shape: tuple[int, int], parent: QWidget | None = None):
         super().__init__(parent, Qt.WindowType.Dialog)
+
+        self.wavefront = np.zeros(shape, dtype=np.complex64)
 
         self.setWindowTitle("Focal Plane Wavefront Measurement")
 
@@ -147,26 +214,29 @@ class ProcessInfoWindow(Window):
         self.update_timer.timeout.connect(self.on_update_timer_tick)
         self.update_timer.start(100)  # Update window every 100 ms
 
+    @Slot(np.ndarray)
+    def on_wf_sensed(self, wavefront: NDArray[np.complex64]):
+        self.wavefront[:] = wavefront[:]
+
     def setup_info_widget(self) -> QWidget:
         widget = QWidget(self)
         layout = QVBoxLayout(widget)
         layout.setContentsMargins(2, 2, 2, 2)
         widget.setLayout(layout)
-        self.process_info_figure = DOTFMeasureFigureWidget([np.zeros_like(self.source_sample.capture, dtype=np.complex64)], ["Home", "Pan", "Zoom", "Save"], parent=self)
-        layout.addWidget(self.process_info_figure)
+        self.process_info_figure_widget = WavefrontFigureWidget(self.wavefront, ["Home", "Pan", "Zoom", "Save"], parent=self)
+        layout.addWidget(self.process_info_figure_widget)
         return widget
 
     @Slot()
     def on_update_timer_tick(self):
-        self.process_info_figure.figure.canvas.draw_idle()
+        self.process_info_figure_widget.set_wavefront_data(self.wavefront)
+        self.process_info_figure_widget.figure.canvas.draw_idle()
 
     def closeEvent(self, event):
         if self.update_timer.isActive():
             self.update_timer.stop()
         self.deleteLater()
         event.accept()
-
-
 
 
 class ProcessWindow(Window):
@@ -360,7 +430,12 @@ class ProcessWindow(Window):
                     current_sink_storage_worker.stop()
                 return
 
-            worker = ProcessWorker(self.source, self.sink, self.settings_widget.n_steps)
+            if self.settings_widget.continuous:
+                self.controls_widget.progressbar.setMaximum(0)
+            else:
+                self.controls_widget.progressbar.setMaximum(self.settings_widget.n_reps)
+
+            worker = ProcessWorker(self.source, self.sink, self.settings_widget.probe_amplitude, self.settings_widget.probe_dξ, self.settings_widget.probe_dη, self.settings_widget.probe_ξc, self.settings_widget.probe_directions, self.settings_widget.n_reps)
             worker.signals.progressTicked.connect(self.on_progress_tick)
             worker.signals.finished.connect(self.on_finished)
 
@@ -373,10 +448,7 @@ class ProcessWindow(Window):
             if sink_preview_window_id in testbed.data.windows:
                 worker.signals.snkSampled.connect(testbed.data.windows[sink_preview_window_id].on_sampled)
             if process_info_window_id in testbed.data.windows:
-                worker.signals.srcSampled.connect(testbed.data.windows[process_info_window_id].on_src_sampled)
-                worker.signals.snkSampled.connect(testbed.data.windows[process_info_window_id].on_snk_sampled)
-                worker.signals.specklesLocated.connect(testbed.data.windows[process_info_window_id].on_speckles_located)
-                worker.signals.centerLocated.connect(testbed.data.windows[process_info_window_id].on_center_located)
+                worker.signals.wfSensed.connect(testbed.data.windows[process_info_window_id].on_wf_sensed)
 
             testbed.data.workers[process_worker_id] = worker
             testbed.data.threadpool.start(worker)
@@ -387,7 +459,7 @@ class ProcessWindow(Window):
             testbed.data.windows.pop(process_info_window_id, None)
 
         if process_info_window_id not in testbed.data.windows and self.source is not None and self.sink is not None:
-            process_info_window = ProcessInfoWindow(self._source.sample, self._sink.sample, parent=self)
+            process_info_window = ProcessInfoWindow(self.source.shape, parent=self)
             process_info_window.destroyed.connect(on_window_closed)
             process_info_window.show()
             process_info_window.raise_()
@@ -395,10 +467,7 @@ class ProcessWindow(Window):
             testbed.data.windows[process_info_window_id] = process_info_window
 
             if process_worker_id in testbed.data.workers:
-                testbed.data.workers[process_worker_id].signals.srcSampled.connect(testbed.data.windows[process_info_window_id].on_src_sampled)
-                testbed.data.workers[process_worker_id].signals.snkSampled.connect(testbed.data.windows[process_info_window_id].on_snk_sampled)
-                testbed.data.workers[process_worker_id].signals.specklesLocated.connect(testbed.data.windows[process_info_window_id].on_speckles_located)
-                testbed.data.workers[process_worker_id].signals.centerLocated.connect(testbed.data.windows[process_info_window_id].on_center_located)
+                testbed.data.workers[process_worker_id].signals.wfSensed.connect(testbed.data.windows[process_info_window_id].on_wf_sensed)
 
     def setup_main_widget(self) -> QWidget:
         widget = QWidget(self)

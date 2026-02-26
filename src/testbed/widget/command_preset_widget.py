@@ -6,7 +6,7 @@ from PySide6.QtCore import QFileInfo, Signal, Slot
 
 from pykato.function import gradient, checkers, sinusoid, vortex, box, polka, register, text
 from ..widget import NSpinBoxesWidget, NDoubleSpinBoxesWidget
-from ..function import dotf_probe, DOTFProbeDirection, efc_probe, EFCProbeDirection
+from ..function import dotf_probe, DOTFProbeDirection, efc_probe, PairwiseProbeDirection
 
 
 class ConstPresetWidget(QWidget):
@@ -1200,11 +1200,11 @@ class EFCPresetWidget(QWidget):
 
     changed = Signal(np.ndarray)
 
-    def param_change(self, shape: tuple[int, int], amplitude: float, dξ: float, dη: float, ξc: float, θ: float, direction: EFCProbeDirection) -> np.ndarray:  # pylint: disable=invalid-name,non-ascii-name
+    def param_change(self, shape: tuple[int, int], amplitude: float, dξ: float, dη: float, ξc: float, θ: float, direction: PairwiseProbeDirection) -> np.ndarray:  # pylint: disable=invalid-name,non-ascii-name
         return self._range * amplitude * efc_probe(shape, dξ, dη, ξc, θ, direction)
 
     def widget_change(self, amplitude_spinbox, dξ_spinbox, dη_spinbox, ξc_spinbox, θ_spinbox, direction_radiobuttons) -> np.ndarray:  # pylint: disable=invalid-name,non-ascii-name
-        selected_direction = tuple(direction for direction, radiobutton in zip(list(EFCProbeDirection), direction_radiobuttons) if radiobutton.isChecked())
+        selected_direction = tuple(direction for direction, radiobutton in zip(list(PairwiseProbeDirection), direction_radiobuttons) if radiobutton.isChecked())
         return self.param_change(self.shape, amplitude_spinbox.value(), dξ_spinbox.value(), dη_spinbox.value(), ξc_spinbox.value(), θ_spinbox.value(), selected_direction[0])
 
     def direction_widget_change(self, amplitude_spinbox, dξ_spinbox, dη_spinbox, ξc_spinbox, θ_spinbox, direction_radiobuttons) -> np.ndarray:  # pylint: disable=invalid-name,non-ascii-name
@@ -1275,12 +1275,12 @@ class EFCPresetWidget(QWidget):
 
         direction_label = QLabel("Direction", self)
 
-        direction_horizontal_radiobutton = QRadioButton(EFCProbeDirection.HORIZONTAL.to_str(), self)
+        direction_horizontal_radiobutton = QRadioButton(PairwiseProbeDirection.HORIZONTAL.to_str(), self)
         direction_horizontal_radiobutton.setFixedWidth(90)
         direction_horizontal_radiobutton.setChecked(True)
         direction_horizontal_radiobutton.clicked.connect(self.emit_direction_change)
 
-        direction_vertical_radiobutton = QRadioButton(EFCProbeDirection.VERTICAL.to_str(), self)
+        direction_vertical_radiobutton = QRadioButton(PairwiseProbeDirection.VERTICAL.to_str(), self)
         direction_vertical_radiobutton.setFixedWidth(90)
         direction_vertical_radiobutton.setChecked(False)
         direction_vertical_radiobutton.clicked.connect(self.emit_direction_change)

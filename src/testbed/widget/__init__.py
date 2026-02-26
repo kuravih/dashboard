@@ -10,7 +10,7 @@ from ..device.camera import Camera
 from ..device.modulator import Modulator
 from ..widget.resource import ICON_RUN, ICON_EYE, ICON_UP_ARROW, ICON_DOWN_ARROW, ICON_LEFT_ARROW, ICON_RIGHT_ARROW, ICON_INFO, ICON_GEAR, ICON_FOLDER, ICON_BACKSPACE
 from ..widget.dialog import MessageDialog
-from ..function import Rotation, Flip, DOTFProbeDirection
+from ..function import Rotation, Flip, DOTFProbeDirection, PairwiseProbeDirection
 
 
 class Window(QWidget):
@@ -968,6 +968,53 @@ class DOTFDirectionWidget(QWidget):
 
         self.valueChanged.emit(self.value())
 
+class PairwiseDirectionWidget(QWidget):
+    """
+    Widget with four checkboxes for horizontal/vertical pairwise probes.
+
+    Function:
+        value(): List[PairwiseProbeDirection]
+            List of PairwiseProbeDirection.
+    """
+
+    valueChanged = Signal(list)  # emits List[PairwiseProbeDirection]
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+
+        layout = QHBoxLayout()
+
+        self._checkboxes: list[QCheckBox] = []
+
+        for _direction in PairwiseProbeDirection:  # pylint: disable=invalid-name
+            checkbox = QCheckBox(_direction.to_str(), self)
+            checkbox.setChecked(True)
+            checkbox.toggled.connect(self._on_checkbox_toggled)
+            self._checkboxes.append(checkbox)
+            layout.addWidget(checkbox)
+
+        layout.setContentsMargins(0, 0, 0, 0)
+
+        self.setLayout(layout)
+
+    def __getitem__(self, index) -> QCheckBox:
+        return self._checkboxes[index]
+
+    def __iter__(self) -> Iterator[QCheckBox]:
+        return iter(self._checkboxes)
+
+    def value(self) -> list[PairwiseProbeDirection]:
+        return [direction for checkbox, direction in zip(self._checkboxes, PairwiseProbeDirection) if checkbox.isChecked()]
+
+    def _on_checkbox_toggled(self, checked: bool):
+        if not any(checkbox.isChecked() for checkbox in self._checkboxes):
+            sender = self.sender()
+            if isinstance(sender, QCheckBox):
+                sender.blockSignals(True)
+                sender.setChecked(True)
+                sender.blockSignals(False)
+
+        self.valueChanged.emit(self.value())
 
 def _tint_pixmap(src: QPixmap, color: QColor) -> QPixmap:
     out = QPixmap(src.size())

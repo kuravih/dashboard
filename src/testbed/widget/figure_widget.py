@@ -346,8 +346,11 @@ class DOTFMeasureFigureWidget(FigureWidget):
 
 class WavefrontFigureWidget(FigureWidget):
     """
-    DOTF measure figure widget
+    Wavefront figure widget
     """
 
     def __init__(self, wavefront: NDArray[np.complex64], toolitems: list[str] | None = None, parent: QWidget | None = None):
         super().__init__(Wavefront_Plot_Preset(wavefront), toolitems, parent)
+
+    def set_wavefront_data(self, wavefront: NDArray[np.complex64]):
+        self.figure.get_image().set_data(wavefront)

@@ -14,7 +14,6 @@ from ..device.modulator import Modulator
 from . import Worker, WorkerSignals
 from pykato.function import psf_to_otf
 
-
 _PROCESS_ = testbed.DOTF_MEASUREMENT
 
 logger = setup_logger(f"{_PROCESS_}_worker", terminator="\n")

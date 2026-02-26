@@ -337,7 +337,7 @@ def dotf_probe(shape: tuple[int, int], size: tuple[int, int], direction: DOTFPro
     return box(shape, _size, _center)
 
 
-class EFCProbeDirection(Enum):
+class PairwiseProbeDirection(Enum):
     HORIZONTAL = auto()
     VERTICAL = auto()
 
@@ -345,24 +345,24 @@ class EFCProbeDirection(Enum):
         return self.name.lower()
 
 
-def efc_probe(shape: tuple[int, int], dξ: float, dη: float, ξc: float, θ: float, direction: EFCProbeDirection) -> np.ndarray:
+def efc_probe(shape: tuple[int, int], dξ: float, dη: float, ξc: float, θ: float, direction: PairwiseProbeDirection) -> np.ndarray:
     """
     Create a EFC probe pattern image.
 
     Example:
-        image_efc_probe = efc_probe((200,200), 0.01, 0.01, 90, 0, EFCProbeDirection.HORIZONTAL)
+        image_efc_probe = efc_probe((200,200), 0.01, 0.01, 90, 0, PairwiseProbeDirection.HORIZONTAL)
 
     Parameters:
         shape: tuple[int, int]
             Image shape.
         dξ: float
-            Probe rectangle size in (along the EFCProbeDirection).
+            Probe rectangle size in (along the PairwiseProbeDirection).
         dη: float
-            Probe rectangle size in (perpendicular to the EFCProbeDirection).
+            Probe rectangle size in (perpendicular to the PairwiseProbeDirection).
         ξc: float
-            Period of the sinusoid (along the EFCProbeDirection).
+            Period of the sinusoid (along the PairwiseProbeDirection).
         θ: float
-            Phase of the sinusoid (along the EFCProbeDirection) in radians.
+            Phase of the sinusoid (along the PairwiseProbeDirection) in radians.
 
     Returns: np.ndarray
         Image of the EFC probe pattern.
@@ -375,7 +375,7 @@ def efc_probe(shape: tuple[int, int], dξ: float, dη: float, ξc: float, θ: fl
         _invξc_2pi_xx = (1 / ξc) * _2pi_xx
         return (np.sinc(dξ * _2pi_xx) * np.sinc(dη * _2pi_yy) * np.sin(_invξc_2pi_xx + θ) + 1) / 2
 
-    if direction == EFCProbeDirection.HORIZONTAL:
+    if direction == PairwiseProbeDirection.HORIZONTAL:
         return _efc_probe(shape, dξ, dη, ξc, θ)
     else:
         return np.rot90(_efc_probe(shape, dξ, dη, ξc, θ))

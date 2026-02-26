@@ -1,11 +1,9 @@
 import numpy as np
-
 from numpy.typing import NDArray
-from pykato.log import setup_logger
+
 from PySide6.QtCore import Qt, Slot, QTimer
 from PySide6.QtGui import QIcon
 from PySide6.QtWidgets import QDoubleSpinBox, QGridLayout, QHBoxLayout, QLabel, QSpinBox, QVBoxLayout, QWidget, QMessageBox, QCheckBox
-from tomlkit import value
 
 import testbed
 
@@ -25,6 +23,8 @@ from .figure_widget import DOTFMeasureFigureWidget
 from .resource import ICON_PAUSE, ICON_RUN
 
 from . import DevicesSetupWidget, TaskControlsWidget, Window
+
+from pykato.log import setup_logger
 
 _PROCESS_ = testbed.DOTF_MEASUREMENT
 process_worker_id = f"{_PROCESS_}_worker"
@@ -59,9 +59,11 @@ class ProcessSettingsWidget(QWidget):
         self._probe_size = NSpinBoxesWidget(2, self)
         self._probe_size[0].setMinimum(0)
         self._probe_size[0].setValue(2)
+        self._probe_size[0].setMaximum(100)
         self._probe_size[0].setToolTip("Probe length")
         self._probe_size[1].setMinimum(0)
         self._probe_size[1].setValue(1)
+        self._probe_size[1].setMaximum(100)
         self._probe_size[1].setToolTip("Probe width")
 
         probe_dir_label = QLabel("Probe dir.", self)
