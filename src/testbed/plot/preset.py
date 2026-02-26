@@ -314,19 +314,19 @@ def Contrast_Evolution_Plot_Preset(contrast: np.ndarray, n_iteration: int, dark_
     return figure
 
 
-def DOTF_Measurement_Plot_Preset(dotf_maps: dict[int, NDArray[np.complex64]], figure: Figure | None = None) -> Figure:
+def DOTF_Measurement_Plot_Preset(measure_dict: dict[int, NDArray[np.complex64]], figure: Figure | None = None) -> Figure:
     """
     Plot preset used to illustrate DOTF wavefront measurement process.
     Consists of complex image plot axes to display DOTF maps.
 
     Examples:
-        figure = DOTF_Sensing_Process_Plot_Preset(capture, command)
+        figure = DOTF_Sensing_Process_Plot_Preset(measure_dict, command)
     """
 
-    figure = Complex_ImageGrid_TwoColorbars_Preset(dotf_maps.values(), figure=figure)
+    figure = Complex_ImageGrid_TwoColorbars_Preset(measure_dict.values(), figure=figure)
 
     imshow_image_dict = {}
-    for index, (imshow_axes, image, key) in enumerate(zip(figure.get_imshow_axes_list(), figure.get_image_list(), dotf_maps.keys())):
+    for index, (imshow_axes, image, key) in enumerate(zip(figure.get_imshow_axes_list(), figure.get_image_list(), measure_dict.keys())):
         imshow_axes.set_title(f"{key:02d}", size=10)
         imshow_axes.set_xlabel("px", size=10)
         if index == 0:

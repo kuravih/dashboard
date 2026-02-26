@@ -199,9 +199,9 @@ class SourceFigureWidget(FigureWidget):
         self.figure.get_image().set_clim(1, pxmax)
         self.figure.get_imshow_axes().set_title("Source", size=10)
         self.figure.get_imshow_axes().set_xlabel("px", size=10)
-        self.figure.get_imshow_axes().set_xlim((0-0.5, frame.shape[0]-1+0.5))
+        self.figure.get_imshow_axes().set_xlim((0 - 0.5, frame.shape[0] - 1 + 0.5))
         self.figure.get_imshow_axes().set_ylabel("px", size=10)
-        self.figure.get_imshow_axes().set_ylim((0-0.5, frame.shape[1]-1+0.5))
+        self.figure.get_imshow_axes().set_ylim((0 - 0.5, frame.shape[1] - 1 + 0.5))
         self.figure.get_cbar_axes().set_title("adu", size=10)
         self.figure.get_imshow_axes().axhline(frame.shape[0] / 2, alpha=0.25, linewidth=0.5, color="white")
         self.figure.get_imshow_axes().axvline(frame.shape[1] / 2, alpha=0.25, linewidth=0.5, color="white")
@@ -294,6 +294,7 @@ class ContrastFigureWidget(FigureWidget):
     def alpha_mask_show(self, value: bool):
         self.figure.get_image().set_alpha_mask_show(value)
 
+
 class SpeckleNullingFigureWidget(FigureWidget):
     """
     Speckle Nulling Figure widget
@@ -329,18 +330,19 @@ class SpeckleNullingFigureWidget(FigureWidget):
     def amp_ax(self):
         return self.figure.amp_ax()
 
+
 class DOTFMeasureFigureWidget(FigureWidget):
     """
     DOTF measure figure widget
     """
 
-    def __init__(self, dotf_maps: dict[DOTFProbeDirection, NDArray[np.complex64]], toolitems: list[str] | None = None, parent: QWidget | None = None):
-        super().__init__(DOTF_Measurement_Plot_Preset(dotf_maps), toolitems, parent=parent)
+    def __init__(self, measure_dict: dict[DOTFProbeDirection, NDArray[np.complex64]], toolitems: list[str] | None = None, parent: QWidget | None = None):
+        super().__init__(DOTF_Measurement_Plot_Preset(measure_dict), toolitems, parent=parent)
         self.setMinimumHeight(512)
 
-    def set_dotf_map_data(self, dotf_map: NDArray[np.complex64], direction: DOTFProbeDirection):
-        logger.info("self.figure.get_image_dict(%s) = %s", direction, self.figure.get_image_dict()[direction])
-        self.figure.get_image_dict()[direction].set_data(dotf_map)
+    def set_dotf_map_data(self, probe: DOTFProbeDirection, dotf_map: NDArray[np.complex64]):
+        self.figure.get_image_dict()[probe].set_data(dotf_map)
+
 
 class WavefrontFigureWidget(FigureWidget):
     """

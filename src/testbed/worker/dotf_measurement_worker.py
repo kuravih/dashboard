@@ -23,7 +23,7 @@ logger = setup_logger(f"{_PROCESS_}_worker", terminator="\n")
 class ProcessWorkerSignals(WorkerSignals):
     srcSampled = Signal(SourceSample)
     snkSampled = Signal(SinkSample)
-    dotfMeasured = Signal(np.ndarray, DOTFProbeDirection)
+    dotfMeasured = Signal(DOTFProbeDirection, np.ndarray)
 
 
 class ProcessWorker(Worker):
@@ -102,7 +102,7 @@ class ProcessWorker(Worker):
         while ((self.n_reps is None) or (self.n_reps > i_rep)) and self._running:
             for i_dir, direction in enumerate(self.probe_directions):
                 self.dotf_measurements[direction] = self.dotf_measurements[direction] + self.measure_dotf(current_cmd, self.probe_amplitude, self.probe_size, direction)
-                self.signals.dotfMeasured.emit(self.dotf_measurements[direction]/i_rep, direction)
+                self.signals.dotfMeasured.emit(direction, self.dotf_measurements[direction]/i_rep)
 
             logger.info("%s and %s ProcessWorker.run : step %i of %i", self.source.name, self.sink.name, i_rep, self.n_reps)
 

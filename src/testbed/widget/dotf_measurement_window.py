@@ -5,6 +5,7 @@ from pykato.log import setup_logger
 from PySide6.QtCore import Qt, Slot, QTimer
 from PySide6.QtGui import QIcon
 from PySide6.QtWidgets import QDoubleSpinBox, QGridLayout, QHBoxLayout, QLabel, QSpinBox, QVBoxLayout, QWidget, QMessageBox, QCheckBox
+from tomlkit import value
 
 import testbed
 
@@ -153,7 +154,7 @@ class ProcessSettingsWidget(QWidget):
     @property
     def continuous(self) -> bool:
         return self._continuous_checkbox.isChecked()
-    
+
     @property
     def n_reps(self) -> int | None:
         return None if self.continuous else self._n_reps_spinbox.value()
@@ -171,9 +172,9 @@ class ProcessInfoWindow(Window):
     def __init__(self, shape: tuple[int, int], probe_directions: list[DOTFProbeDirection], parent: QWidget | None = None):
         super().__init__(parent, Qt.WindowType.Dialog)
 
-        self.dotf_measurements = {}
+        self.dotf_measure_dict = {}
         for direction in probe_directions:
-            self.dotf_measurements[direction] = np.zeros(shape, dtype=np.complex64)
+            self.dotf_measure_dict[direction] = np.zeros(shape, dtype=np.complex64)
 
         self.setWindowTitle("DOTF Measurement")
 
@@ -186,23 +187,23 @@ class ProcessInfoWindow(Window):
         self.update_timer.timeout.connect(self.on_update_timer_tick)
         self.update_timer.start(100)  # Update window every 100 ms
 
-    @Slot(np.ndarray, DOTFProbeDirection)
-    def on_dotf_measured(self, measurement: NDArray[np.complex64], direction: DOTFProbeDirection):
-        self.dotf_measurements[direction][:] = measurement[:]
+    @Slot(DOTFProbeDirection, np.ndarray)
+    def on_dotf_measured(self, direction: DOTFProbeDirection, measurement: NDArray[np.complex64]):
+        self.dotf_measure_dict[direction][:] = measurement[:]
 
     def setup_info_widget(self) -> QWidget:
         widget = QWidget(self)
         layout = QVBoxLayout(widget)
         layout.setContentsMargins(2, 2, 2, 2)
         widget.setLayout(layout)
-        self.process_info_figure_widget = DOTFMeasureFigureWidget(self.dotf_measurements, ["Home", "Pan", "Zoom", "Save"], parent=self)
+        self.process_info_figure_widget = DOTFMeasureFigureWidget(self.dotf_measure_dict, ["Home", "Pan", "Zoom", "Save"], parent=self)
         layout.addWidget(self.process_info_figure_widget)
         return widget
 
     @Slot()
     def on_update_timer_tick(self):
-        for direction, dotf_map in self.dotf_measurements.items():
-            self.process_info_figure_widget.set_dotf_map_data(dotf_map, direction)
+        for probe, dotf_measure in self.dotf_measure_dict.items():
+            self.process_info_figure_widget.set_dotf_map_data(probe, dotf_measure)
         self.process_info_figure_widget.figure.canvas.draw_idle()
 
     def closeEvent(self, event):
