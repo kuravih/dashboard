@@ -45,33 +45,33 @@ class ProcessWorker(Worker):
 
         # -------------------------------------------------------------------------------------------------------------
 
-        command_inc_probe = current_cmd + probe_command
-        command_inc_probe = np.clip(command_inc_probe, 0, self.sink.pxmax)
+        command_incl_probe = current_cmd + probe_command
+        command_incl_probe = np.clip(command_incl_probe, 0, self.sink.pxmax)
 
-        _inc_probe_sink_sample = self.sink.push_command(command_inc_probe.astype(np.uint16))
-        self.signals.snkSampled.emit(_inc_probe_sink_sample)
+        _incl_probe_sink_sample = self.sink.push_command(command_incl_probe.astype(np.uint16))
+        self.signals.snkSampled.emit(_incl_probe_sink_sample)
         time.sleep(0.1)
 
-        _inc_probe_source_sample = self.source.pull_capture()
-        self.signals.srcSampled.emit(_inc_probe_source_sample)
+        _incl_probe_source_sample = self.source.pull_capture()
+        self.signals.srcSampled.emit(_incl_probe_source_sample)
         time.sleep(0.2)
 
         # -------------------------------------------------------------------------------------------------------------
 
-        command_exc_probe = current_cmd[:]
-        command_exc_probe = np.clip(command_exc_probe, 0, self.sink.pxmax)
+        command_excl_probe = current_cmd[:]
+        command_excl_probe = np.clip(command_excl_probe, 0, self.sink.pxmax)
 
-        _exc_probe_sink_sample = self.sink.push_command(command_exc_probe.astype(np.uint16))
-        self.signals.snkSampled.emit(_exc_probe_sink_sample)
+        _excl_probe_sink_sample = self.sink.push_command(command_excl_probe.astype(np.uint16))
+        self.signals.snkSampled.emit(_excl_probe_sink_sample)
         time.sleep(0.1)
 
-        _exc_probe_source_sample = self.source.pull_capture()
-        self.signals.srcSampled.emit(_exc_probe_source_sample)
+        _excl_probe_source_sample = self.source.pull_capture()
+        self.signals.srcSampled.emit(_excl_probe_source_sample)
         time.sleep(0.2)
 
         # -------------------------------------------------------------------------------------------------------------
 
-        return psf_to_otf(_inc_probe_source_sample.capture) - psf_to_otf(_exc_probe_source_sample.capture)
+        return psf_to_otf(_incl_probe_source_sample.capture) - psf_to_otf(_excl_probe_source_sample.capture)
 
     @Slot()
     def run(self):

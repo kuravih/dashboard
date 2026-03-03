@@ -24,6 +24,7 @@ class Modulator(Device):
         if self._stream.port != -1:
             self._link = ZMQLink(port=self._stream.port)
             self._link.connect()
+            self.sync_settings()
         self._sample = SinkSample(self.last_access_time, self.frame_rate_fps, self.center, self.radius, self.blank)
         self.post_request = self._stream.post_request
         self.wait_for_response = self._stream.wait_for_response
