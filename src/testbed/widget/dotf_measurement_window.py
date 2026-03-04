@@ -46,11 +46,12 @@ class ProcessSettingsWidget(QWidget):
         probe_amp_label = QLabel("Probe Amp.", self)
         probe_amp_label.setFixedWidth(100)
 
-        self._probe_amp_spinbox = QDoubleSpinBox(self)
-        self._probe_amp_spinbox.setMinimum(0.0)
-        self._probe_amp_spinbox.setMaximum(1.0)
-        self._probe_amp_spinbox.setSingleStep(0.1)
-        self._probe_amp_spinbox.setValue(0.5)
+        self._probe_amp_spinbox = QSpinBox(self)
+        self._probe_amp_spinbox.setMinimum(0)
+        self._probe_amp_spinbox.setMaximum(2**16-1)
+        self._probe_amp_spinbox.setSingleStep(1)
+        self._probe_amp_spinbox.setValue(20)
+        self._probe_amp_spinbox.setSuffix(" adu")
         self._probe_amp_spinbox.setToolTip("Probe amplitude")
 
         probe_size_label = QLabel("Probe size", self)
@@ -58,11 +59,11 @@ class ProcessSettingsWidget(QWidget):
 
         self._probe_size = NSpinBoxesWidget(2, self)
         self._probe_size[0].setMinimum(0)
-        self._probe_size[0].setValue(2)
+        self._probe_size[0].setValue(20)
         self._probe_size[0].setMaximum(100)
         self._probe_size[0].setToolTip("Probe length")
         self._probe_size[1].setMinimum(0)
-        self._probe_size[1].setValue(1)
+        self._probe_size[1].setValue(10)
         self._probe_size[1].setMaximum(100)
         self._probe_size[1].setToolTip("Probe width")
 

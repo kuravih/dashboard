@@ -121,6 +121,18 @@ class Modulator(Device):
         command = {"settings": {"radius": radius}}
         reply = self.link.send_command(command)
         return reply["settings"]["radius"]
+    
+    def command_to_deflection(self, data_adu:np.ndarray) -> np.ndarray:
+        """
+        convert a command to a deflection (m)
+        """
+        return data_adu * 1e-9
+
+    def deflection_to_command(self, data_nm:np.ndarray) -> np.ndarray:
+        """
+        convert a deflection to command (m)
+        """
+        return data_nm/1e-9
 
     def __del__(self):
         logger.info("Modulator object %s removed", self.name)

@@ -41,7 +41,7 @@ class ProcessWorker(Worker):
 
     def measure_dotf(self, current_cmd: np.ndarray, probe_amplitude: float, probe_size: tuple[int, int], direction: DOTFProbeDirection) -> NDArray[np.complex64]:
 
-        probe_command = probe_amplitude * self.sink.pxmax * dotf_probe(self.sink.shape, probe_size, direction)
+        probe_command = probe_amplitude * dotf_probe(self.sink.shape, probe_size, direction)
 
         # -------------------------------------------------------------------------------------------------------------
 
@@ -79,7 +79,7 @@ class ProcessWorker(Worker):
         t_start = time.time()
 
         # ---- blank --------------------------------------------------------------------------------------------------
-        current_cmd = self.sink.pxmax * (np.zeros(self.sink.shape) + 0.5)
+        current_cmd = self.sink.pxmax * np.zeros(self.sink.shape)
 
         command = current_cmd
         command = np.clip(command, 0, self.sink.pxmax)
