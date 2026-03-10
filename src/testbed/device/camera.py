@@ -2,7 +2,7 @@ import numpy as np
 from datetime import datetime
 
 from . import Device, Stream, ZMQLink, SourceSample
-from ..function import read_camera_calibration_file, apply_camera_calibration
+from ..function import read_camera_calibration_file, capture_to_countrate
 
 from pykato.log import setup_logger
 
@@ -89,7 +89,7 @@ class Camera(Device):
         if self.calibration is not None:
             dark_rate_map = self.calibration["dark_rate"][self.roi["tl"][1]:self.roi["br"][1], self.roi["tl"][0]:self.roi["br"][0]]
             bias_map = self.calibration["bias"][self.roi["tl"][1]:self.roi["br"][1], self.roi["tl"][0]:self.roi["br"][0]]
-            capture = apply_camera_calibration(capture, self.exposure_time_s, dark_rate_map, bias_map)
+            capture = capture_to_countrate(capture, self.exposure_time_s, dark_rate_map, bias_map)
         self._sample = SourceSample(self.last_access_time, self.exposure_time_s, self.gain, self.frame_rate_fps, self.temperature_c, self.roi, capture.copy())
         return self._sample
 

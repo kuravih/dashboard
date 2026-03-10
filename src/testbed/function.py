@@ -313,10 +313,8 @@ def write_modulator_calibration_file(filename: str, slope_nm_to_adu: np.ndarray,
     fits_dr_rn_hdu.writeto(filename, overwrite=True)
 
 
-def apply_camera_calibration(capture: np.ndarray, exp_time_s: float, dark_rate: np.ndarray, bias: np.ndarray) -> np.ndarray:
+def capture_to_countrate(capture: np.ndarray, exp_time_s: float, dark_rate: np.ndarray, bias: np.ndarray) -> np.ndarray:
     """
-    Apply the camera calibration to the raw capture
-
     Parameters:
         capture: np.ndarray
             Raw capture in adu
@@ -333,10 +331,8 @@ def apply_camera_calibration(capture: np.ndarray, exp_time_s: float, dark_rate: 
     return ((capture - bias) - dark_rate * exp_time_s) / exp_time_s
 
 
-def apply_modulator_calibration(command: np.ndarray, slope: np.ndarray, flat: np.ndarray) -> np.ndarray:
+def deflection_to_command(command: np.ndarray, slope: np.ndarray, flat: np.ndarray) -> np.ndarray:
     """
-    Apply modulator calibration to command
-
     Parameters:
         command: np.ndarray
             Raw command in nm
@@ -348,7 +344,41 @@ def apply_modulator_calibration(command: np.ndarray, slope: np.ndarray, flat: np
     Returns: np.ndarray
         Command in adu
     """
-    return command * slope - flat
+    return command * slope + flat
+
+
+def command_to_deflection(command: np.ndarray, slope: np.ndarray, flat: np.ndarray) -> np.ndarray:
+    """
+    Parameters:
+        command: np.ndarray
+            Raw command in nm
+        slope: np.ndarray
+            conversion from nm to adu
+        flat: np.ndarray (adu)
+            flat command in adu.
+
+    Returns: np.ndarray
+        Command in nm
+    """
+    return (command - flat) / slope
+
+
+# def apply_modulator_calibration(command: np.ndarray, slope: np.ndarray, flat: np.ndarray) -> np.ndarray:
+#     """
+#     Apply modulator calibration to command
+
+#     Parameters:
+#         command: np.ndarray
+#             Raw command in nm
+#         slope: np.ndarray
+#             conversion from nm to adu
+#         flat: np.ndarray (adu)
+#             flat command in adu.
+
+#     Returns: np.ndarray
+#         Command in adu
+#     """
+#     return command * slope - flat
 
 
 class DOTFProbeDirection(IntEnum):

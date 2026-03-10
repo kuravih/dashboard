@@ -17,6 +17,7 @@ logger = setup_logger("modulator_window", terminator="\n")
 
 PRESETS = ["Constant", "Gradient", "Checker", "Sinusoid", "Box", "Polka", "Register", "Text", "dOTF", "Pairwise"]
 
+AMP_NM = 5.0
 
 # ==== SinkHistSettingsWidget =======================================================================================
 class SinkHistSettingsWidget(Window):
@@ -404,7 +405,7 @@ class SettingsWindow(Window):
             # self.modulator.push_command(np.clip(current.command + self.preset_widget.command - np.nanmean(self.preset_widget.command), 0, self.modulator.pxmax))
             pass
 
-        preset_figure_widget = ModulatorFigureWidget(self.modulator.blank, (-150.0, 150.0), parent=self)
+        preset_figure_widget = ModulatorFigureWidget(self.modulator.blank, (-AMP_NM, AMP_NM), parent=self)
 
         @Slot(np.ndarray)
         def on_preset_changed(command):
@@ -430,42 +431,42 @@ class SettingsWindow(Window):
         preset_layout.addWidget(preset_label)
         preset_layout.addWidget(preset_combobox)
 
-        constant_preset_param_widget = ConstantPresetWidget(self.modulator.shape, (-150.0, 150.0), self)
+        constant_preset_param_widget = ConstantPresetWidget(self.modulator.shape, (-AMP_NM, AMP_NM), self)
         constant_preset_param_widget.changed.connect(on_preset_changed)
 
-        gradient_preset_param_widget = GradientPresetWidget(self.modulator.shape, (-150.0, 150.0), self)
+        gradient_preset_param_widget = GradientPresetWidget(self.modulator.shape, (-AMP_NM, AMP_NM), self)
         gradient_preset_param_widget.changed.connect(on_preset_changed)
         gradient_preset_param_widget.hide()
 
-        checker_preset_param_widget = CheckerPresetWidget(self.modulator.shape, (-150.0, 150.0), self)
+        checker_preset_param_widget = CheckerPresetWidget(self.modulator.shape, (-AMP_NM, AMP_NM), self)
         checker_preset_param_widget.changed.connect(on_preset_changed)
         checker_preset_param_widget.hide()
 
-        sinusoid_preset_param_widget = SinusoidPresetWidget(self.modulator.shape, (-150.0, 150.0), self)
+        sinusoid_preset_param_widget = SinusoidPresetWidget(self.modulator.shape, (-AMP_NM, AMP_NM), self)
         sinusoid_preset_param_widget.changed.connect(on_preset_changed)
         sinusoid_preset_param_widget.hide()
 
-        box_preset_param_widget = BoxPresetWidget(self.modulator.shape, (-150.0, 150.0), self)
+        box_preset_param_widget = BoxPresetWidget(self.modulator.shape, (-AMP_NM, AMP_NM), self)
         box_preset_param_widget.changed.connect(on_preset_changed)
         box_preset_param_widget.hide()
 
-        polka_preset_param_widget = PolkaPresetWidget(self.modulator.shape, (-150.0, 150.0), self)
+        polka_preset_param_widget = PolkaPresetWidget(self.modulator.shape, (-AMP_NM, AMP_NM), self)
         polka_preset_param_widget.changed.connect(on_preset_changed)
         polka_preset_param_widget.hide()
 
-        register_preset_param_widget = RegisterPresetWidget(self.modulator.shape, (-150.0, 150.0), self)
+        register_preset_param_widget = RegisterPresetWidget(self.modulator.shape, (-AMP_NM, AMP_NM), self)
         register_preset_param_widget.changed.connect(on_preset_changed)
         register_preset_param_widget.hide()
 
-        text_preset_param_widget = TextPresetWidget(self.modulator.shape, (-150.0, 150.0), self)
+        text_preset_param_widget = TextPresetWidget(self.modulator.shape, (-AMP_NM, AMP_NM), self)
         text_preset_param_widget.changed.connect(on_preset_changed)
         text_preset_param_widget.hide()
 
-        dotf_preset_param_widget = DOTFProbePresetWidget(self.modulator.shape, (-150.0, 150.0), self)
+        dotf_preset_param_widget = DOTFProbePresetWidget(self.modulator.shape, (-AMP_NM, AMP_NM), self)
         dotf_preset_param_widget.changed.connect(on_preset_changed)
         dotf_preset_param_widget.hide()
 
-        pairwise_preset_param_widget = PairwiseProbePresetWidget(self.modulator.shape, (-150.0, 150.0), self)
+        pairwise_preset_param_widget = PairwiseProbePresetWidget(self.modulator.shape, (-AMP_NM, AMP_NM), self)
         pairwise_preset_param_widget.changed.connect(on_preset_changed)
         pairwise_preset_param_widget.hide()
 
@@ -599,7 +600,7 @@ class SimplePreviewWindow(Window):
         widget.setLayout(layout)
 
         self._sample = self.modulator.sample
-        self.preview_figure_widget = ModulatorFigureWidget(self.modulator.blank, (-150.0, 150.0), parent=self)
+        self.preview_figure_widget = ModulatorFigureWidget(self.modulator.blank, (-AMP_NM, AMP_NM), parent=self)
         if self.preview_figure_widget.toolbar is not None:
             self.preview_figure_widget.toolbar.settingsClicked.connect(self.on_preview_settings_clicked)
 

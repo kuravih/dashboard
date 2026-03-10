@@ -2,9 +2,10 @@ import numpy as np
 from datetime import datetime
 
 from . import Device, Stream, ZMQLink, SinkSample
-from ..function import read_modulator_calibration_file, apply_modulator_calibration
+from ..function import read_modulator_calibration_file, deflection_to_command
 
 from pykato.log import setup_logger
+from pykato.function import describe_array
 
 logger = setup_logger("Modulator", terminator="\n")
 
@@ -81,13 +82,16 @@ class Modulator(Device):
         return self._stream.last_access_time
 
     def push_command(self, command: np.ndarray) -> SinkSample:
+        command_nm_float = command.astype(float)
         if self.calibration is not None:
             slope = self.calibration["slope"]
             flat = self.calibration["flat"]
-            command = apply_modulator_calibration(command, slope, flat).astype(np.uint16)
-        command = np.clip(command, 0, self.pxmax)
-        self._stream.set_data(command)
-        self._sample = SinkSample(self.last_access_time, self.frame_rate_fps, self.center, self.radius, command.copy())
+            command_adu_float = deflection_to_command(command_nm_float, slope, flat)
+        else:
+            command_adu_float = command_nm_float
+        command_adu_uint16 = np.clip(command_adu_float, 0, self.pxmax).astype(np.uint16)
+        self._stream.set_data(command_adu_uint16)
+        self._sample = SinkSample(self.last_access_time, self.frame_rate_fps, self.center, self.radius, command_adu_uint16.copy())
         return self._sample
 
     def get_command(self) -> SinkSample:
@@ -152,18 +156,6 @@ class Modulator(Device):
         command = {"settings": {"radius": radius}}
         reply = self.link.send_command(command)
         return reply["settings"]["radius"]
-
-    def command_to_deflection(self, data_adu: np.ndarray) -> np.ndarray:
-        """
-        convert a command to a deflection (m)
-        """
-        return data_adu * 1e-9
-
-    def deflection_to_command(self, data_nm: np.ndarray) -> np.ndarray:
-        """
-        convert a deflection to command (m)
-        """
-        return data_nm / 1e-9
 
     def __del__(self):
         logger.info("Modulator object %s removed", self.name)
