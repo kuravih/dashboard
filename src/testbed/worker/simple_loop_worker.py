@@ -22,12 +22,29 @@ class ProcessWorkerSignals(WorkerSignals):
 
 
 class ProcessWorker(Worker):
-    def __init__(self, source: Camera, sink: Modulator, amplitude: float, n_steps: int | None = None):
+    def __init__(self, source: Camera, sink: Modulator, amp_perc: float, n_steps: int | None = None):
+        """
+        Simple Loop ProcessWorker
+
+        Parameters:
+            source: Camera
+                Data source
+
+            sink: Modulator
+                Data sink
+
+            amp_perc: float
+                Amplitude percentage
+
+            n_steps: int
+                Number of steps
+
+        """
         super().__init__()
         self.signals = ProcessWorkerSignals()
         self.source = source
         self.sink = sink
-        self.amplitude = amplitude
+        self.amplitude = 5.0 * amp_perc / 100.0
         self.n_steps = n_steps
 
     @Slot()
@@ -37,7 +54,7 @@ class ProcessWorker(Worker):
         t_start = time.time()
 
         # ---- blank --------------------------------------------------------------------------------------------------
-        current_cmd = self.sink.pxmax * (np.zeros(self.sink.shape) + 0.5)
+        current_cmd = np.zeros(self.sink.shape)
 
         self.signals.snkSampled.emit(self.sink.push_command(current_cmd.astype(np.uint16)))
         time.sleep(0.1)
@@ -51,11 +68,11 @@ class ProcessWorker(Worker):
         logger.info("%s and %s ProcessWorker.run : step %i of %i", self.source.name, self.sink.name, i_step, self.n_steps)
 
         while ((self.n_steps is None) or (self.n_steps > i_step)) and self._running:
-            probe_command = self.amplitude * self.sink.pxmax * (text(self.sink.shape, f"{i_step:02d}", font_size=150) - 0.5)
-            command = current_cmd + probe_command
-            command = np.clip(command, 0, self.sink.pxmax)
+            probe_command = self.amplitude * text(self.sink.shape, f"{i_step:02d}", font_size=150)
 
-            _current_sink_sample = self.sink.push_command(command.astype(np.uint16))
+            command = current_cmd + probe_command
+
+            _current_sink_sample = self.sink.push_command(command)
             self.signals.snkSampled.emit(_current_sink_sample)
             time.sleep(0.1)
 

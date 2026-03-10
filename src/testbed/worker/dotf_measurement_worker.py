@@ -26,12 +26,12 @@ class ProcessWorkerSignals(WorkerSignals):
 
 
 class ProcessWorker(Worker):
-    def __init__(self, source: Camera, sink: Modulator, probe_amplitude: float, probe_size: tuple[int, int], probe_directions: list[DOTFProbeDirection], n_reps: int):
+    def __init__(self, source: Camera, sink: Modulator, probe_amp_perc: float, probe_size: tuple[int, int], probe_directions: list[DOTFProbeDirection], n_reps: int):
         super().__init__()
         self.signals = ProcessWorkerSignals()
         self.source = source
         self.sink = sink
-        self.probe_amplitude = probe_amplitude
+        self.probe_amplitude = 50.0 * probe_amp_perc / 100.0
         self.probe_size = probe_size
         self.probe_directions = probe_directions
         self.n_reps = n_reps
@@ -46,7 +46,6 @@ class ProcessWorker(Worker):
         # -------------------------------------------------------------------------------------------------------------
 
         command_incl_probe = current_cmd + probe_command
-        command_incl_probe = np.clip(command_incl_probe, 0, self.sink.pxmax)
 
         _incl_probe_sink_sample = self.sink.push_command(command_incl_probe.astype(np.uint16))
         self.signals.snkSampled.emit(_incl_probe_sink_sample)
@@ -59,7 +58,6 @@ class ProcessWorker(Worker):
         # -------------------------------------------------------------------------------------------------------------
 
         command_excl_probe = current_cmd[:]
-        command_excl_probe = np.clip(command_excl_probe, 0, self.sink.pxmax)
 
         _excl_probe_sink_sample = self.sink.push_command(command_excl_probe.astype(np.uint16))
         self.signals.snkSampled.emit(_excl_probe_sink_sample)
@@ -79,12 +77,9 @@ class ProcessWorker(Worker):
         t_start = time.time()
 
         # ---- blank --------------------------------------------------------------------------------------------------
-        current_cmd = self.sink.pxmax * np.zeros(self.sink.shape)
+        current_cmd = np.zeros(self.sink.shape)
 
-        command = current_cmd
-        command = np.clip(command, 0, self.sink.pxmax)
-
-        _current_sink_sample = self.sink.push_command(command.astype(np.uint16))
+        _current_sink_sample = self.sink.push_command(current_cmd.astype(np.uint16))
         self.signals.snkSampled.emit(_current_sink_sample)
         time.sleep(0.1)
 

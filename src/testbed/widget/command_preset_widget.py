@@ -51,7 +51,7 @@ class ConstantPresetWidget(CommandPresetWidget):
 
         self.const_spinbox = QDoubleSpinBox(self)
         self.const_spinbox.setFixedWidth(100)
-        self.const_spinbox.setRange(-50, 50)
+        self.const_spinbox.setRange(-100, 100)
         self.const_spinbox.setSuffix(" %")
         self.const_spinbox.setValue(0)
         self.const_spinbox.setSingleStep(1)
@@ -87,7 +87,7 @@ class GradientPresetWidget(CommandPresetWidget):
 
         self.grad_spinbox = QDoubleSpinBox(self)
         self.grad_spinbox.setFixedWidth(100)
-        self.grad_spinbox.setRange(-50, 50)
+        self.grad_spinbox.setRange(-100, 100)
         self.grad_spinbox.setSuffix(" %")
         self.grad_spinbox.setValue(0)
         self.grad_spinbox.setSingleStep(1)
@@ -125,37 +125,38 @@ class CheckerPresetWidget(CommandPresetWidget):
     Checker command preset widget
     """
 
-    @Slot(float, tuple, tuple, float)
-    def on_values_changed(self, amp_perc: float, size: tuple[int, int], offset: tuple[int, int], mean_perc: float):
-        amp = self._full_stroke * amp_perc / 100.0
-        mean = self._full_stroke * mean_perc / 100.0
-        self._command = amp * checkers(self._command.shape, size, offset) + mean
+    @Slot(float, float, tuple, tuple)
+    def on_values_changed(self, color1_perc: float, color2_perc: float, size: tuple[int, int], offset: tuple[int, int]):
+        color1 = self._full_stroke * color1_perc / 100.0
+        color2 = self._full_stroke * color2_perc / 100.0
+        mask = checkers(self._command.shape, size, offset)
+        self._command = mask * color1 + (1 - mask) * color2
         self.changed.emit(self._command)
 
     def setup_main_widget(self):
 
-        amplitude_label = QLabel("Amplitude", self)
-        amplitude_label.setFixedWidth(100)
+        color1_label = QLabel("Color A", self)
+        color1_label.setFixedWidth(100)
 
-        self.amplitude_spinbox = QDoubleSpinBox(self)
-        self.amplitude_spinbox.setFixedWidth(100)
-        self.amplitude_spinbox.setRange(-50, 50)
-        self.amplitude_spinbox.setSuffix(" %")
-        self.amplitude_spinbox.setValue(0)
-        self.amplitude_spinbox.setSingleStep(1)
-        self.amplitude_spinbox.setToolTip("Checker amplitude")
-        self.amplitude_spinbox.valueChanged.connect(lambda _amp_perc: self.on_values_changed(_amp_perc, self.size_spinboxes.value(), self.offset_spinboxes.value(), self.mean_spinbox.value()))
+        self.color1_spinbox = QDoubleSpinBox(self)
+        self.color1_spinbox.setFixedWidth(100)
+        self.color1_spinbox.setRange(-100, 100)
+        self.color1_spinbox.setSuffix(" %")
+        self.color1_spinbox.setValue(0)
+        self.color1_spinbox.setSingleStep(1)
+        self.color1_spinbox.setToolTip("Checker Color 1")
+        self.color1_spinbox.valueChanged.connect(lambda _color1_perc: self.on_values_changed(_color1_perc, self.color2_spinbox.value(), self.size_spinboxes.value(), self.offset_spinboxes.value()))
 
-        mean_label = QLabel("Mean", self)
+        color2_label = QLabel("Color B", self)
 
-        self.mean_spinbox = QDoubleSpinBox(self)
-        self.mean_spinbox.setFixedWidth(100)
-        self.mean_spinbox.setRange(-50, 50)
-        self.mean_spinbox.setSuffix(" %")
-        self.mean_spinbox.setValue(0)
-        self.mean_spinbox.setSingleStep(1)
-        self.mean_spinbox.setToolTip("Mean of the sinusoid")
-        self.mean_spinbox.valueChanged.connect(lambda _mean_perc: self.on_values_changed(self.amplitude_spinbox.value(), self.size_spinboxes.value(), self.offset_spinboxes.value(), _mean_perc))
+        self.color2_spinbox = QDoubleSpinBox(self)
+        self.color2_spinbox.setFixedWidth(100)
+        self.color2_spinbox.setRange(-100, 100)
+        self.color2_spinbox.setSuffix(" %")
+        self.color2_spinbox.setValue(0)
+        self.color2_spinbox.setSingleStep(1)
+        self.color2_spinbox.setToolTip("Checker Color 2")
+        self.color2_spinbox.valueChanged.connect(lambda _color2_perc: self.on_values_changed(self.color1_spinbox.value(), _color2_perc, self.size_spinboxes.value(), self.offset_spinboxes.value()))
 
         size_label = QLabel("Size", self)
 
@@ -166,7 +167,7 @@ class CheckerPresetWidget(CommandPresetWidget):
         self.size_spinboxes[1].setRange(0, self._command.shape[1])
         self.size_spinboxes[1].setValue(self._command.shape[1] // 2)
         self.size_spinboxes[1].setFixedWidth(100)
-        self.size_spinboxes.valueChanged.connect(lambda _size: self.on_values_changed(self.amplitude_spinbox.value(), _size, self.offset_spinboxes.value(), self.mean_spinbox.value()))
+        self.size_spinboxes.valueChanged.connect(lambda _size: self.on_values_changed(self.color1_spinbox.value(), self.color2_spinbox.value(), _size, self.offset_spinboxes.value()))
 
         offset_label = QLabel("Offset", self)
 
@@ -177,21 +178,21 @@ class CheckerPresetWidget(CommandPresetWidget):
         self.offset_spinboxes[1].setRange(-self.size_spinboxes[1].value() // 2, self.size_spinboxes[1].value() // 2)
         self.offset_spinboxes[1].setValue(self._command.shape[1] // 4)
         self.offset_spinboxes[1].setFixedWidth(100)
-        self.offset_spinboxes.valueChanged.connect(lambda _offset: self.on_values_changed(self.amplitude_spinbox.value(), self.size_spinboxes.value(), _offset, self.mean_spinbox.value()))
+        self.offset_spinboxes.valueChanged.connect(lambda _offset: self.on_values_changed(self.color1_spinbox.value(), self.color2_spinbox.value(), self.size_spinboxes.value(), _offset))
 
         layout = QGridLayout()
 
         row = 0
         col = 0
-        layout.addWidget(amplitude_label, row, col)
+        layout.addWidget(color1_label, row, col)
         col += 1
-        layout.addWidget(self.amplitude_spinbox, row, col)
+        layout.addWidget(self.color1_spinbox, row, col)
 
         row += 1
         col = 0
-        layout.addWidget(mean_label, row, col)
+        layout.addWidget(color2_label, row, col)
         col += 1
-        layout.addWidget(self.mean_spinbox, row, col)
+        layout.addWidget(self.color2_spinbox, row, col)
 
         row += 1
         col = 0
@@ -226,7 +227,7 @@ class SinusoidPresetWidget(CommandPresetWidget):
 
         self.amplitude_spinbox = QDoubleSpinBox(self)
         self.amplitude_spinbox.setFixedWidth(100)
-        self.amplitude_spinbox.setRange(-50, 50)
+        self.amplitude_spinbox.setRange(-100, 100)
         self.amplitude_spinbox.setSuffix(" %")
         self.amplitude_spinbox.setValue(0)
         self.amplitude_spinbox.setSingleStep(1)
@@ -237,7 +238,7 @@ class SinusoidPresetWidget(CommandPresetWidget):
 
         self.mean_spinbox = QDoubleSpinBox(self)
         self.mean_spinbox.setFixedWidth(100)
-        self.mean_spinbox.setRange(-50, 50)
+        self.mean_spinbox.setRange(-100, 100)
         self.mean_spinbox.setSuffix(" %")
         self.mean_spinbox.setValue(0)
         self.mean_spinbox.setSingleStep(1)
@@ -316,37 +317,38 @@ class BoxPresetWidget(CommandPresetWidget):
     Box command preset widget
     """
 
-    @Slot(float, tuple, tuple, float)
-    def on_values_changed(self, amp_perc: float, size: tuple[int, int], center: tuple[int, int], mean_perc: float):
-        amp = self._full_stroke * amp_perc / 100.0
-        mean = self._full_stroke * mean_perc / 100.0
-        self._command = amp * box(self._command.shape, size, center) + mean
+    @Slot(float, float, tuple, tuple)
+    def on_values_changed(self, color1_perc: float, color2_perc: float, size: tuple[int, int], center: tuple[int, int]):
+        color1 = self._full_stroke * color1_perc / 100.0
+        color2 = self._full_stroke * color2_perc / 100.0
+        mask = box(self._command.shape, size, center)
+        self._command = mask * color1 + (1 - mask) * color2
         self.changed.emit(self._command)
 
     def setup_main_widget(self):
 
-        amplitude_label = QLabel("Amplitude", self)
-        amplitude_label.setFixedWidth(100)
+        color1_label = QLabel("Color A", self)
+        color1_label.setFixedWidth(100)
 
-        self.amplitude_spinbox = QSpinBox(self)
-        self.amplitude_spinbox.setFixedWidth(100)
-        self.amplitude_spinbox.setRange(-50, 50)
-        self.amplitude_spinbox.setSuffix(" %")
-        self.amplitude_spinbox.setValue(0)
-        self.amplitude_spinbox.setSingleStep(1)
-        self.amplitude_spinbox.setToolTip("Box amplitude")
-        self.amplitude_spinbox.valueChanged.connect(lambda _amp_perc: self.on_values_changed(_amp_perc, self.size_spinboxes.value(), self.center_spinboxes.value(), self.mean_spinbox.value()))
+        self.color1_spinbox = QDoubleSpinBox(self)
+        self.color1_spinbox.setFixedWidth(100)
+        self.color1_spinbox.setRange(-100, 100)
+        self.color1_spinbox.setSuffix(" %")
+        self.color1_spinbox.setValue(0)
+        self.color1_spinbox.setSingleStep(1)
+        self.color1_spinbox.setToolTip("Box Color 1")
+        self.color1_spinbox.valueChanged.connect(lambda _color1_perc: self.on_values_changed(_color1_perc, self.color2_spinbox.value(), self.size_spinboxes.value(), self.center_spinboxes.value()))
 
-        mean_label = QLabel("Mean", self)
+        color2_label = QLabel("Color B", self)
 
-        self.mean_spinbox = QDoubleSpinBox(self)
-        self.mean_spinbox.setFixedWidth(100)
-        self.mean_spinbox.setRange(-50, 50)
-        self.mean_spinbox.setSuffix(" %")
-        self.mean_spinbox.setValue(0)
-        self.mean_spinbox.setSingleStep(1)
-        self.mean_spinbox.setToolTip("Mean of the sinusoid")
-        self.mean_spinbox.valueChanged.connect(lambda _mean_perc: self.on_values_changed(self.amplitude_spinbox.value(), self.size_spinboxes.value(), self.center_spinboxes.value(), _mean_perc))
+        self.color2_spinbox = QDoubleSpinBox(self)
+        self.color2_spinbox.setFixedWidth(100)
+        self.color2_spinbox.setRange(-100, 100)
+        self.color2_spinbox.setSuffix(" %")
+        self.color2_spinbox.setValue(0)
+        self.color2_spinbox.setSingleStep(1)
+        self.color2_spinbox.setToolTip("Box Color 2")
+        self.color2_spinbox.valueChanged.connect(lambda _color2_perc: self.on_values_changed(self.color1_spinbox.value(), _color2_perc, self.size_spinboxes.value(), self.center_spinboxes.value()))
 
         size_label = QLabel("Size", self)
 
@@ -357,7 +359,7 @@ class BoxPresetWidget(CommandPresetWidget):
         self.size_spinboxes[1].setFixedWidth(100)
         self.size_spinboxes[1].setRange(0, self._command.shape[1])
         self.size_spinboxes[1].setValue(self._command.shape[1] // 4)
-        self.size_spinboxes.valueChanged.connect(lambda _size: self.on_values_changed(self.amplitude_spinbox.value(), _size, self.center_spinboxes.value(), self.mean_spinbox.value()))
+        self.size_spinboxes.valueChanged.connect(lambda _size: self.on_values_changed(self.color1_spinbox.value(), self.color2_spinbox.value(), _size, self.center_spinboxes.value()))
 
         center_label = QLabel("Center", self)
 
@@ -368,21 +370,21 @@ class BoxPresetWidget(CommandPresetWidget):
         self.center_spinboxes[1].setFixedWidth(100)
         self.center_spinboxes[1].setRange(-self._command.shape[1] // 2 - self.size_spinboxes[1].value(), self._command.shape[1] // 2 + self.size_spinboxes[1].value())
         self.center_spinboxes[1].setValue(-self._command.shape[1] // 2)
-        self.center_spinboxes.valueChanged.connect(lambda _center: self.on_values_changed(self.amplitude_spinbox.value(), self.size_spinboxes.value(), _center, self.mean_spinbox.value()))
+        self.center_spinboxes.valueChanged.connect(lambda _center: self.on_values_changed(self.color1_spinbox.value(), self.color2_spinbox.value(), self.size_spinboxes.value(), _center))
 
         layout = QGridLayout()
 
         row = 0
         col = 0
-        layout.addWidget(amplitude_label, row, col)
+        layout.addWidget(color1_label, row, col)
         col += 1
-        layout.addWidget(self.amplitude_spinbox, row, col)
+        layout.addWidget(self.color1_spinbox, row, col)
 
         row += 1
         col = 0
-        layout.addWidget(mean_label, row, col)
+        layout.addWidget(color2_label, row, col)
         col += 1
-        layout.addWidget(self.mean_spinbox, row, col)
+        layout.addWidget(self.color2_spinbox, row, col)
 
         row += 1
         col = 0
@@ -404,44 +406,45 @@ class PolkaPresetWidget(CommandPresetWidget):
     Polka dot pattern command preset widget
     """
 
-    @Slot(float, float, tuple, tuple, float)
-    def on_values_changed(self, amp_perc: float, radius: float, spacing: tuple[int, int], offset: tuple[int, int], mean_perc: float):
-        amp = self._full_stroke * amp_perc / 100.0
-        mean = self._full_stroke * mean_perc / 100.0
-        self._command = amp * polka(self._command.shape, radius, spacing, offset) + mean
+    @Slot(float, float, float, tuple, tuple)
+    def on_values_changed(self, color1_perc: float, color2_perc: float, radius: float, spacing: tuple[int, int], offset: tuple[int, int]):
+        color1 = self._full_stroke * color1_perc / 100.0
+        color2 = self._full_stroke * color2_perc / 100.0
+        mask = polka(self._command.shape, radius, spacing, offset)
+        self._command = mask * color1 + (1 - mask) * color2
         self.changed.emit(self._command)
 
     def setup_main_widget(self):
 
-        amplitude_label = QLabel("Amplitude", self)
-        amplitude_label.setFixedWidth(100)
+        color1_label = QLabel("Color A", self)
+        color1_label.setFixedWidth(100)
 
-        self.amplitude_spinbox = QSpinBox(self)
-        self.amplitude_spinbox.setFixedWidth(100)
-        self.amplitude_spinbox.setRange(-50, 50)
-        self.amplitude_spinbox.setSuffix(" %")
-        self.amplitude_spinbox.setValue(0)
-        self.amplitude_spinbox.setSingleStep(1)
-        self.amplitude_spinbox.setToolTip("Polka dot amplitude")
-        self.amplitude_spinbox.valueChanged.connect(lambda _amp_perc: self.on_values_changed(_amp_perc, self.radius_spinbox.value(), self.spacing_spinboxes.value(), self.offset_spinboxes.value(), self.mean_spinbox.value()))
+        self.color1_spinbox = QDoubleSpinBox(self)
+        self.color1_spinbox.setFixedWidth(100)
+        self.color1_spinbox.setRange(-100, 100)
+        self.color1_spinbox.setSuffix(" %")
+        self.color1_spinbox.setValue(0)
+        self.color1_spinbox.setSingleStep(1)
+        self.color1_spinbox.setToolTip("Polka dot color 1")
+        self.color1_spinbox.valueChanged.connect(lambda _color1_perc: self.on_values_changed(_color1_perc, self.color2_spinbox.value(), self.radius_spinbox.value(), self.spacing_spinboxes.value(), self.offset_spinboxes.value()))
 
-        mean_label = QLabel("Mean", self)
+        color2_label = QLabel("Color B", self)
 
-        self.mean_spinbox = QDoubleSpinBox(self)
-        self.mean_spinbox.setFixedWidth(100)
-        self.mean_spinbox.setRange(-50, 50)
-        self.mean_spinbox.setSuffix(" %")
-        self.mean_spinbox.setValue(0)
-        self.mean_spinbox.setSingleStep(1)
-        self.mean_spinbox.setToolTip("Mean of the sinusoid")
-        self.mean_spinbox.valueChanged.connect(lambda _mean_perc: self.on_values_changed(self.amplitude_spinbox.value(), self.radius_spinbox.value(), self.spacing_spinboxes.value(), self.offset_spinboxes.value(), _mean_perc))
+        self.color2_spinbox = QDoubleSpinBox(self)
+        self.color2_spinbox.setFixedWidth(100)
+        self.color2_spinbox.setRange(-100, 100)
+        self.color2_spinbox.setSuffix(" %")
+        self.color2_spinbox.setValue(0)
+        self.color2_spinbox.setSingleStep(1)
+        self.color2_spinbox.setToolTip("Polka dot color 2")
+        self.color2_spinbox.valueChanged.connect(lambda _color2_perc: self.on_values_changed(self.color1_spinbox.value(), _color2_perc, self.radius_spinbox.value(), self.spacing_spinboxes.value(), self.offset_spinboxes.value()))
 
         radius_label = QLabel("Radius", self)
 
         self.radius_spinbox = QDoubleSpinBox(self)
         self.radius_spinbox.setFixedWidth(100)
         self.radius_spinbox.setValue(4)
-        self.radius_spinbox.valueChanged.connect(lambda _radius: self.on_values_changed(self.amplitude_spinbox.value(), _radius, self.spacing_spinboxes.value(), self.offset_spinboxes.value(), self.mean_spinbox.value()))
+        self.radius_spinbox.valueChanged.connect(lambda _radius: self.on_values_changed(self.color1_spinbox.value(), self.color2_spinbox.value(), _radius, self.spacing_spinboxes.value(), self.offset_spinboxes.value()))
 
         spacing_label = QLabel("Spacing", self)
 
@@ -452,7 +455,7 @@ class PolkaPresetWidget(CommandPresetWidget):
         self.spacing_spinboxes[1].setFixedWidth(100)
         self.spacing_spinboxes[1].setRange(0, self._command.shape[1])
         self.spacing_spinboxes[1].setValue(self._command.shape[1] / 8)
-        self.spacing_spinboxes.valueChanged.connect(lambda _spacing: self.on_values_changed(self.amplitude_spinbox.value(), self.radius_spinbox.value(), _spacing, self.offset_spinboxes.value(), self.mean_spinbox.value()))
+        self.spacing_spinboxes.valueChanged.connect(lambda _spacing: self.on_values_changed(self.color1_spinbox.value(), self.color2_spinbox.value(), self.radius_spinbox.value(), _spacing, self.offset_spinboxes.value()))
 
         offset_label = QLabel("Offset", self)
 
@@ -463,21 +466,21 @@ class PolkaPresetWidget(CommandPresetWidget):
         self.offset_spinboxes[1].setFixedWidth(100)
         self.offset_spinboxes[1].setRange(-self.spacing_spinboxes[1].value() / 2, self.spacing_spinboxes[1].value() / 2)
         self.offset_spinboxes[1].setValue(-self._command.shape[1] / 16)
-        self.offset_spinboxes.valueChanged.connect(lambda _offset: self.on_values_changed(self.amplitude_spinbox.value(), self.radius_spinbox.value(), self.spacing_spinboxes.value(), _offset, self.mean_spinbox.value()))
+        self.offset_spinboxes.valueChanged.connect(lambda _offset: self.on_values_changed(self.color1_spinbox.value(), self.color2_spinbox.value(), self.radius_spinbox.value(), self.spacing_spinboxes.value(), _offset))
 
         layout = QGridLayout()
 
         row = 0
         col = 0
-        layout.addWidget(amplitude_label, row, col)
+        layout.addWidget(color1_label, row, col)
         col += 1
-        layout.addWidget(self.amplitude_spinbox, row, col)
+        layout.addWidget(self.color1_spinbox, row, col)
 
         row += 1
         col = 0
-        layout.addWidget(mean_label, row, col)
+        layout.addWidget(color2_label, row, col)
         col += 1
-        layout.addWidget(self.mean_spinbox, row, col)
+        layout.addWidget(self.color2_spinbox, row, col)
 
         row += 1
         col = 0
@@ -519,7 +522,7 @@ class RegisterPresetWidget(CommandPresetWidget):
 
         self.amplitude_spinbox = QSpinBox(self)
         self.amplitude_spinbox.setFixedWidth(100)
-        self.amplitude_spinbox.setRange(-50, 50)
+        self.amplitude_spinbox.setRange(-100, 100)
         self.amplitude_spinbox.setSuffix(" %")
         self.amplitude_spinbox.setValue(0)
         self.amplitude_spinbox.setSingleStep(1)
@@ -530,7 +533,7 @@ class RegisterPresetWidget(CommandPresetWidget):
 
         self.mean_spinbox = QDoubleSpinBox(self)
         self.mean_spinbox.setFixedWidth(100)
-        self.mean_spinbox.setRange(-50, 50)
+        self.mean_spinbox.setRange(-100, 100)
         self.mean_spinbox.setSuffix(" %")
         self.mean_spinbox.setValue(0)
         self.mean_spinbox.setSingleStep(1)
@@ -624,36 +627,37 @@ class TextPresetWidget(CommandPresetWidget):
     """
 
     @Slot(float, str, tuple, int, float)
-    def on_values_changed(self, amp_perc: float, stringdata: str, position: tuple[int, int], font_size: int, mean_perc: float):
-        amp = self._full_stroke * amp_perc / 100.0
-        mean = self._full_stroke * mean_perc / 100.0
-        self._command = amp * text(self._command.shape, stringdata, position, font_size) + mean
+    def on_values_changed(self, fg_perc: float, stringdata: str, position: tuple[int, int], font_size: int, bg_perc: float):
+        fg = self._full_stroke * fg_perc / 100.0
+        bg = self._full_stroke * bg_perc / 100.0
+        mask = text(self._command.shape, stringdata, position, font_size)
+        self._command = mask * fg + (1 - mask) * bg
         self.changed.emit(self._command)
 
     def setup_main_widget(self):
 
-        amplitude_label = QLabel("Amplitude", self)
-        amplitude_label.setFixedWidth(100)
+        foreground_label = QLabel("Foreground", self)
+        foreground_label.setFixedWidth(100)
 
-        self.amplitude_spinbox = QSpinBox(self)
-        self.amplitude_spinbox.setFixedWidth(100)
-        self.amplitude_spinbox.setRange(-50, 50)
-        self.amplitude_spinbox.setSuffix(" %")
-        self.amplitude_spinbox.setValue(0)
-        self.amplitude_spinbox.setSingleStep(1)
-        self.amplitude_spinbox.setToolTip("Text amplitude")
-        self.amplitude_spinbox.valueChanged.connect(lambda _amp_perc: self.on_values_changed(_amp_perc, self.string_textbox.text(), self.position_spinboxes.value(), self.size_spinbox.value(), self.mean_spinbox.value()))
+        self.foreground_spinbox = QDoubleSpinBox(self)
+        self.foreground_spinbox.setFixedWidth(100)
+        self.foreground_spinbox.setRange(-100, 100)
+        self.foreground_spinbox.setSuffix(" %")
+        self.foreground_spinbox.setValue(0)
+        self.foreground_spinbox.setSingleStep(1)
+        self.foreground_spinbox.setToolTip("Text amplitude")
+        self.foreground_spinbox.valueChanged.connect(lambda _fg_perc: self.on_values_changed(_fg_perc, self.string_textbox.text(), self.position_spinboxes.value(), self.size_spinbox.value(), self.background_spinbox.value()))
 
-        mean_label = QLabel("Mean", self)
+        background_label = QLabel("Background", self)
 
-        self.mean_spinbox = QDoubleSpinBox(self)
-        self.mean_spinbox.setFixedWidth(100)
-        self.mean_spinbox.setRange(-50, 50)
-        self.mean_spinbox.setSuffix(" %")
-        self.mean_spinbox.setValue(0)
-        self.mean_spinbox.setSingleStep(1)
-        self.mean_spinbox.setToolTip("Mean of the sinusoid")
-        self.mean_spinbox.valueChanged.connect(lambda _mean_perc: self.on_values_changed(self.amplitude_spinbox.value(), self.string_textbox.text(), self.position_spinboxes.value(), self.size_spinbox.value(), _mean_perc))
+        self.background_spinbox = QDoubleSpinBox(self)
+        self.background_spinbox.setFixedWidth(100)
+        self.background_spinbox.setRange(-100, 100)
+        self.background_spinbox.setSuffix(" %")
+        self.background_spinbox.setValue(0)
+        self.background_spinbox.setSingleStep(1)
+        self.background_spinbox.setToolTip("Mean of the sinusoid")
+        self.background_spinbox.valueChanged.connect(lambda _bg_perc: self.on_values_changed(self.foreground_spinbox.value(), self.string_textbox.text(), self.position_spinboxes.value(), self.size_spinbox.value(), _bg_perc))
 
         size_label = QLabel("Size", self)
 
@@ -661,7 +665,7 @@ class TextPresetWidget(CommandPresetWidget):
         self.size_spinbox.setFixedWidth(100)
         self.size_spinbox.setRange(0, self._command.shape[0])
         self.size_spinbox.setValue(self._command.shape[0])
-        self.size_spinbox.valueChanged.connect(lambda _size: self.on_values_changed(self.amplitude_spinbox.value(), self.string_textbox.text(), self.position_spinboxes.value(), _size, self.mean_spinbox.value()))
+        self.size_spinbox.valueChanged.connect(lambda _size: self.on_values_changed(self.foreground_spinbox.value(), self.string_textbox.text(), self.position_spinboxes.value(), _size, self.background_spinbox.value()))
 
         position_label = QLabel("Position", self)
 
@@ -672,28 +676,28 @@ class TextPresetWidget(CommandPresetWidget):
         self.position_spinboxes[1].setFixedWidth(100)
         self.position_spinboxes[1].setRange(-self.size_spinbox.value() // 2, self.size_spinbox.value() // 2)
         self.position_spinboxes[1].setValue(self._command.shape[1] // 2)
-        self.position_spinboxes.valueChanged.connect(lambda _position: self.on_values_changed(self.amplitude_spinbox.value(), self.string_textbox.text(), _position, self.size_spinbox.value(), self.mean_spinbox.value()))
+        self.position_spinboxes.valueChanged.connect(lambda _position: self.on_values_changed(self.foreground_spinbox.value(), self.string_textbox.text(), _position, self.size_spinbox.value(), self.background_spinbox.value()))
 
         string_label = QLabel("Text", self)
 
         self.string_textbox = QLineEdit(self)
         self.string_textbox.setText("F")
         self.string_textbox.setFixedWidth(100)
-        self.string_textbox.textChanged.connect(lambda _text: self.on_values_changed(self.amplitude_spinbox.value(), _text, self.position_spinboxes.value(), self.size_spinbox.value(), self.mean_spinbox.value()))
+        self.string_textbox.textChanged.connect(lambda _text: self.on_values_changed(self.foreground_spinbox.value(), _text, self.position_spinboxes.value(), self.size_spinbox.value(), self.background_spinbox.value()))
 
         layout = QGridLayout()
 
         row = 0
         col = 0
-        layout.addWidget(amplitude_label, row, col)
+        layout.addWidget(foreground_label, row, col)
         col += 1
-        layout.addWidget(self.amplitude_spinbox, row, col)
+        layout.addWidget(self.foreground_spinbox, row, col)
 
         row += 1
         col = 0
-        layout.addWidget(mean_label, row, col)
+        layout.addWidget(background_label, row, col)
         col += 1
-        layout.addWidget(self.mean_spinbox, row, col)
+        layout.addWidget(self.background_spinbox, row, col)
 
         row += 1
         col = 0
@@ -734,7 +738,7 @@ class DOTFProbePresetWidget(CommandPresetWidget):
 
         self.amplitude_spinbox = QSpinBox(self)
         self.amplitude_spinbox.setFixedWidth(100)
-        self.amplitude_spinbox.setRange(-50, 50)
+        self.amplitude_spinbox.setRange(-100, 100)
         self.amplitude_spinbox.setSuffix(" %")
         self.amplitude_spinbox.setValue(0)
         self.amplitude_spinbox.setSingleStep(1)
@@ -798,7 +802,7 @@ class PairwiseProbePresetWidget(CommandPresetWidget):
 
         self.amplitude_spinbox = QSpinBox(self)
         self.amplitude_spinbox.setFixedWidth(100)
-        self.amplitude_spinbox.setRange(-50, 50)
+        self.amplitude_spinbox.setRange(-100, 100)
         self.amplitude_spinbox.setSuffix(" %")
         self.amplitude_spinbox.setValue(0)
         self.amplitude_spinbox.setSingleStep(1)

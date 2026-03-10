@@ -43,16 +43,16 @@ class ProcessSettingsWidget(QWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
 
-        probe_amp_label = QLabel("Probe Amp.", self)
-        probe_amp_label.setFixedWidth(100)
+        probe_amplitude_label = QLabel("Probe Amp.", self)
+        probe_amplitude_label.setFixedWidth(100)
 
-        self._probe_amp_spinbox = QSpinBox(self)
-        self._probe_amp_spinbox.setMinimum(0)
-        self._probe_amp_spinbox.setMaximum(2**16-1)
-        self._probe_amp_spinbox.setSingleStep(1)
-        self._probe_amp_spinbox.setValue(20)
-        self._probe_amp_spinbox.setSuffix(" adu")
-        self._probe_amp_spinbox.setToolTip("Probe amplitude")
+        self._probe_amplitude_spinbox = QDoubleSpinBox(self)
+        self._probe_amplitude_spinbox.setFixedWidth(100)
+        self._probe_amplitude_spinbox.setRange(-100, 100)
+        self._probe_amplitude_spinbox.setSuffix(" %")
+        self._probe_amplitude_spinbox.setValue(10)
+        self._probe_amplitude_spinbox.setSingleStep(1)
+        self._probe_amplitude_spinbox.setToolTip("Probe amplitude")
 
         probe_size_label = QLabel("Probe size", self)
         probe_size_label.setFixedWidth(100)
@@ -112,9 +112,9 @@ class ProcessSettingsWidget(QWidget):
 
         row = 0
         col = 0
-        widget_layout.addWidget(probe_amp_label, row, col)
+        widget_layout.addWidget(probe_amplitude_label, row, col)
         col += 1
-        widget_layout.addWidget(self._probe_amp_spinbox, row, col, 1, 3)
+        widget_layout.addWidget(self._probe_amplitude_spinbox, row, col, 1, 3)
 
         row += 1
         col = 0
@@ -144,11 +144,11 @@ class ProcessSettingsWidget(QWidget):
 
     @property
     def probe_amplitude(self) -> float:
-        return self._probe_amp_spinbox.value()
+        return self._probe_amplitude_spinbox.value()
 
     @property
     def probe_size(self) -> tuple[int, int]:
-        return tuple(self._probe_size.value())
+        return self._probe_size.value()[:2]
 
     @property
     def probe_directions(self) -> list[DOTFProbeDirection]:

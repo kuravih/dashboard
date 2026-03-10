@@ -37,12 +37,16 @@ class ProcessSettingsWidget(QWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
 
-        ampl_label = QLabel("Amplitude", self)
-        ampl_label.setFixedWidth(100)
+        amplitude_label = QLabel("Amplitude", self)
+        amplitude_label.setFixedWidth(100)
 
-        self._ampl_spinbox = QDoubleSpinBox(self)
-        self._ampl_spinbox.setRange(0, 0.5)
-        self._ampl_spinbox.setValue(0.25)
+        self._amplitude_spinbox = QDoubleSpinBox(self)
+        self._amplitude_spinbox.setFixedWidth(100)
+        self._amplitude_spinbox.setRange(-100, 100)
+        self._amplitude_spinbox.setSuffix(" %")
+        self._amplitude_spinbox.setValue(10)
+        self._amplitude_spinbox.setSingleStep(1)
+        self._amplitude_spinbox.setToolTip("Command amplitude")
 
         n_steps_label = QLabel("Steps", self)
         n_steps_label.setFixedWidth(100)
@@ -97,9 +101,9 @@ class ProcessSettingsWidget(QWidget):
 
         row = 0
         col = 0
-        widget_layout.addWidget(ampl_label, row, col)
+        widget_layout.addWidget(amplitude_label, row, col)
         col += 1
-        widget_layout.addWidget(self._ampl_spinbox, row, col)
+        widget_layout.addWidget(self._amplitude_spinbox, row, col)
 
         row += 1
         col = 0
@@ -123,7 +127,7 @@ class ProcessSettingsWidget(QWidget):
 
     @property
     def amplitude(self) -> float:
-        return self._ampl_spinbox.value()
+        return self._amplitude_spinbox.value()
 
     @property
     def continuous(self) -> bool:

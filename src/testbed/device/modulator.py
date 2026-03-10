@@ -91,7 +91,7 @@ class Modulator(Device):
             command_adu_float = command_nm_float
         command_adu_uint16 = np.clip(command_adu_float, 0, self.pxmax).astype(np.uint16)
         self._stream.set_data(command_adu_uint16)
-        self._sample = SinkSample(self.last_access_time, self.frame_rate_fps, self.center, self.radius, command_adu_uint16.copy())
+        self._sample = SinkSample(self.last_access_time, self.frame_rate_fps, self.center, self.radius, command_nm_float.copy())
         return self._sample
 
     def get_command(self) -> SinkSample:
