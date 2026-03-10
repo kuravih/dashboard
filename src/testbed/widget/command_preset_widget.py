@@ -13,7 +13,7 @@ logger = setup_logger("command_preset", terminator="\n")
 
 class CommandPresetWidget(QWidget):
     """
-    Base class for all command preset classes
+    Base class for command preset classes
     """
 
     changed = Signal(np.ndarray)
@@ -210,7 +210,7 @@ class CheckerPresetWidget(CommandPresetWidget):
 
 class SinusoidPresetWidget(CommandPresetWidget):
     """
-    Sinusoids command preset widget
+    Sinusoidal command preset widget
     """
 
     @Slot(float, float, float, float, float)
@@ -718,7 +718,7 @@ class TextPresetWidget(CommandPresetWidget):
 
 class DOTFProbePresetWidget(CommandPresetWidget):
     """
-    Box command preset widget
+    DOTF Probe command preset widget
     """
 
     @Slot(float, tuple, DOTFProbeDirection)
@@ -782,7 +782,7 @@ class DOTFProbePresetWidget(CommandPresetWidget):
 
 class PairwiseProbePresetWidget(CommandPresetWidget):
     """
-    Box command preset widget
+    Pairwise probe command preset widget
     """
 
     @Slot(float, float, float, float, float, PairwiseProbeDirection)
