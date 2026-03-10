@@ -8,7 +8,7 @@ from PySide6.QtWidgets import QDoubleSpinBox, QGridLayout, QHBoxLayout, QLabel, 
 import testbed
 
 from ..function import PairwiseProbeDirection
-from ..widget import PairwiseDirectionWidget
+from ..widget import PairwiseProbeDirectionWidget
 from ..device.camera import Camera
 from ..device.modulator import Modulator
 from ..worker.pairwise_fpwfs_worker import ProcessWorker
@@ -74,7 +74,7 @@ class ProcessSettingsWidget(QWidget):
         probe_dir_label = QLabel("Probe dir.", self)
         probe_dir_label.setFixedWidth(100)
 
-        self.probe_dir_checkboxes = PairwiseDirectionWidget(self)
+        self.probe_dir_checkboxes = PairwiseProbeDirectionWidget(self)
         self.probe_dir_checkboxes[1].setChecked(False)
         self.probe_dir_checkboxes.setEnabled(False)
 

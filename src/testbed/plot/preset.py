@@ -14,7 +14,7 @@ import matplotlib.patches as patches
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 
 from pykato.plotfunction.gridspec_layout import GridSpec_Layout
-from pykato.plotfunction.preset import patch_alpha_mask_show, patch_cmap_name, patch_cmap_norm, Imshow_Colorbar_Preset, Complex_ImageGrid_TwoColorbars_Preset, Complex_Imshow_TwoColorbars_Preset
+from pykato.plotfunction.preset import AxesImage_patch_alpha_mask_show, AxesImage_patch_cmap_name, AxesImage_patch_cmap_norm, Imshow_Colorbar_Preset, Complex_ImageGrid_TwoColorbars_Preset, Complex_Imshow_TwoColorbars_Preset, Histogram_Colorbar_Preset
 from pykato.log import setup_logger
 
 logger = setup_logger("preset", terminator="\n")
@@ -47,19 +47,22 @@ def Image_Plot_Preset(capture: NDArray[np.float64], cmap_norm: Normalize | None 
     figure = Imshow_Colorbar_Preset(capture, figure=figure)
 
     if cmap_name is not None:
-        patch_cmap_name(figure.get_image())
+        AxesImage_patch_cmap_name(figure.get_image())
         figure.get_image().set_cmap_name(cmap_name)
 
     if cmap_norm is not None:
-        patch_cmap_norm(figure.get_image())
+        AxesImage_patch_cmap_norm(figure.get_image())
         figure.get_image().set_cmap_norm(cmap_norm)
 
     if alpha_mask is not None:
-        patch_alpha_mask_show(figure.get_image(), alpha_mask)
+        AxesImage_patch_alpha_mask_show(figure.get_image(), alpha_mask)
         figure.get_image().set_alpha_mask_show(True)
 
     return figure
 
+
+def Histogram_Plot_Preset(capture: NDArray[np.float64], cmap_norm: Normalize | None = None, cmap_name: str | None = None) -> Figure:
+    return Histogram_Colorbar_Preset(capture, nbins=256, cmap_norm=cmap_norm, cmap_name=cmap_name, position="bottom")
 
 def Speckle_Modulation_Plot_Preset(phs_lim: tuple[float, float], amp_lim: tuple[float, float], figure: Figure | None = None) -> Figure:
     """

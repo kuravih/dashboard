@@ -291,6 +291,8 @@ class NDoubleSpinBoxesWidget(QWidget):
             list of values.
     """
 
+    valueChanged = Signal(tuple)
+
     def __init__(self, count: int = 2, parent=None):
         super().__init__(parent)
 
@@ -300,6 +302,7 @@ class NDoubleSpinBoxesWidget(QWidget):
         self._spinboxes = []
         for _ in range(count):
             spinbox = QDoubleSpinBox(self)
+            spinbox.valueChanged.connect(self._on_value_changed)
             self._spinboxes.append(spinbox)
             layout.addWidget(spinbox)
 
@@ -307,14 +310,18 @@ class NDoubleSpinBoxesWidget(QWidget):
 
         self.setLayout(layout)
 
+    @Slot(int)
+    def _on_value_changed(self, _:int):
+        self.valueChanged.emit(self.value())
+
     def __getitem__(self, index) -> QDoubleSpinBox:
         return self._spinboxes[index]
 
     def __iter__(self) -> Iterator[QDoubleSpinBox]:
         return iter(self._spinboxes)
 
-    def value(self) -> list[float]:
-        return list(spinbox.value() for spinbox in self._spinboxes)
+    def value(self) -> tuple[float]:
+        return tuple(spinbox.value() for spinbox in self._spinboxes)
 
 
 class NSpinBoxesWidget(QWidget):
@@ -326,9 +333,11 @@ class NSpinBoxesWidget(QWidget):
             Number of spinboxes.
 
     Function:
-        value(): list[int]
-            list of values.
+        value(): tuple[int]
+            tuple of values.
     """
+
+    valueChanged = Signal(tuple)
 
     def __init__(self, count=2, parent=None):
         super().__init__(parent)
@@ -338,6 +347,7 @@ class NSpinBoxesWidget(QWidget):
         self._spinboxes = []
         for _ in range(count):
             spinbox = QSpinBox(self)
+            spinbox.valueChanged.connect(self._on_value_changed)
             self._spinboxes.append(spinbox)
             layout.addWidget(spinbox)
 
@@ -345,15 +355,18 @@ class NSpinBoxesWidget(QWidget):
 
         self.setLayout(layout)
 
+    @Slot(int)
+    def _on_value_changed(self, _:int):
+        self.valueChanged.emit(self.value())
+
     def __getitem__(self, index) -> QSpinBox:
         return self._spinboxes[index]
 
     def __iter__(self) -> Iterator[QSpinBox]:
         return iter(self._spinboxes)
 
-    def value(self) -> list[int]:
-        return list(spinbox.value() for spinbox in self._spinboxes)
-
+    def value(self) -> tuple[int, ...]:
+        return tuple(spinbox.value() for spinbox in self._spinboxes)
 
 class OrientationWidget(QWidget):
     """
@@ -920,7 +933,7 @@ class FileLoadWidget(QWidget):
             self.file_clear_button.show()
 
 
-class DOTFDirectionWidget(QWidget):
+class DOTFProbeDirectionWidget(QWidget):
     """
     Widget with four checkboxes for the four DOTF probes (03, 06, 09 & 12 o'clock).
 
@@ -931,22 +944,29 @@ class DOTFDirectionWidget(QWidget):
 
     valueChanged = Signal(list)  # emits List[DOTFProbeDirection]
 
-    def __init__(self, parent=None):
+    def __init__(self, exclusive: bool = False, parent=None):
         super().__init__(parent)
 
+        self._exclusive = exclusive
         layout = QHBoxLayout()
 
         self._checkboxes: list[QCheckBox] = []
 
-        for _direction in DOTFProbeDirection:  # pylint: disable=invalid-name
+        for _direction in DOTFProbeDirection:
             checkbox = QCheckBox(_direction.to_str(), self)
             checkbox.setChecked(True)
             checkbox.toggled.connect(self._on_checkbox_toggled)
             self._checkboxes.append(checkbox)
             layout.addWidget(checkbox)
 
-        layout.setContentsMargins(0, 0, 0, 0)
+        if self._exclusive:
+            # Start with only the first one checked
+            for checkbox in self._checkboxes[1:]:
+                checkbox.blockSignals(True)
+                checkbox.setChecked(False)
+                checkbox.blockSignals(False)
 
+        layout.setContentsMargins(0, 0, 0, 0)
         self.setLayout(layout)
 
     def __getitem__(self, index) -> QCheckBox:
@@ -959,16 +979,34 @@ class DOTFDirectionWidget(QWidget):
         return [direction for checkbox, direction in zip(self._checkboxes, DOTFProbeDirection) if checkbox.isChecked()]
 
     def _on_checkbox_toggled(self, checked: bool):
-        if not any(checkbox.isChecked() for checkbox in self._checkboxes):
-            sender = self.sender()
-            if isinstance(sender, QCheckBox):
-                sender.blockSignals(True)
-                sender.setChecked(True)
-                sender.blockSignals(False)
+        if self._exclusive:
+            if not checked:
+                # Prevent unchecking if it's the last one checked
+                if not any(cb.isChecked() for cb in self._checkboxes):
+                    sender = self.sender()
+                    if isinstance(sender, QCheckBox):
+                        sender.blockSignals(True)
+                        sender.setChecked(True)
+                        sender.blockSignals(False)
+            else:
+                # Uncheck all others
+                sender = self.sender()
+                for checkbox in self._checkboxes:
+                    if checkbox is not sender:
+                        checkbox.blockSignals(True)
+                        checkbox.setChecked(False)
+                        checkbox.blockSignals(False)
+        else:
+            if not any(cb.isChecked() for cb in self._checkboxes):
+                sender = self.sender()
+                if isinstance(sender, QCheckBox):
+                    sender.blockSignals(True)
+                    sender.setChecked(True)
+                    sender.blockSignals(False)
 
         self.valueChanged.emit(self.value())
 
-class PairwiseDirectionWidget(QWidget):
+class PairwiseProbeDirectionWidget(QWidget):
     """
     Widget with four checkboxes for horizontal/vertical pairwise probes.
 
@@ -979,9 +1017,10 @@ class PairwiseDirectionWidget(QWidget):
 
     valueChanged = Signal(list)  # emits List[PairwiseProbeDirection]
 
-    def __init__(self, parent=None):
+    def __init__(self, exclusive: bool = False, parent=None):
         super().__init__(parent)
 
+        self._exclusive = exclusive
         layout = QHBoxLayout()
 
         self._checkboxes: list[QCheckBox] = []
@@ -993,8 +1032,13 @@ class PairwiseDirectionWidget(QWidget):
             self._checkboxes.append(checkbox)
             layout.addWidget(checkbox)
 
-        layout.setContentsMargins(0, 0, 0, 0)
+        if self._exclusive:
+            for checkbox in self._checkboxes[1:]:
+                checkbox.blockSignals(True)
+                checkbox.setChecked(False)
+                checkbox.blockSignals(False)
 
+        layout.setContentsMargins(0, 0, 0, 0)
         self.setLayout(layout)
 
     def __getitem__(self, index) -> QCheckBox:
@@ -1007,12 +1051,28 @@ class PairwiseDirectionWidget(QWidget):
         return [direction for checkbox, direction in zip(self._checkboxes, PairwiseProbeDirection) if checkbox.isChecked()]
 
     def _on_checkbox_toggled(self, checked: bool):
-        if not any(checkbox.isChecked() for checkbox in self._checkboxes):
-            sender = self.sender()
-            if isinstance(sender, QCheckBox):
-                sender.blockSignals(True)
-                sender.setChecked(True)
-                sender.blockSignals(False)
+        if self._exclusive:
+            if not checked:
+                if not any(cb.isChecked() for cb in self._checkboxes):
+                    sender = self.sender()
+                    if isinstance(sender, QCheckBox):
+                        sender.blockSignals(True)
+                        sender.setChecked(True)
+                        sender.blockSignals(False)
+            else:
+                sender = self.sender()
+                for checkbox in self._checkboxes:
+                    if checkbox is not sender:
+                        checkbox.blockSignals(True)
+                        checkbox.setChecked(False)
+                        checkbox.blockSignals(False)
+        else:
+            if not any(cb.isChecked() for cb in self._checkboxes):
+                sender = self.sender()
+                if isinstance(sender, QCheckBox):
+                    sender.blockSignals(True)
+                    sender.setChecked(True)
+                    sender.blockSignals(False)
 
         self.valueChanged.emit(self.value())
 

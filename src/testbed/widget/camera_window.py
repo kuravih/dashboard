@@ -7,14 +7,66 @@ from matplotlib import colormaps
 from matplotlib.colors import LogNorm, Normalize
 
 from pykato.log import setup_logger
-from pykato.plotfunction.preset import Histogram_Colorbar_Preset
 
 from ..device.camera import Camera, SourceSample
 from ..function import Flip, Rotation, flip_rotate, is_camera_calibration_file_valid
 from ..widget import Window, OrientationWidget, ROIWidget, DoubleValueSetWidget, FileLoadWidget
-from ..widget.figure_widget import FigureWidget, SourceFigureWidget
+from ..widget.figure_widget import SourceFigureWidget, SourceHistFigureWidget
 
 logger = setup_logger("camera_window", terminator="\n")
+
+
+# ==== SourceHistSettingsWidget =======================================================================================
+class SourceHistSettingsWidget(Window):
+    """
+    Settings for the simple preview window.
+    """
+
+    def __init__(self, cmap_name: str, cmap_norm: Normalize, parent=None):
+        self.cmap_name: str = cmap_name
+        self.cmap_norm: Normalize = cmap_norm
+
+        super().__init__(parent, Qt.WindowType.Dialog)
+
+        self.setWindowModality(Qt.WindowModality.WindowModal)
+        self.setWindowTitle("Preview Settings")
+        layout = QVBoxLayout()
+        layout.setContentsMargins(2, 2, 2, 2)
+        layout.addWidget(self.setup_preview_settings_widget())
+        self.setLayout(layout)
+
+    def setup_preview_settings_widget(self) -> QWidget:
+        widget = QWidget(self)
+        layout = QGridLayout(widget)
+        widget.setLayout(layout)
+
+        scale_label = QLabel("Scale", self)
+        self.log_checkbox = QCheckBox("Log", self)
+        self.log_checkbox.setToolTip("Log Scale")
+
+        if isinstance(self.cmap_norm, LogNorm):
+            self.log_checkbox.setChecked(True)
+        else:
+            self.log_checkbox.setChecked(False)
+
+        cmap_label = QLabel("Colormap", self)
+        self.cmap_combobox = QComboBox(self)
+        self.cmap_combobox.addItems(list(colormaps))
+        self.cmap_combobox.setCurrentIndex(list(colormaps).index(self.cmap_name))
+
+        row = 0
+        col = 0
+        layout.addWidget(scale_label, row, col)
+        col += 1
+        layout.addWidget(self.log_checkbox, row, col)
+
+        row += 1
+        col = 0
+        layout.addWidget(cmap_label, row, col)
+        col += 1
+        layout.addWidget(self.cmap_combobox, row, col)
+
+        return widget
 
 
 # ==== InfoWindow =====================================================================================================
@@ -134,11 +186,9 @@ class InfoWindow(Window):
         self.info_roi_value_label = QLabel(f"[({self.camera.roi['br'][0]}, {self.camera.roi['br'][1]})," f"({self.camera.roi['tl'][0]}, {self.camera.roi['tl'][1]})]", self)  # pylint: disable=W1405:inconsistent-quotes
         self.info_roi_value_label.setToolTip("Region of interest [(x1,y1),(x2,y2)]")
 
-        self.info_hist_figure_widget = FigureWidget(Histogram_Colorbar_Preset(self.camera.blank, position="bottom", vmin=0, vmax=self.camera.pxmax, nbins=256), parent=self)
-        self.info_hist_figure_widget.figure.get_histogram_ax().set_ylabel("count", size=10)
-        self.info_hist_figure_widget.figure.get_histogram_ax().set_ylim((0, 100))
-        self.info_hist_figure_widget.figure.set_vlim(0, self.camera.pxmax)
-        self.info_hist_figure_widget.figure.get_cbar_ax().set_xlabel("nadu", size=10)
+        self.info_hist_figure_widget = SourceHistFigureWidget(self.camera.blank, self.camera.pxmax, parent=self)
+        if self.info_hist_figure_widget.toolbar is not None:
+            self.info_hist_figure_widget.toolbar.settingsClicked.connect(self.on_info_hist_settings_clicked)
 
         row = 0
         col = 0
@@ -233,8 +283,27 @@ class InfoWindow(Window):
         return widget
 
     @Slot()
+    def on_info_hist_settings_clicked(self):
+        info_hist_settings_window = SourceHistSettingsWidget(self.info_hist_figure_widget.cmap_name, self.info_hist_figure_widget.cmap_norm, parent=self)
+        info_hist_settings_window.show()
+        info_hist_settings_window.raise_()
+        info_hist_settings_window.activateWindow()
+        info_hist_settings_window.log_checkbox.checkStateChanged.connect(self.on_cmap_norm_changed)
+        info_hist_settings_window.cmap_combobox.currentTextChanged.connect(self.on_cmap_name_changed)
+
+    @Slot(str)
+    def on_cmap_name_changed(self, colormap: str):
+        self.info_hist_figure_widget.cmap_name = colormap
+
+    @Slot(bool)
+    def on_cmap_norm_changed(self, checked: bool):
+        if checked == Qt.CheckState.Checked:
+            self.info_hist_figure_widget.cmap_norm = LogNorm(1, 2**12 - 1)
+        else:
+            self.info_hist_figure_widget.cmap_norm = Normalize(0, 2**12 - 1)
+
+    @Slot()
     def on_update_timer_tick(self):
-        # logger.info("InfoWindow.on_update_timer_tick")
         self.info_last_access_time_value_label.setText(f"{self.sample.last_access_time:%Y-%m-%d %H:%M:%S}.{self.sample.last_access_time:%f}"[:-2])
         self.info_exposure_time_value_label.setText(f"{self.sample.exposure_time_s}")
         self.info_gain_value_label.setText(f"{self.sample.gain}")
@@ -387,7 +456,7 @@ class SettingsWindow(Window):
                 col += 1
                 layout.addWidget(roi_widget, row, col)
 
-        camera_calibration_label = QLabel("Camera Calibration", self)
+        camera_calibration_label = QLabel("Calibration", self)
         self.calibration_widget = FileLoadWidget(caption="Open Calibration File", directory="./data/output", file_filter="Fits file (*.fits)", validator=lambda _filename: is_camera_calibration_file_valid(_filename, self.camera.full_shape), parent=self)
         self.calibration_widget.setFilepath(self.camera.calibration_file)
 

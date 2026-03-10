@@ -8,7 +8,7 @@ from PySide6.QtWidgets import QDoubleSpinBox, QGridLayout, QHBoxLayout, QLabel, 
 import testbed
 
 from ..function import DOTFProbeDirection
-from ..widget import NSpinBoxesWidget, DOTFDirectionWidget
+from ..widget import NSpinBoxesWidget, DOTFProbeDirectionWidget
 from ..device.camera import Camera
 from ..device.modulator import Modulator
 from ..worker.dotf_measurement_worker import ProcessWorker
@@ -70,7 +70,7 @@ class ProcessSettingsWidget(QWidget):
         probe_dir_label = QLabel("Probe dir.", self)
         probe_dir_label.setFixedWidth(100)
 
-        self.probe_dir_checkboxes = DOTFDirectionWidget(self)
+        self.probe_dir_checkboxes = DOTFProbeDirectionWidget(parent=self)
 
         n_reps_label = QLabel("Reps", self)
         n_reps_label.setFixedWidth(100)

@@ -7,7 +7,7 @@ from pykato.log import setup_logger
 
 import testbed
 
-from ..function import efc_probe, PairwiseProbeDirection
+from ..function import pairwise_probe, PairwiseProbeDirection
 from ..device import SourceSample, SinkSample
 from ..device.camera import Camera
 from ..device.modulator import Modulator
@@ -40,7 +40,7 @@ class ProcessWorker(Worker):
 
     def sense_wavefront(self, current_cmd: np.ndarray, probe_amplitude: float, dξ: float, dη: float, ξc: float, θ: float, direction: PairwiseProbeDirection) -> NDArray[np.complex64]:
 
-        probe_command = probe_amplitude * self.sink.pxmax * efc_probe(self.sink.shape, dξ, dη, ξc, θ, direction)
+        probe_command = probe_amplitude * self.sink.pxmax * pairwise_probe(self.sink.shape, dξ, dη, ξc, θ, direction)
 
         # -------------------------------------------------------------------------------------------------------------
 

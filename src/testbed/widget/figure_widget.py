@@ -10,12 +10,12 @@ from pykato.log import setup_logger
 import matplotlib.pyplot as plt
 import matplotlib.patches as patches
 from matplotlib.figure import Figure
-from matplotlib.colors import Normalize, LogNorm
+from matplotlib.colors import Normalize
 from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.backends.backend_qtagg import NavigationToolbar2QT
 
 from testbed.function import Flip, Rotation, DOTFProbeDirection
-from testbed.plot.preset import Speckle_Modulation_Plot_Preset, Contrast_Evolution_Plot_Preset, DOTF_Measurement_Plot_Preset, Image_Plot_Preset, Wavefront_Plot_Preset
+from testbed.plot.preset import Speckle_Modulation_Plot_Preset, Contrast_Evolution_Plot_Preset, DOTF_Measurement_Plot_Preset, Image_Plot_Preset, Wavefront_Plot_Preset, Histogram_Plot_Preset
 
 from .resource import ICON_HOUSE, ICON_MOVE, ICON_MAGNIFY, ICON_DISK, ICON_GEAR
 
@@ -102,12 +102,12 @@ class SinkFigureWidget(FigureWidget):
     Sink Figure widget
     """
 
-    def __init__(self, frame: np.ndarray, pxmax: float, toolitems: list[str] | None = None, parent: QWidget | None = None):
+    def __init__(self, frame: np.ndarray, vlim: tuple[float, float], toolitems: list[str] | None = None, parent: QWidget | None = None):
         super().__init__(Image_Plot_Preset(frame, cmap_name="bwr"), toolitems, parent=parent)
         self.rotation = Rotation.UP
         self.flip = Flip.POS
 
-        self.figure.get_image().set_clim(0, pxmax)
+        self.figure.get_image().set_clim(*vlim)
         self.figure.get_imshow_axes().set_title("Sink", size=10)
         self.setMinimumSize(100, 100)
 
@@ -150,21 +150,21 @@ class MirrorFigureWidget(SinkFigureWidget):
     Mirror Figure widget
     """
 
-    def __init__(self, frame: np.ndarray, pxmax: float, toolitems: list[str] | None = None, parent: QWidget | None = None):
-        super().__init__(frame, pxmax, toolitems, parent=parent)
+    def __init__(self, frame: np.ndarray, vlim: tuple[float, float], toolitems: list[str] | None = None, parent: QWidget | None = None):
+        super().__init__(frame, vlim, toolitems, parent=parent)
         self.figure.get_imshow_ax().set_title("DM")
         self.figure.get_imshow_ax().set_xlabel("act", size=10)
         self.figure.get_imshow_ax().set_ylabel("act", size=10)
-        self.figure.get_imshow_ax().axhline(4.5, alpha=0.25, linewidth=0.5, color="white")
-        self.figure.get_imshow_ax().axhline(10.5, alpha=0.25, linewidth=0.5, color="white")
-        self.figure.get_imshow_ax().axhline(16.5, alpha=0.25, linewidth=0.5, color="white")
-        self.figure.get_imshow_ax().axhline(22.5, alpha=0.25, linewidth=0.5, color="white")
-        self.figure.get_imshow_ax().axhline(28.5, alpha=0.25, linewidth=0.5, color="white")
-        self.figure.get_imshow_ax().axvline(4.5, alpha=0.25, linewidth=0.5, color="white")
-        self.figure.get_imshow_ax().axvline(10.5, alpha=0.25, linewidth=0.5, color="white")
-        self.figure.get_imshow_ax().axvline(16.5, alpha=0.25, linewidth=0.5, color="white")
-        self.figure.get_imshow_ax().axvline(22.5, alpha=0.25, linewidth=0.5, color="white")
-        self.figure.get_imshow_ax().axvline(28.5, alpha=0.25, linewidth=0.5, color="white")
+        self.figure.get_imshow_ax().axhline(4, alpha=0.25, linewidth=0.5, color="white")
+        self.figure.get_imshow_ax().axhline(10, alpha=0.25, linewidth=0.5, color="white")
+        self.figure.get_imshow_ax().axhline(16, alpha=0.25, linewidth=0.5, color="white")
+        self.figure.get_imshow_ax().axhline(22, alpha=0.25, linewidth=0.5, color="white")
+        self.figure.get_imshow_ax().axhline(28, alpha=0.25, linewidth=0.5, color="white")
+        self.figure.get_imshow_ax().axvline(4, alpha=0.25, linewidth=0.5, color="white")
+        self.figure.get_imshow_ax().axvline(10, alpha=0.25, linewidth=0.5, color="white")
+        self.figure.get_imshow_ax().axvline(16, alpha=0.25, linewidth=0.5, color="white")
+        self.figure.get_imshow_ax().axvline(22, alpha=0.25, linewidth=0.5, color="white")
+        self.figure.get_imshow_ax().axvline(28, alpha=0.25, linewidth=0.5, color="white")
         self.figure.get_cbar_ax().set_title("V", size=10)
         self.setMinimumSize(100, 100)
 
@@ -174,15 +174,15 @@ class ModulatorFigureWidget(SinkFigureWidget):
     Modulator Figure widget
     """
 
-    def __init__(self, frame: np.ndarray, pxmax: float, toolitems: list[str] | None = None, parent: QWidget | None = None):
-        super().__init__(frame, pxmax, toolitems, parent=parent)
+    def __init__(self, frame: np.ndarray, vlim: tuple[float, float], toolitems: list[str] | None = None, parent: QWidget | None = None):
+        super().__init__(frame, vlim, toolitems, parent=parent)
         self.figure.get_imshow_axes().set_title("SLM", size=10)
         self.figure.get_imshow_axes().set_xlabel("px", size=10)
         self.figure.get_imshow_axes().set_ylabel("px", size=10)
         self.figure.get_cbar_axes().set_title("adu", size=10)
-        self.figure.get_imshow_axes().axhline(frame.shape[0] / 2 - 0.5, alpha=0.25, linewidth=0.5, color="white")
-        self.figure.get_imshow_axes().axvline(frame.shape[1] / 2 - 0.5, alpha=0.25, linewidth=0.5, color="white")
-        self.figure.get_imshow_axes().add_patch(patches.Circle((frame.shape[0] / 2 - 0.5, frame.shape[1] / 2 - 0.5), radius=frame.shape[1] / 2, fill=False, alpha=0.25, linewidth=0.5, color="white", transform=self.figure.get_imshow_axes().transData))
+        self.figure.get_imshow_axes().axhline(frame.shape[0] / 2, alpha=0.25, linewidth=0.5, color="white")
+        self.figure.get_imshow_axes().axvline(frame.shape[1] / 2, alpha=0.25, linewidth=0.5, color="white")
+        self.figure.get_imshow_axes().add_patch(patches.Circle((frame.shape[0] / 2, frame.shape[1] / 2), radius=frame.shape[1] / 2, fill=False, alpha=0.25, linewidth=0.5, color="white", transform=self.figure.get_imshow_axes().transData))
         self.setMinimumSize(100, 100)
 
 
@@ -192,11 +192,9 @@ class SourceFigureWidget(FigureWidget):
     """
 
     def __init__(self, frame: np.ndarray, pxmax: float, rotation: Rotation = Rotation.UP, flip: Flip = Flip.POS, alpha_mask: NDArray[np.bool] | None = None, toolitems: list[str] | None = None, parent: QWidget | None = None):
-        super().__init__(Image_Plot_Preset(frame, cmap_name="hot", cmap_norm=LogNorm(1, 2**12 - 1), alpha_mask=alpha_mask), toolitems, parent)
+        super().__init__(Image_Plot_Preset(frame, cmap_name="hot", cmap_norm=Normalize(0, pxmax), alpha_mask=alpha_mask), toolitems, parent)
         self.rotation = rotation
         self.flip = flip
-
-        self.figure.get_image().set_clim(1, pxmax)
         self.figure.get_imshow_axes().set_title("Source", size=10)
         self.figure.get_imshow_axes().set_xlabel("px", size=10)
         self.figure.get_imshow_axes().set_xlim((0 - 0.5, frame.shape[0] - 1 + 0.5))
@@ -248,6 +246,58 @@ class SourceFigureWidget(FigureWidget):
     @flip.setter
     def flip(self, value: Flip):
         self._flip = value
+
+
+class SourceHistFigureWidget(FigureWidget):
+    """
+    Source Histogram Figure widget
+    """
+
+    def __init__(self, frame: np.ndarray, pxmax: float, toolitems: list[str] | None = None, parent: QWidget | None = None):
+        super().__init__(Histogram_Plot_Preset(frame, cmap_name="hot", cmap_norm=Normalize(0, pxmax)), toolitems, parent)
+        self.figure.get_histogram_axes().set_ylabel("count", size=10)
+        self.figure.get_histogram_axes().set_ylim((0, 100))
+        self.figure.get_cbar_axes().set_xlabel("nadu", size=10)
+
+        self.setMinimumSize(100, 100)
+
+    @property
+    def cmap_name(self) -> str:
+        return self.figure.get_cmap_name()
+
+    @cmap_name.setter
+    def cmap_name(self, value: str):
+        self.figure.set_cmap_name(value)
+
+    @property
+    def cmap_norm(self) -> Normalize:
+        return self.figure.get_cmap_norm()
+
+    @cmap_norm.setter
+    def cmap_norm(self, value: Normalize):
+        self.figure.set_cmap_norm(value)
+
+
+class SinkHistFigureWidget(FigureWidget):
+    """
+    Sink Histogram Figure widget
+    """
+
+    def __init__(self, frame: np.ndarray, pxmax: float, toolitems: list[str] | None = None, parent: QWidget | None = None):
+        super().__init__(Histogram_Plot_Preset(frame, cmap_name="bwr", cmap_norm=Normalize(0, pxmax)), toolitems, parent)
+        self.figure.get_histogram_axes().set_ylabel("count", size=10)
+        self.figure.get_histogram_axes().set_ylim((0, 100))
+        self.figure.get_cbar_axes().set_xlabel("nadu", size=10)
+
+        self.setMinimumSize(100, 100)
+
+    @property
+    def cmap_name(self) -> str:
+        return self.figure.get_cmap_name()
+
+    @cmap_name.setter
+    def cmap_name(self, value: str):
+        self.figure.set_cmap_name(value)
 
 
 class ContrastFigureWidget(FigureWidget):

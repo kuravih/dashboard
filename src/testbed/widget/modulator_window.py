@@ -5,19 +5,55 @@ from PySide6.QtCore import QTimer, Slot, Qt
 from matplotlib import colormaps
 
 from pykato.log import setup_logger
-from pykato.plotfunction.preset import Histogram_Colorbar_Preset
 from pykato.function import timestamp_string
 
-from ..widget import Window, OrientationWidget, CenterWidget, DoubleValueSetWidget
-from ..function import write_sink_sample_header, write_sink_sample_data, Flip, Rotation, flip_rotate
+from ..widget import Window, OrientationWidget, CenterWidget, DoubleValueSetWidget, FileLoadWidget
+from ..function import write_sink_sample_header, write_sink_sample_data, Flip, Rotation, flip_rotate, is_modulator_calibration_file_valid
 from ..device.modulator import Modulator, SinkSample
-from ..widget.command_preset_widget import EFCPresetWidget, ConstPresetWidget, GradientPresetWidget, CheckerPresetWidget, SinusoidPresetWidget, BoxPresetWidget, PolkaPresetWidget, RegisterPresetWidget, DOTFPresetWidget, TextPresetWidget
-from ..widget.figure_widget import FigureWidget, ModulatorFigureWidget
+from ..widget.command_preset_widget import ConstantPresetWidget, GradientPresetWidget, CheckerPresetWidget, SinusoidPresetWidget, BoxPresetWidget, PolkaPresetWidget, RegisterPresetWidget, TextPresetWidget, DOTFProbePresetWidget, PairwiseProbePresetWidget
+from ..widget.figure_widget import ModulatorFigureWidget, SinkHistFigureWidget
 
 logger = setup_logger("modulator_window", terminator="\n")
 
-PRESETS = ["Constant", "Gradient", "Checker", "Sinusoid", "Box", "Polka", "Register", "dOTF", "EFC", "Text"]
+PRESETS = ["Constant", "Gradient", "Checker", "Sinusoid", "Box", "Polka", "Register", "Text", "dOTF", "Pairwise"]
 
+
+# ==== SinkHistSettingsWidget =======================================================================================
+class SinkHistSettingsWidget(Window):
+    """
+    Settings for the simple preview window.
+    """
+
+    def __init__(self, cmap_name: str, parent=None):
+        self.cmap_name: str = cmap_name
+
+        super().__init__(parent, Qt.WindowType.Dialog)
+
+        self.setWindowModality(Qt.WindowModality.WindowModal)
+        self.setWindowTitle("Preview Settings")
+        layout = QVBoxLayout()
+        layout.setContentsMargins(2, 2, 2, 2)
+        layout.addWidget(self.setup_preview_settings_widget())
+        self.setLayout(layout)
+
+    def setup_preview_settings_widget(self) -> QWidget:
+        widget = QWidget(self)
+        layout = QGridLayout(widget)
+        widget.setLayout(layout)
+
+        cmap_label = QLabel("Colormap", self)
+        self.cmap_combobox = QComboBox(self)
+        self.cmap_combobox.addItems(list(colormaps))
+        self.cmap_combobox.setCurrentIndex(list(colormaps).index(self.cmap_name))
+
+        row = 0
+        col = 0
+        layout.addWidget(cmap_label, row, col)
+        col += 1
+        layout.addWidget(self.cmap_combobox, row, col)
+
+        return widget
+    
 
 # ==== InfoWindow =====================================================================================================
 class InfoWindow(Window):
@@ -129,10 +165,9 @@ class InfoWindow(Window):
         self.info_radius_value_label = QLabel(f"{self.modulator.radius}", self)
         self.info_radius_value_label.setToolTip("Radius")
 
-        self.info_hist_figure_widget = FigureWidget(Histogram_Colorbar_Preset(self.modulator.sample.command, position="bottom", vmin=0, vmax=self.modulator.pxmax, nbins=256), parent=self)
-        self.info_hist_figure_widget.figure.get_histogram_ax().set_ylabel("count", size=10)
-        self.info_hist_figure_widget.figure.set_vlim(0, self.modulator.pxmax)
-        self.info_hist_figure_widget.figure.get_cbar_ax().set_xlabel("nadu", size=10)
+        self.info_hist_figure_widget = SinkHistFigureWidget(self.modulator.blank, self.modulator.pxmax, parent=self)
+        if self.info_hist_figure_widget.toolbar is not None:
+            self.info_hist_figure_widget.toolbar.settingsClicked.connect(self.on_info_hist_settings_clicked)
 
         row = 0
         col = 0
@@ -215,8 +250,19 @@ class InfoWindow(Window):
         return widget
 
     @Slot()
+    def on_info_hist_settings_clicked(self):
+        info_hist_settings_window = SinkHistSettingsWidget(self.info_hist_figure_widget.cmap_name, parent=self)
+        info_hist_settings_window.show()
+        info_hist_settings_window.raise_()
+        info_hist_settings_window.activateWindow()
+        info_hist_settings_window.cmap_combobox.currentTextChanged.connect(self.on_cmap_name_changed)
+
+    @Slot(str)
+    def on_cmap_name_changed(self, colormap: str):
+        self.info_hist_figure_widget.cmap_name = colormap
+
+    @Slot()
     def on_update_timer_tick(self):
-        # logger.info("InfoWindow.on_update_timer_tick")
         self.info_last_access_time_value_label.setText(f"{self.sample.last_access_time:%Y-%m-%d %H:%M:%S}.{self.sample.last_access_time:%f}"[:-2])
         self.info_center_value_label.setText(f"({self.sample.center[0]}, {self.sample.center[1]})")
         self.info_radius_value_label.setText(f"{self.sample.radius}")
@@ -282,6 +328,7 @@ class SettingsWindow(Window):
         radius_widget.spinbox.setRange(1, self.modulator.max_radius)
         radius_widget.spinbox.setSingleStep(1)
         radius_widget.spinbox.setDecimals(1)
+        radius_widget.setValue(self.modulator.radius)
         radius_widget.spinbox.setSuffix(" px")
         radius_widget.spinbox.setToolTip("Radius")
         radius_widget.valueSetClicked.connect(on_set_radius_clicked)
@@ -300,6 +347,17 @@ class SettingsWindow(Window):
         center_widget.centerMoveClicked.connect(on_center_move_clicked)
         # ---- center setting -----------------------------------------------------------------------------------------
 
+        modulator_calibration_label = QLabel("Calibration", self)
+        modulator_calibration_label.setFixedWidth(100)
+        self.calibration_widget = FileLoadWidget(caption="Open Calibration File", directory="./data/output", file_filter="Fits file (*.fits)", validator=lambda _filename: is_modulator_calibration_file_valid(_filename, self.modulator.full_shape), parent=self)
+        self.calibration_widget.setFilepath(self.modulator.calibration_file)
+
+        @Slot()
+        def on_calibration_change():
+            self.modulator.set_calibration(self.calibration_widget.filepath)
+
+        self.calibration_widget.fileChanged.connect(on_calibration_change)
+
         row = 0
         col = 0
         layout.addWidget(center_label, row, col)
@@ -311,6 +369,12 @@ class SettingsWindow(Window):
         layout.addWidget(radius_label, row, col)
         col += 1
         layout.addWidget(radius_widget, row, col)
+
+        row += 1
+        col = 0
+        layout.addWidget(modulator_calibration_label, row, col)
+        col += 1
+        layout.addWidget(self.calibration_widget, row, col)
 
         row += 1
         layout.setRowStretch(row, 1)
@@ -340,14 +404,14 @@ class SettingsWindow(Window):
             # self.modulator.push_command(np.clip(current.command + self.preset_widget.command - np.nanmean(self.preset_widget.command), 0, self.modulator.pxmax))
             pass
 
-        preset_figure_widget = ModulatorFigureWidget(self.modulator.blank, self.modulator.pxmax, parent=self)
+        preset_figure_widget = ModulatorFigureWidget(self.modulator.blank, (-150.0, 150.0), parent=self)
 
         @Slot(np.ndarray)
         def on_preset_changed(command):
-            if np.any(command > self.modulator.pxmax):
-                raise ValueError(f"Command values too high {np.max(command)}")
-            elif np.any(command < 0):
-                raise ValueError(f"Command values too low {np.min(command)}")
+            # if np.any(command > self.modulator.pxmax):
+            #     raise ValueError(f"Command values too high {np.max(command)} (max is {self.modulator.pxmax})")
+            # elif np.any(command < 0):
+            #     raise ValueError(f"Command values too low {np.min(command)} (min is {0})")
             image = np.ma.copy(self.modulator.blank)
             image.data[:] = command[:]
 
@@ -366,75 +430,75 @@ class SettingsWindow(Window):
         preset_layout.addWidget(preset_label)
         preset_layout.addWidget(preset_combobox)
 
-        const_preset_param_widget = ConstPresetWidget(self.modulator.shape, (0, self.modulator.pxmax), self)
-        const_preset_param_widget.changed.connect(on_preset_changed)
+        constant_preset_param_widget = ConstantPresetWidget(self.modulator.shape, (-150.0, 150.0), self)
+        constant_preset_param_widget.changed.connect(on_preset_changed)
 
-        gradient_preset_param_widget = GradientPresetWidget(self.modulator.shape, (0, self.modulator.pxmax), self)
+        gradient_preset_param_widget = GradientPresetWidget(self.modulator.shape, (-150.0, 150.0), self)
         gradient_preset_param_widget.changed.connect(on_preset_changed)
         gradient_preset_param_widget.hide()
 
-        checker_preset_param_widget = CheckerPresetWidget(self.modulator.shape, (0, self.modulator.pxmax), self)
+        checker_preset_param_widget = CheckerPresetWidget(self.modulator.shape, (-150.0, 150.0), self)
         checker_preset_param_widget.changed.connect(on_preset_changed)
         checker_preset_param_widget.hide()
 
-        sinusoid_preset_param_widget = SinusoidPresetWidget(self.modulator.shape, (0, self.modulator.pxmax), self)
+        sinusoid_preset_param_widget = SinusoidPresetWidget(self.modulator.shape, (-150.0, 150.0), self)
         sinusoid_preset_param_widget.changed.connect(on_preset_changed)
         sinusoid_preset_param_widget.hide()
 
-        box_preset_param_widget = BoxPresetWidget(self.modulator.shape, (0, self.modulator.pxmax), self)
+        box_preset_param_widget = BoxPresetWidget(self.modulator.shape, (-150.0, 150.0), self)
         box_preset_param_widget.changed.connect(on_preset_changed)
         box_preset_param_widget.hide()
 
-        polka_preset_param_widget = PolkaPresetWidget(self.modulator.shape, (0, self.modulator.pxmax), self)
+        polka_preset_param_widget = PolkaPresetWidget(self.modulator.shape, (-150.0, 150.0), self)
         polka_preset_param_widget.changed.connect(on_preset_changed)
         polka_preset_param_widget.hide()
 
-        register_preset_param_widget = RegisterPresetWidget(self.modulator.shape, (0, self.modulator.pxmax), self)
+        register_preset_param_widget = RegisterPresetWidget(self.modulator.shape, (-150.0, 150.0), self)
         register_preset_param_widget.changed.connect(on_preset_changed)
         register_preset_param_widget.hide()
 
-        dotf_preset_param_widget = DOTFPresetWidget(self.modulator.shape, (0, self.modulator.pxmax), self)
-        dotf_preset_param_widget.changed.connect(on_preset_changed)
-        dotf_preset_param_widget.hide()
-
-        efc_preset_param_widget = EFCPresetWidget(self.modulator.shape, (0, self.modulator.pxmax), self)
-        efc_preset_param_widget.changed.connect(on_preset_changed)
-        efc_preset_param_widget.hide()
-
-        text_preset_param_widget = TextPresetWidget(self.modulator.shape, (0, self.modulator.pxmax), self)
+        text_preset_param_widget = TextPresetWidget(self.modulator.shape, (-150.0, 150.0), self)
         text_preset_param_widget.changed.connect(on_preset_changed)
         text_preset_param_widget.hide()
 
+        dotf_preset_param_widget = DOTFProbePresetWidget(self.modulator.shape, (-150.0, 150.0), self)
+        dotf_preset_param_widget.changed.connect(on_preset_changed)
+        dotf_preset_param_widget.hide()
+
+        pairwise_preset_param_widget = PairwiseProbePresetWidget(self.modulator.shape, (-150.0, 150.0), self)
+        pairwise_preset_param_widget.changed.connect(on_preset_changed)
+        pairwise_preset_param_widget.hide()
+
         save_cmd_button = QPushButton("Save", self)
+        save_cmd_button.clicked.connect(on_save_clicked)
 
         send_cmd_button = QPushButton("Send", self)
+        send_cmd_button.clicked.connect(on_send_clicked)
 
         add_cmd_button = QPushButton("Add to Current", self)
+        add_cmd_button.clicked.connect(on_add_clicked)
 
         button_layout = QHBoxLayout()
         button_layout.addWidget(save_cmd_button)
-        save_cmd_button.clicked.connect(on_save_clicked)
         button_layout.addWidget(send_cmd_button)
-        send_cmd_button.clicked.connect(on_send_clicked)
-        add_cmd_button.clicked.connect(on_add_clicked)
 
         button_layout.addWidget(add_cmd_button)
 
         layout.addWidget(preset_figure_widget)
         layout.addLayout(preset_layout)
-        layout.addWidget(const_preset_param_widget)
+        layout.addWidget(constant_preset_param_widget)
         layout.addWidget(gradient_preset_param_widget)
         layout.addWidget(checker_preset_param_widget)
         layout.addWidget(sinusoid_preset_param_widget)
         layout.addWidget(box_preset_param_widget)
         layout.addWidget(polka_preset_param_widget)
         layout.addWidget(register_preset_param_widget)
-        layout.addWidget(dotf_preset_param_widget)
-        layout.addWidget(efc_preset_param_widget)
         layout.addWidget(text_preset_param_widget)
+        layout.addWidget(dotf_preset_param_widget)
+        layout.addWidget(pairwise_preset_param_widget)
         layout.addLayout(button_layout)
 
-        preset_widgets = (const_preset_param_widget, gradient_preset_param_widget, checker_preset_param_widget, sinusoid_preset_param_widget, box_preset_param_widget, polka_preset_param_widget, register_preset_param_widget, dotf_preset_param_widget, efc_preset_param_widget, text_preset_param_widget)
+        preset_widgets = (constant_preset_param_widget, gradient_preset_param_widget, checker_preset_param_widget, sinusoid_preset_param_widget, box_preset_param_widget, polka_preset_param_widget, register_preset_param_widget, text_preset_param_widget, dotf_preset_param_widget, pairwise_preset_param_widget)
         self.preset_widget = preset_widgets[0]
 
         @Slot(int)
@@ -502,7 +566,7 @@ class SimplePreviewWindow(Window):
     def __init__(self, modulator: Modulator, parent: QWidget | None = None):
         self._modulator = modulator
         self._sample = self._modulator.sample
-    
+
         super().__init__(parent, Qt.WindowType.Dialog)
 
         self.setWindowTitle(f"{self._modulator.name} Preview")
@@ -535,7 +599,7 @@ class SimplePreviewWindow(Window):
         widget.setLayout(layout)
 
         self._sample = self.modulator.sample
-        self.preview_figure_widget = ModulatorFigureWidget(self.modulator.blank, self.modulator.pxmax, parent=self)
+        self.preview_figure_widget = ModulatorFigureWidget(self.modulator.blank, (-150.0, 150.0), parent=self)
         if self.preview_figure_widget.toolbar is not None:
             self.preview_figure_widget.toolbar.settingsClicked.connect(self.on_preview_settings_clicked)
 

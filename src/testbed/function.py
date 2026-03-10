@@ -254,12 +254,28 @@ def is_camera_calibration_file_valid(filename: str, shape: tuple[int, int]) -> b
             return (hdul[0].data[0].shape == data_shape) & (hdul[0].data[1].shape == data_shape) & (hdul[0].data[2].shape == data_shape)
 
 
+def is_modulator_calibration_file_valid(filename: str, shape: tuple[int, int]) -> bool:
+    with fits.open(filename) as hdul:
+        if len(hdul[0].data) != 2:
+            return False
+        else:
+            data_shape = (shape[1], shape[0])
+            return (hdul[0].data[0].shape == data_shape) & (hdul[0].data[1].shape == data_shape)
+
+
 def read_camera_calibration_file(filename: str) -> dict[str, np.ndarray]:
     with fits.open(filename) as hdul:
         dark_rate_data = hdul[0].data[0]
         bias_data = hdul[0].data[1]
         read_noise_data = hdul[0].data[2]
         return {"dark_rate": dark_rate_data, "bias": bias_data, "read_noise": read_noise_data}
+
+
+def read_modulator_calibration_file(filename: str) -> dict[str, np.ndarray]:
+    with fits.open(filename) as hdul:
+        slope_data = hdul[0].data[0]
+        flat_data = hdul[0].data[1]
+        return {"slope": slope_data, "flat": flat_data}
 
 
 def sin_fit_fn(x, amplitude: float, frequency: float, phase: float, offset: float):
@@ -288,8 +304,51 @@ def write_camera_calibration_file(filename: str, dark_rate: np.ndarray, bias: np
     fits_dr_rn_hdu.writeto(filename, overwrite=True)
 
 
-def apply_calibration(capture: np.ndarray, exp_time_s: float, dark_rate: np.ndarray, bias: np.ndarray) -> np.ndarray:
-    return (capture - bias) - dark_rate * exp_time_s
+def write_modulator_calibration_file(filename: str, slope_nm_to_adu: np.ndarray, intercept_nm: np.ndarray):
+    fits_dr_rn = np.stack([slope_nm_to_adu, intercept_nm], axis=0)
+    fits_dr_rn_hdu = fits.PrimaryHDU(fits_dr_rn)
+    fits_dr_rn_hdu.header["NFRAME"] = 2
+    fits_dr_rn_hdu.header["FRAME0"] = "slope"
+    fits_dr_rn_hdu.header["FRAME1"] = "flat"
+    fits_dr_rn_hdu.writeto(filename, overwrite=True)
+
+
+def apply_camera_calibration(capture: np.ndarray, exp_time_s: float, dark_rate: np.ndarray, bias: np.ndarray) -> np.ndarray:
+    """
+    Apply the camera calibration to the raw capture
+
+    Parameters:
+        capture: np.ndarray
+            Raw capture in adu
+        exp_time_s: float
+            Exposure time in seconds
+        dark_rate: np.ndarray
+            dark rate
+        bias: np.ndarray
+            bias
+
+    Returns: np.ndarray
+        Image of count rate
+    """
+    return ((capture - bias) - dark_rate * exp_time_s) / exp_time_s
+
+
+def apply_modulator_calibration(command: np.ndarray, slope: np.ndarray, flat: np.ndarray) -> np.ndarray:
+    """
+    Apply modulator calibration to command
+
+    Parameters:
+        command: np.ndarray
+            Raw command in nm
+        slope: np.ndarray
+            conversion from nm to adu
+        flat: np.ndarray (adu)
+            flat command in adu.
+
+    Returns: np.ndarray
+        Command in adu
+    """
+    return command * slope - flat
 
 
 class DOTFProbeDirection(IntEnum):
@@ -345,12 +404,12 @@ class PairwiseProbeDirection(Enum):
         return self.name.lower()
 
 
-def efc_probe(shape: tuple[int, int], dξ: float, dη: float, ξc: float, θ: float, direction: PairwiseProbeDirection) -> np.ndarray:
+def pairwise_probe(shape: tuple[int, int], dξ: float, dη: float, ξc: float, θ: float, direction: PairwiseProbeDirection) -> np.ndarray:
     """
-    Create a EFC probe pattern image.
+    Create a pairwise probe pattern image.
 
     Example:
-        image_efc_probe = efc_probe((200,200), 0.01, 0.01, 90, 0, PairwiseProbeDirection.HORIZONTAL)
+        image_pairwise_probe = pairwise_probe((200,200), 0.01, 0.01, 90, 0, PairwiseProbeDirection.HORIZONTAL)
 
     Parameters:
         shape: tuple[int, int]
@@ -365,17 +424,18 @@ def efc_probe(shape: tuple[int, int], dξ: float, dη: float, ξc: float, θ: fl
             Phase of the sinusoid (along the PairwiseProbeDirection) in radians.
 
     Returns: np.ndarray
-        Image of the EFC probe pattern.
+        Image of the pairwise probe pattern.
     """
 
-    def _efc_probe(shape: tuple[int, int], dξ: float, dη: float, ξc: float, θ: float) -> np.ndarray:
+    def _pairwise_probe(shape: tuple[int, int], dξ: float, dη: float, ξc: float, θ: float) -> np.ndarray:
         xx, yy = generate_coordinates(shape, cartesian=True, offset=(-shape[0] / 2 + 0.5, -shape[1] / 2 + 0.5))
         _2pi_xx = 2 * np.pi * xx
         _2pi_yy = 2 * np.pi * yy
         _invξc_2pi_xx = (1 / ξc) * _2pi_xx
-        return (np.sinc(dξ * _2pi_xx) * np.sinc(dη * _2pi_yy) * np.sin(_invξc_2pi_xx + θ) + 1) / 2
+        logger.info("_pairwise_probe θ = %s", θ)
+        return (np.sinc(dξ * _2pi_xx) * np.sinc(dη * _2pi_yy) * np.sin(_invξc_2pi_xx + np.deg2rad(θ)) + 1) / 2
 
     if direction == PairwiseProbeDirection.HORIZONTAL:
-        return _efc_probe(shape, dξ, dη, ξc, θ)
+        return _pairwise_probe(shape, dξ, dη, ξc, θ)
     else:
-        return np.rot90(_efc_probe(shape, dξ, dη, ξc, θ))
+        return np.rot90(_pairwise_probe(shape, dξ, dη, ξc, θ))

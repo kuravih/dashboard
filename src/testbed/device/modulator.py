@@ -2,6 +2,7 @@ import numpy as np
 from datetime import datetime
 
 from . import Device, Stream, ZMQLink, SinkSample
+from ..function import read_modulator_calibration_file, apply_modulator_calibration
 
 from pykato.log import setup_logger
 
@@ -13,7 +14,7 @@ class Modulator(Device):
     Modulator
     """
 
-    __slots__ = ("_stream", "_shape", "_max_radius", "_link", "_sample", "post_request", "wait_for_response")
+    __slots__ = ("_stream", "_shape", "_max_radius", "_link", "_sample", "post_request", "wait_for_response", "_calibration_file", "_calibration")
 
     def __init__(self, stream: Stream):
         super().__init__(stream.name)
@@ -28,6 +29,8 @@ class Modulator(Device):
         self._sample = SinkSample(self.last_access_time, self.frame_rate_fps, self.center, self.radius, self.blank)
         self.post_request = self._stream.post_request
         self.wait_for_response = self._stream.wait_for_response
+        self._calibration_file: str | None = None
+        self._calibration: dict[str, np.ndarray] | None = None
 
     @property
     def kind(self) -> Stream.Kind:
@@ -78,6 +81,11 @@ class Modulator(Device):
         return self._stream.last_access_time
 
     def push_command(self, command: np.ndarray) -> SinkSample:
+        if self.calibration is not None:
+            slope = self.calibration["slope"]
+            flat = self.calibration["flat"]
+            command = apply_modulator_calibration(command, slope, flat).astype(np.uint16)
+        command = np.clip(command, 0, self.pxmax)
         self._stream.set_data(command)
         self._sample = SinkSample(self.last_access_time, self.frame_rate_fps, self.center, self.radius, command.copy())
         return self._sample
@@ -98,6 +106,29 @@ class Modulator(Device):
     @property
     def max_radius(self) -> int:
         return self._max_radius
+
+    @property
+    def calibration(self) -> dict[str, np.ndarray] | None:
+        return self._calibration
+
+    @calibration.setter
+    def calibration(self, value: dict[str, np.ndarray] | None):
+        self._calibration = value
+
+    @property
+    def calibration_file(self) -> str | None:
+        return self._calibration_file
+
+    @calibration_file.setter
+    def calibration_file(self, value: str | None):
+        self._calibration_file = value
+
+    def set_calibration(self, calibration_file: str | None):
+        self.calibration_file = calibration_file
+        if self.calibration_file is not None:
+            self.calibration = read_modulator_calibration_file(self.calibration_file)
+        else:
+            self.calibration = None
 
     def update_keywords(self):
         self._stream.update_keywords()
@@ -121,18 +152,18 @@ class Modulator(Device):
         command = {"settings": {"radius": radius}}
         reply = self.link.send_command(command)
         return reply["settings"]["radius"]
-    
-    def command_to_deflection(self, data_adu:np.ndarray) -> np.ndarray:
+
+    def command_to_deflection(self, data_adu: np.ndarray) -> np.ndarray:
         """
         convert a command to a deflection (m)
         """
         return data_adu * 1e-9
 
-    def deflection_to_command(self, data_nm:np.ndarray) -> np.ndarray:
+    def deflection_to_command(self, data_nm: np.ndarray) -> np.ndarray:
         """
         convert a deflection to command (m)
         """
-        return data_nm/1e-9
+        return data_nm / 1e-9
 
     def __del__(self):
         logger.info("Modulator object %s removed", self.name)
