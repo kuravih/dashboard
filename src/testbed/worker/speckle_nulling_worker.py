@@ -16,7 +16,6 @@ _PROCESS_ = testbed.SPECKLE_NULLING
 
 logger = setup_logger(f"{_PROCESS_}_worker", terminator="\n")
 
-
 class ProcessWorkerSignals(WorkerSignals):
     srcSampled = Signal(SourceSample)
     snkSampled = Signal(SinkSample)
@@ -35,7 +34,7 @@ class ProcessWorkerSignals(WorkerSignals):
 
 
 class ProcessWorker(Worker):
-    def __init__(self, source: Camera, sink: Modulator, dark_hole_mask: np.ndarray, speckle_calibration: tuple[tuple[float, float], tuple[float, float]], phs_array: np.ndarray, amp_array: np.ndarray, n_iterations: int | None = None):
+    def __init__(self, source: Camera, sink: Modulator, dark_hole_mask: np.ndarray, speckle_calibration: dict[str, dict[str, float]], phs_array: np.ndarray, amp_array: np.ndarray, n_iterations: int | None = None):
         super().__init__()
         self.signals = ProcessWorkerSignals()
         self.source = source
@@ -47,15 +46,17 @@ class ProcessWorker(Worker):
         self.n_iterations = n_iterations
 
     def speckle_phs_search(self, current_cmd: np.ndarray, speckle_frequency: float, phs_array: np.ndarray, speckle_angle: float, speckle_stencil: np.ndarray):
-        speckle_intensity = np.zeros_like(phs_array) * np.nan
-        amplitude = 0.5
+        speckle_intensity_array = np.zeros_like(phs_array) * np.nan
+        amplitude = np.mean(self.amp_array)
+        logger.info("speckle_phs_search : amplitude = %s", amplitude)
         i_phs = 0
         while i_phs < phs_array.size:
-            probe_command = amplitude * self.sink.pxmax * sinusoid(self.sink.shape, 1.0 / speckle_frequency, np.deg2rad(phs_array[i_phs]), speckle_angle) / 2
-            command = current_cmd + probe_command
-            command = np.clip(command, 0, self.sink.pxmax)
 
-            _current_sink_sample = self.sink.push_command(command.astype(np.uint16))
+            probe_command = amplitude * sinusoid(self.sink.shape, 1.0 / speckle_frequency, np.deg2rad(phs_array[i_phs]), speckle_angle)
+            # logger.info("speckle_phs_search : np.deg2rad(phs_array[%s]) = %s", i_phs, np.deg2rad(phs_array[i_phs]))
+            command = current_cmd + probe_command
+
+            _current_sink_sample = self.sink.push_command(command)
             self.signals.snkSampled.emit(_current_sink_sample)
             time.sleep(0.1)
 
@@ -63,19 +64,23 @@ class ProcessWorker(Worker):
             self.signals.srcSampled.emit(_current_source_sample)
             time.sleep(0.2)
 
-            speckle_intensity[i_phs] = np.mean(_current_source_sample.capture[speckle_stencil])
+            speckle_intensity_array[i_phs] = np.mean(_current_source_sample.capture[speckle_stencil])
+            logger.info("speckle_phs_search : np.deg2rad(phs_array[%s]) = %s, speckle_intensity_array[%s] = %s", i_phs, np.deg2rad(phs_array[i_phs]), i_phs, speckle_intensity_array[i_phs])
             i_phs = i_phs + 1
 
-            self.signals.phsSwept.emit(speckle_intensity)
+            self.signals.phsSwept.emit(speckle_intensity_array)
 
         try:
-            guess_offset = np.mean(speckle_intensity)
+            logger.info("speckle_phs_search: phase_array = %s", phs_array)
+            logger.info("speckle_phs_search: speckle_intensity_array = %s", speckle_intensity_array)
+
+            guess_offset = np.mean(speckle_intensity_array)
             offset_min, offset_max = guess_offset * 0.5, guess_offset * 1.5
-            guess_amplitude = (np.max(speckle_intensity) - np.min(speckle_intensity)) / 2
+            guess_amplitude = (np.max(speckle_intensity_array) - np.min(speckle_intensity_array)) / 2
             amplitude_min, amplitude_max = guess_amplitude * 0.5, guess_amplitude * 1.5
             guess_phase = np.pi
             phase_min, phase_max = 0, 2 * np.pi
-            (fit_amplitude, fit_phase, fit_offset), _ = least_squares_fit(speckle_intensity, constrained_sin_fit_fn, x_coord=np.deg2rad(phs_array), guess_prms=(guess_amplitude, guess_phase, guess_offset), bounds=([amplitude_min, phase_min, offset_min], [amplitude_max, phase_max, offset_max]))  # pylint: disable=unbalanced-tuple-unpacking
+            (fit_amplitude, fit_phase, fit_offset), _ = least_squares_fit(speckle_intensity_array, constrained_sin_fit_fn, x_coord=np.deg2rad(phs_array), guess_prms=(guess_amplitude, guess_phase, guess_offset), bounds=([amplitude_min, phase_min, offset_min], [amplitude_max, phase_max, offset_max]))  # pylint: disable=unbalanced-tuple-unpacking
             self.signals.phsFitted.emit(fit_amplitude, fit_phase, fit_offset)
         except RuntimeError:
             logger.info("speckle_phs_search: least_squares_fit failed")
@@ -83,21 +88,22 @@ class ProcessWorker(Worker):
         else:
             speckle_phase = (-np.pi / 2 - fit_phase) % (2 * np.pi)
 
-        # logger.info("speckle_phs_search: speckle_phase = %f", np.rad2deg(speckle_phase))
+        logger.info("speckle_phs_search: speckle_phase = %f", np.rad2deg(speckle_phase))
 
         self.signals.phsSolved.emit(speckle_phase)
 
         return speckle_phase
 
-    def speckle_amp_search(self, current_cmd: np.ndarray, speckle_frequency: float, speckle_phase: float, speckle_angle: float, amp_array: np.ndarray, speckle_stencil: np.ndarray):
-        speckle_intensity = np.zeros_like(amp_array) * np.nan
+    def speckle_amp_search(self, current_cmd: np.ndarray, speckle_frequency: float, speckle_phase: float, speckle_angle: float, amplitude_array: np.ndarray, speckle_stencil: np.ndarray):
+        speckle_intensity_array = np.zeros_like(amplitude_array) * np.nan
         i_amp = 0
-        while i_amp < amp_array.size:
-            probe_command = amp_array[i_amp] * self.sink.pxmax * sinusoid(self.sink.shape, 1.0 / speckle_frequency, speckle_phase, speckle_angle) / 2
-            command = current_cmd + probe_command
-            command = np.clip(command, 0, self.sink.pxmax)
+        while i_amp < amplitude_array.size:
 
-            _current_sink_sample = self.sink.push_command(command.astype(np.uint16))
+            probe_command = amplitude_array[i_amp] * sinusoid(self.sink.shape, 1.0 / speckle_frequency, speckle_phase, speckle_angle)
+
+            command = current_cmd + probe_command
+
+            _current_sink_sample = self.sink.push_command(command)
             self.signals.snkSampled.emit(_current_sink_sample)
             time.sleep(0.1)
 
@@ -105,21 +111,30 @@ class ProcessWorker(Worker):
             self.signals.srcSampled.emit(_current_source_sample)
             time.sleep(0.2)
 
-            speckle_intensity[i_amp] = np.mean(_current_source_sample.capture[speckle_stencil])
+            speckle_intensity_array[i_amp] = np.mean(_current_source_sample.capture[speckle_stencil])
+            logger.info("speckle_amp_search : amplitude_array[%s] = %s, speckle_intensity_array[%s] = %s", i_amp, amplitude_array[i_amp], i_amp, speckle_intensity_array[i_amp])
             i_amp = i_amp + 1
 
-            self.signals.ampSwept.emit(speckle_intensity)
+            self.signals.ampSwept.emit(speckle_intensity_array)
 
         try:
-            (fit_a, fit_b, fit_c), _ = least_squares_fit(speckle_intensity, quadratic_fit_fn, x_coord=amp_array, bounds=([0, -np.inf, -np.inf], [np.inf, 0, np.inf]))  # pylint: disable=unbalanced-tuple-unpacking
-            self.signals.ampFitted.emit(fit_a, fit_b, fit_c)
+            logger.info("speckle_amp_search: amplitude_array = %s", amplitude_array)
+            logger.info("speckle_amp_search: speckle_intensity_array = %s", speckle_intensity_array)
+
+            x_min, x_max = amplitude_array[0], amplitude_array[-1]
+            x_range = x_max - x_min
+            intensity_range = np.nanmax(speckle_intensity_array) - np.nanmin(speckle_intensity_array)
+            a_max = intensity_range / x_range**2
+            c_min, c_max = 0, np.nanmin(speckle_intensity_array)
+            (fit_a, fit_x0, fit_c), _ = least_squares_fit(speckle_intensity_array, quadratic_fit_fn, x_coord=amplitude_array, bounds=([0, x_min, c_min], [a_max, x_max, c_max]))  # pylint: disable=unbalanced-tuple-unpacking
+            self.signals.ampFitted.emit(fit_a, fit_x0, fit_c)
         except RuntimeError:
             logger.info("speckle_amp_search: least_squares_fit failed")
-            speckle_amplitude = amp_array[np.argmin(speckle_intensity)]
+            speckle_amplitude = amplitude_array[np.argmin(speckle_intensity_array)]
         else:
-            speckle_amplitude = -fit_b / (2 * fit_a)
+            speckle_amplitude = fit_x0
 
-        # logger.info("speckle_amp_search: speckle_amplitude = %f", speckle_amplitude)
+        logger.info("speckle_amp_search: speckle_amplitude = %f", speckle_amplitude)
 
         self.signals.ampSolved.emit(speckle_amplitude)
 
@@ -132,15 +147,15 @@ class ProcessWorker(Worker):
 
         measure_array = np.full(self.n_iterations + 1, fill_value=np.nan, dtype=[("avg", float), ("std", float), ("min", float), ("max", float)])
         # ---- blank --------------------------------------------------------------------------------------------------
-        current_cmd = self.sink.pxmax * (np.zeros(self.sink.shape) + 0.5)
 
         #  Inject test speckle
-        test_command = 0.1 * self.sink.pxmax * sinusoid(self.sink.shape, 1.0 / 0.035, 0, np.pi / 6) / 2
-        command = current_cmd + test_command
-        # command = current_cmd
-        command = np.clip(command, 0, self.sink.pxmax)
+        current_cmd = np.zeros(self.sink.shape)
+        # test_amp_perc = 0.01
+        # test_amplitude = FULL_STROKE_NM * test_amp_perc / 100.0
+        # test_command = test_amplitude * sinusoid(self.sink.shape, 1.0 / 0.035, 0, np.pi / 6)
+        # current_cmd = current_cmd + test_command
 
-        _current_sink_sample = self.sink.push_command(command.astype(np.uint16))
+        _current_sink_sample = self.sink.push_command(current_cmd)
         self.signals.snkSampled.emit(_current_sink_sample)
         time.sleep(0.1)
 
@@ -181,11 +196,10 @@ class ProcessWorker(Worker):
             # ---- stage 3: speckle amplitude found -------------------------------------------------------------------
 
             # ---- stage 4: apply correction --------------------------------------------------------------------------
-            correction = speckle_amplitude * self.sink.pxmax * sinusoid(self.sink.shape, 1.0 / speckle_frequency, speckle_phase, speckle_angle) / 2
+            correction = speckle_amplitude * sinusoid(self.sink.shape, 1.0 / speckle_frequency, speckle_phase, speckle_angle)
             command = _current_sink_sample.command + correction
-            command = np.clip(command, 0, self.sink.pxmax)
 
-            _current_sink_sample = self.sink.push_command(command.astype(np.uint16))
+            _current_sink_sample = self.sink.push_command(command)
             self.signals.snkSampled.emit(_current_sink_sample)
             time.sleep(0.1)
 
@@ -197,7 +211,7 @@ class ProcessWorker(Worker):
             measure_map_dark_hole = measure_map[self.dark_hole_mask]
             measure_array[i_iteration + 1]["avg"], measure_array[i_iteration + 1]["std"], measure_array[i_iteration + 1]["min"], measure_array[i_iteration + 1]["max"] = np.mean(measure_map_dark_hole), np.std(measure_map_dark_hole), np.min(measure_map_dark_hole), np.max(measure_map_dark_hole)
             self.signals.contrastMeasured.emit(np.array(measure_map, copy=True), measure_array)
-            logger.info("avg = %.4e, std = %.4e, min = %.4e, max = %.4e", measure_array[i_iteration + 1]["avg"], measure_array[i_iteration + 1]["std"], measure_array[i_iteration + 1]["min"], measure_array[i_iteration + 1]["max"])
+            # logger.info("avg = %.4e, std = %.4e, min = %.4e, max = %.4e", measure_array[i_iteration + 1]["avg"], measure_array[i_iteration + 1]["std"], measure_array[i_iteration + 1]["min"], measure_array[i_iteration + 1]["max"])
             # ---- stage 4: apply correction --------------------------------------------------------------------------
             i_iteration = i_iteration + 1
             self.signals.progressTicked.emit(i_iteration, time.time() - t_start)

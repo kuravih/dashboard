@@ -3,12 +3,12 @@ import numpy as np
 from pykato.log import setup_logger
 from PySide6.QtCore import Qt, Slot
 from PySide6.QtGui import QIcon
-from PySide6.QtWidgets import QPushButton, QDoubleSpinBox, QGridLayout, QHBoxLayout, QLabel, QSpinBox, QVBoxLayout, QWidget, QMessageBox
+from PySide6.QtWidgets import QDoubleSpinBox, QGridLayout, QHBoxLayout, QLabel, QSpinBox, QVBoxLayout, QWidget, QMessageBox, QLineEdit
 
 import testbed
 
 from ..device.camera import Camera
-from ..device.modulator import Modulator
+from ..device.modulator import Modulator, FULL_STROKE_NM
 from ..worker.recenter_worker import ProcessWorker
 from .camera_window import InfoWindow as CameraInfoWindow
 from .camera_window import RecenterPreviewWindow as CameraPreviewWindow
@@ -17,9 +17,9 @@ from .modulator_window import InfoWindow as ModulatorInfoWindow
 from .modulator_window import SimplePreviewWindow as ModulatorPreviewWindow
 from .modulator_window import SettingsWindow as ModulatorSettingsWindow
 from .dialog import MessageDialog
-from .resource import ICON_PAUSE, ICON_RUN
+from .resource import ICON_PAUSE, ICON_RUN, ICON_CENTER
 
-from . import DevicesSetupWidget, TaskControlsWidget, Window
+from . import DevicesSetupWidget, TaskControlsWidget, Window, IconButton
 
 _PROCESS_ = testbed.RECENTER
 process_worker_id = f"{_PROCESS_}_worker"
@@ -37,6 +37,16 @@ class ProcessSettingsWidget(QWidget):
     def __init__(self, parent=None):
         self._center = [np.nan, np.nan]
         super().__init__(parent)
+
+        amplitude_label = QLabel("Amplitude", self)
+        amplitude_label.setFixedWidth(100)
+
+        self._amplitude_spinbox = QDoubleSpinBox(self)
+        self._amplitude_spinbox.setRange(-100, 100)
+        self._amplitude_spinbox.setSuffix(" %")
+        self._amplitude_spinbox.setValue(10)
+        self._amplitude_spinbox.setSingleStep(1)
+        self._amplitude_spinbox.setToolTip("Command amplitude")
 
         n_steps_label = QLabel("Steps", self)
         n_steps_label.setFixedWidth(100)
@@ -63,14 +73,28 @@ class ProcessSettingsWidget(QWidget):
         center_label = QLabel("Center", self)
         sleep_label.setFixedWidth(100)
 
-        self._center_values_label = QLabel(f"[[{self._center[0]:.0f}], [{self._center[1]:.0f}]]", self)
-        sleep_label.setFixedWidth(100)
+        self._center_xvalue_textbox = QLineEdit(self)
+        self._center_xvalue_textbox.setEnabled(False)
+        self._center_xvalue_textbox.setText(f"{self._center[0]:.0f}")
+        self._center_yvalue_textbox = QLineEdit(self)
+        self._center_yvalue_textbox.setEnabled(False)
+        self._center_yvalue_textbox.setText(f"{self._center[1]:.0f}")
 
-        self.move_pushbutton = QPushButton("Move", self)
+        self.move_pushbutton = IconButton(QIcon(ICON_CENTER), parent=self)
+        self.move_pushbutton.setFixedHeight(self._amplitude_spinbox.sizeHint().height())
+        self.move_pushbutton.setFixedWidth(self._amplitude_spinbox.sizeHint().height())
+        self.move_pushbutton.setToolTip("Move to center")
+        self.move_pushbutton.setEnabled(False)
 
         widget_layout = QGridLayout()
 
         row = 0
+        col = 0
+        widget_layout.addWidget(amplitude_label, row, col)
+        col += 1
+        widget_layout.addWidget(self._amplitude_spinbox, row, col, 1, 3)
+
+        row += 1
         col = 0
         widget_layout.addWidget(n_steps_label, row, col)
         col += 1
@@ -86,11 +110,17 @@ class ProcessSettingsWidget(QWidget):
         col = 0
         widget_layout.addWidget(center_label, row, col)
         col += 1
-        widget_layout.addWidget(self._center_values_label, row, col)
+        widget_layout.addWidget(self._center_xvalue_textbox, row, col)
         col += 1
-        widget_layout.addWidget(self.move_pushbutton, row, col, 1, 2)
+        widget_layout.addWidget(self._center_yvalue_textbox, row, col)
+        col += 1
+        widget_layout.addWidget(self.move_pushbutton, row, col)
 
         self.setLayout(widget_layout)
+
+    @property
+    def amplitude(self) -> float:
+        return FULL_STROKE_NM * self._amplitude_spinbox.value() / 100.0
 
     @property
     def n_steps(self) -> int:
@@ -107,7 +137,10 @@ class ProcessSettingsWidget(QWidget):
     @center.setter
     def center(self, value: list[float]):
         self._center = value
-        self._center_values_label.setText(f"[[{self._center[0]:.0f}], [{self._center[1]:.0f}]]")
+        self._center_xvalue_textbox.setText(f"{self._center[0]:.0f}")
+        self._center_yvalue_textbox.setText(f"{self._center[1]:.0f}")
+        if (self._center[0] != 0) or (self._center[1] != 0):
+            self.move_pushbutton.setEnabled(True)
 
 
 class ProcessWindow(Window):
@@ -306,7 +339,7 @@ class ProcessWindow(Window):
                     current_sink_storage_worker.stop()
                 return
 
-            worker = ProcessWorker(self.source, self.sink, self.settings_widget.n_steps)
+            worker = ProcessWorker(self.source, self.sink, self.settings_widget.amplitude, self.settings_widget.n_steps)
             worker.signals.progressTicked.connect(self.on_progress_tick)
             worker.signals.finished.connect(self.on_finished)
 

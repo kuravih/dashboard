@@ -10,7 +10,7 @@ import testbed
 from ..function import DOTFProbeDirection
 from ..widget import NSpinBoxesWidget, DOTFProbeDirectionWidget
 from ..device.camera import Camera
-from ..device.modulator import Modulator
+from ..device.modulator import Modulator, FULL_STROKE_NM
 from ..worker.dotf_measurement_worker import ProcessWorker
 from .camera_window import InfoWindow as CameraInfoWindow
 from .camera_window import SimplePreviewWindow as CameraPreviewWindow
@@ -47,10 +47,9 @@ class ProcessSettingsWidget(QWidget):
         probe_amplitude_label.setFixedWidth(100)
 
         self._probe_amplitude_spinbox = QDoubleSpinBox(self)
-        self._probe_amplitude_spinbox.setFixedWidth(100)
         self._probe_amplitude_spinbox.setRange(-100, 100)
         self._probe_amplitude_spinbox.setSuffix(" %")
-        self._probe_amplitude_spinbox.setValue(10)
+        self._probe_amplitude_spinbox.setValue(50)
         self._probe_amplitude_spinbox.setSingleStep(1)
         self._probe_amplitude_spinbox.setToolTip("Probe amplitude")
 
@@ -83,7 +82,6 @@ class ProcessSettingsWidget(QWidget):
 
         self._continuous_checkbox = QCheckBox("continuous", self)
         self._continuous_checkbox.setToolTip("Run till stop/pause button is clicked")
-        self._continuous_checkbox.setMaximumWidth(90)
 
         @Slot(bool)
         def on_continuous_toggled(checked: bool):
@@ -95,8 +93,8 @@ class ProcessSettingsWidget(QWidget):
         self._continuous_checkbox.toggled.connect(on_continuous_toggled)
 
         n_reps_layout = QHBoxLayout()
-        n_reps_layout.addWidget(self._n_reps_spinbox)
-        n_reps_layout.addWidget(self._continuous_checkbox)
+        n_reps_layout.addWidget(self._n_reps_spinbox, stretch=1)
+        n_reps_layout.addWidget(self._continuous_checkbox, alignment=Qt.AlignmentFlag.AlignRight)
 
         sleep_label = QLabel("Sleep", self)
         sleep_label.setFixedWidth(100)
@@ -144,7 +142,7 @@ class ProcessSettingsWidget(QWidget):
 
     @property
     def probe_amplitude(self) -> float:
-        return self._probe_amplitude_spinbox.value()
+        return FULL_STROKE_NM * self._probe_amplitude_spinbox.value() / 100.0
 
     @property
     def probe_size(self) -> tuple[int, int]:

@@ -45,9 +45,8 @@ class ProcessWorker(Worker):
         # -------------------------------------------------------------------------------------------------------------
 
         command_inc_probe = current_cmd + probe_command
-        command_inc_probe = np.clip(command_inc_probe, 0, self.sink.pxmax)
 
-        _inc_probe_sink_sample = self.sink.push_command(command_inc_probe.astype(np.uint16))
+        _inc_probe_sink_sample = self.sink.push_command(command_inc_probe)
         self.signals.snkSampled.emit(_inc_probe_sink_sample)
         time.sleep(0.1)
 
@@ -58,9 +57,8 @@ class ProcessWorker(Worker):
         # -------------------------------------------------------------------------------------------------------------
 
         command_exc_probe = current_cmd[:]
-        command_exc_probe = np.clip(command_exc_probe, 0, self.sink.pxmax)
 
-        _exc_probe_sink_sample = self.sink.push_command(command_exc_probe.astype(np.uint16))
+        _exc_probe_sink_sample = self.sink.push_command(command_exc_probe)
         self.signals.snkSampled.emit(_exc_probe_sink_sample)
         time.sleep(0.1)
 
@@ -78,12 +76,12 @@ class ProcessWorker(Worker):
         t_start = time.time()
 
         # ---- blank --------------------------------------------------------------------------------------------------
-        current_cmd = self.sink.pxmax * (np.zeros(self.sink.shape) + 0.5)
+        current_cmd =  np.zeros(self.sink.shape)
 
         command = current_cmd
         command = np.clip(command, 0, self.sink.pxmax)
 
-        _current_sink_sample = self.sink.push_command(command.astype(np.uint16))
+        _current_sink_sample = self.sink.push_command(command)
         self.signals.snkSampled.emit(_current_sink_sample)
         time.sleep(0.1)
 

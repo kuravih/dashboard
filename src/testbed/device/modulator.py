@@ -5,10 +5,10 @@ from . import Device, Stream, ZMQLink, SinkSample
 from ..function import read_modulator_calibration_file, deflection_to_command
 
 from pykato.log import setup_logger
-from pykato.function import describe_array
 
 logger = setup_logger("Modulator", terminator="\n")
 
+FULL_STROKE_NM = 5
 
 class Modulator(Device):
     """

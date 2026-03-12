@@ -25,16 +25,15 @@ class ProcessWorkerSignals(WorkerSignals):
 
 
 class ProcessWorker(Worker):
-    def __init__(self, source: Camera, sink: Modulator, n_steps: int):
+    def __init__(self, source: Camera, sink: Modulator, amplitude: float, n_steps: int):
         super().__init__()
         self.signals = ProcessWorkerSignals()
         self.source = source
         self.sink = sink
-        self.amplitude = 0.5
+        self.amplitude = amplitude
         self.n_steps = n_steps
 
     def find_center(self, current_cmd: np.ndarray, current_cap: np.ndarray, n_steps: int) -> tuple[float, float]:
-        amplitude = 0.5
         speckle_frequency = 0.035
         phs_array = np.array([0, 90])
         self.ang_array = np.linspace(0, 180, n_steps, endpoint=False) + (180.0 / n_steps) / 2
@@ -44,11 +43,12 @@ class ProcessWorker(Worker):
             i_phs = 0
             mean_cap = np.zeros_like(current_cap, dtype=float)
             while (phs_array.size > i_phs) and self._running:
-                probe_command = amplitude * self.sink.pxmax * sinusoid(self.sink.shape, 1.0 / speckle_frequency, np.deg2rad(phs_array[i_phs]), np.deg2rad(self.ang_array[i_ang])) / 2
-                command = current_cmd + probe_command
-                command = np.clip(command, 0, self.sink.pxmax)
 
-                _current_sink_sample = self.sink.push_command(command.astype(np.uint16))
+                probe_command = self.amplitude * sinusoid(self.sink.shape, 1.0 / speckle_frequency, np.deg2rad(phs_array[i_phs]), np.deg2rad(self.ang_array[i_ang]))
+
+                command = current_cmd + probe_command
+
+                _current_sink_sample = self.sink.push_command(command)
                 self.signals.snkSampled.emit(_current_sink_sample)
                 time.sleep(0.1)
 
@@ -78,12 +78,12 @@ class ProcessWorker(Worker):
         t_start = time.time()
 
         # ---- blank --------------------------------------------------------------------------------------------------
-        current_cmd = self.sink.pxmax * (np.zeros(self.sink.shape) + 0.5)
+        current_cmd = np.zeros(self.sink.shape)
 
         command = current_cmd
         command = np.clip(command, 0, self.sink.pxmax)
 
-        _current_sink_sample = self.sink.push_command(command.astype(np.uint16))
+        _current_sink_sample = self.sink.push_command(command)
         self.signals.snkSampled.emit(_current_sink_sample)
         time.sleep(0.1)
 

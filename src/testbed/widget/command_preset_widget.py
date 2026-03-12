@@ -18,10 +18,9 @@ class CommandPresetWidget(QWidget):
 
     changed = Signal(np.ndarray)
 
-    def __init__(self, shape: tuple[int, int], vlim: tuple[int, int], parent=None):
+    def __init__(self, shape: tuple[int, int], full_stoke: float, parent=None):
         super().__init__(parent)
-        self._vmin, self._vmax = vlim
-        self._full_stroke = self._vmax - self._vmin
+        self._full_stroke = full_stoke
         self._command = np.zeros(shape)
         self.setup_main_widget()
 
@@ -219,6 +218,7 @@ class SinusoidPresetWidget(CommandPresetWidget):
         amp = self._full_stroke * amp_perc / 100.0
         mean = self._full_stroke * mean_perc / 100.0
         self._command = amp * sinusoid(self._command.shape, period, np.deg2rad(phase), np.deg2rad(angle)) + mean
+        logger.info("amp = %s, mean = %s", amp, mean)
         self.changed.emit(self._command)
 
     def setup_main_widget(self):

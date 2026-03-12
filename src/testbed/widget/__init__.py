@@ -260,10 +260,10 @@ class LinspaceWidget(QWidget):
         self.help_button.clicked.connect(lambda: QToolTip.showText(QCursor.pos(), f"{np.array2string(self.value(), precision=4, separator=', ')}"))
 
         layout = QHBoxLayout()
-        layout.addWidget(self.start_spinbox)
-        layout.addWidget(self.stop_spinbox)
-        layout.addWidget(self.num_spinbox)
-        layout.addWidget(self.help_button, alignment=Qt.AlignmentFlag.AlignLeft)
+        layout.addWidget(self.start_spinbox, stretch=1)
+        layout.addWidget(self.stop_spinbox, stretch=1)
+        layout.addWidget(self.num_spinbox, stretch=1)
+        layout.addWidget(self.help_button, alignment=Qt.AlignmentFlag.AlignRight)
 
         layout.setContentsMargins(0, 0, 0, 0)
 
@@ -916,9 +916,9 @@ class FileLoadWidget(QWidget):
 
         layout = QHBoxLayout()
         layout.addWidget(self.file_lineedit, stretch=1)
-        layout.addWidget(self.file_browse_button)
-        layout.addWidget(self.file_clear_button)
-        layout.addStretch()
+        layout.addWidget(self.file_browse_button, alignment=Qt.AlignmentFlag.AlignRight)
+        layout.addWidget(self.file_clear_button, alignment=Qt.AlignmentFlag.AlignRight)
+        layout.setContentsMargins(0, 0, 0, 0)
 
         self.setLayout(layout)
 

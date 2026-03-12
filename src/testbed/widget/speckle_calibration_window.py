@@ -10,7 +10,7 @@ from PySide6.QtWidgets import QDoubleSpinBox, QGridLayout, QLabel, QVBoxLayout, 
 import testbed
 
 from ..device.camera import Camera
-from ..device.modulator import Modulator
+from ..device.modulator import Modulator, FULL_STROKE_NM
 from ..worker.speckle_calibration_worker import ProcessWorker
 from ..worker.storage_worker import SinkStorageWorker, SourceStorageWorker
 from .camera_window import InfoWindow as CameraInfoWindow
@@ -40,59 +40,71 @@ class ProcessSettingsWidget(QWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
 
-        ampl_label = QLabel("Amplitude", self)
-        ampl_label.setFixedWidth(100)
+        amplitude_label = QLabel("Amplitude", self)
+        amplitude_label.setFixedWidth(100)
 
-        self._ampl_spinbox = QDoubleSpinBox(self)
-        self._ampl_spinbox.setRange(0, 0.5)
-        self._ampl_spinbox.setValue(0.25)
+        self._amplitude_spinbox = QDoubleSpinBox(self)
+        self._amplitude_spinbox.setRange(-100, 100)
+        self._amplitude_spinbox.setSuffix(" %")
+        self._amplitude_spinbox.setValue(10)
+        self._amplitude_spinbox.setSingleStep(1)
+        self._amplitude_spinbox.setToolTip("Command amplitude")
 
         angle_label = QLabel("Angle Steps", self)
         angle_label.setFixedWidth(100)
 
         self._angle_steps = LinspaceWidget(0, 170, 18, self)
+        self._angle_steps.start_spinbox.setMinimumWidth(100)
+        self._angle_steps.stop_spinbox.setMinimumWidth(100)
+        self._angle_steps.num_spinbox.setMinimumWidth(100)
 
         freq_label = QLabel("Frequency Steps", self)
         freq_label.setFixedWidth(100)
 
         self._freq_steps = LinspaceWidget(0.06, 0.01, 11, self)
+        self._freq_steps.start_spinbox.setMinimumWidth(100)
+        self._freq_steps.stop_spinbox.setMinimumWidth(100)
+        self._freq_steps.num_spinbox.setMinimumWidth(100)
 
         phase_label = QLabel("Phase Steps", self)
         phase_label.setFixedWidth(100)
 
         self._phase_steps = LinspaceWidget(0, 180, 2, self)
+        self._phase_steps.start_spinbox.setMinimumWidth(100)
+        self._phase_steps.stop_spinbox.setMinimumWidth(100)
+        self._phase_steps.num_spinbox.setMinimumWidth(100)
 
         widget_layout = QGridLayout()
 
         row = 0
         col = 0
-        widget_layout.addWidget(ampl_label, row, col)
+        widget_layout.addWidget(amplitude_label, row, col)
         col += 1
-        widget_layout.addWidget(self._ampl_spinbox, row, col)
+        widget_layout.addWidget(self._amplitude_spinbox, row, col, 1, 3)
 
         row += 1
         col = 0
         widget_layout.addWidget(angle_label, row, col)
         col += 1
-        widget_layout.addWidget(self._angle_steps, row, col)
+        widget_layout.addWidget(self._angle_steps, row, col, 1, 3)
 
         row += 1
         col = 0
         widget_layout.addWidget(freq_label, row, col)
         col += 1
-        widget_layout.addWidget(self._freq_steps, row, col)
+        widget_layout.addWidget(self._freq_steps, row, col, 1, 3)
 
         row += 1
         col = 0
         widget_layout.addWidget(phase_label, row, col)
         col += 1
-        widget_layout.addWidget(self._phase_steps, row, col)
+        widget_layout.addWidget(self._phase_steps, row, col, 1, 3)
 
         self.setLayout(widget_layout)
 
     @property
     def amplitude(self) -> float:
-        return self._ampl_spinbox.value()
+        return FULL_STROKE_NM * self._amplitude_spinbox.value() / 100.0
 
     @property
     def angles_array(self) -> np.ndarray:

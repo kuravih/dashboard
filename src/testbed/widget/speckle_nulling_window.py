@@ -13,7 +13,7 @@ from matplotlib.colors import Normalize, LogNorm
 import testbed
 
 from ..device.camera import Camera
-from ..device.modulator import Modulator
+from ..device.modulator import Modulator, FULL_STROKE_NM
 from ..function import is_speckle_calibration_file_valid, read_speckle_calibration_file, constrained_sin_fit_fn, quadratic_fit_fn
 from ..worker.speckle_nulling_worker import ProcessWorker
 from ..worker.storage_worker import SinkStorageWorker, SourceStorageWorker
@@ -55,24 +55,33 @@ class ProcessSettingsWidget(QWidget):
         phs_steps_label.setFixedWidth(100)
 
         self._phs_steps = LinspaceWidget(0, 300, 6, self)
+        self._phs_steps.start_spinbox.setMinimumWidth(100)
+        self._phs_steps.stop_spinbox.setMinimumWidth(100)
+        self._phs_steps.num_spinbox.setMinimumWidth(100)
 
         amp_steps_label = QLabel("Amp. steps", self)
         amp_steps_label.setFixedWidth(100)
 
-        self._amp_steps = LinspaceWidget(0.0, 0.1, 11, self)
+        self._amp_steps = LinspaceWidget(0.0, 50, 11, self)
+        self._amp_steps.start_spinbox.setRange(-100, 100)
+        self._amp_steps.start_spinbox.setSuffix(" %")
+        self._amp_steps.start_spinbox.setMinimumWidth(100)
+        self._amp_steps.stop_spinbox.setRange(-100, 100)
+        self._amp_steps.stop_spinbox.setSuffix(" %")
+        self._amp_steps.stop_spinbox.setMinimumWidth(100)
+        self._amp_steps.num_spinbox.setMinimumWidth(100)
 
-        n_iterations_label = QLabel("Nulling iterations", self)
+        n_iterations_label = QLabel("Iterations", self)
         n_iterations_label.setFixedWidth(100)
 
         self._n_iterations_spinbox = QSpinBox(self)
         self._n_iterations_spinbox.setRange(0, 9999)
         self._n_iterations_spinbox.setSingleStep(1)
-        self._n_iterations_spinbox.setValue(10)
+        self._n_iterations_spinbox.setValue(2)
         self._n_iterations_spinbox.setToolTip("Number of nulling iterations")
 
         self._continuous_checkbox = QCheckBox("continuous", self)
         self._continuous_checkbox.setToolTip("Run till stop/pause button is clicked")
-        self._continuous_checkbox.setMaximumWidth(90)
 
         @Slot(bool)
         def on_continuous_toggled(checked: bool):
@@ -84,14 +93,14 @@ class ProcessSettingsWidget(QWidget):
         self._continuous_checkbox.toggled.connect(on_continuous_toggled)
 
         # ---- speckle calibration file -------------------------------------------------------------------------------
-        speckle_calibration_label = QLabel("Speckle Calibration", self)
+        speckle_calibration_label = QLabel("Calibration", self)
         speckle_calibration_label.setFixedWidth(100)
 
         self.calibration_widget = FileLoadWidget(caption="Open Calibration File", directory="./data/output", file_filter="Pickle file (*.pkl)", validator=is_speckle_calibration_file_valid, parent=self)
 
         n_iterations_layout = QHBoxLayout()
-        n_iterations_layout.addWidget(self._n_iterations_spinbox)
-        n_iterations_layout.addWidget(self._continuous_checkbox)
+        n_iterations_layout.addWidget(self._n_iterations_spinbox, stretch=1)
+        n_iterations_layout.addWidget(self._continuous_checkbox, alignment=Qt.AlignmentFlag.AlignRight)
 
         record_label = QLabel("Record", self)
         record_label.setFixedWidth(100)
@@ -124,7 +133,7 @@ class ProcessSettingsWidget(QWidget):
         col = 0
         widget_layout.addWidget(n_iterations_label, row, col)
         col += 1
-        widget_layout.addLayout(n_iterations_layout, row, col, 1, 3)
+        widget_layout.addLayout(n_iterations_layout, row, col, 1, 2)
 
         row += 1
         col = 0
@@ -136,7 +145,7 @@ class ProcessSettingsWidget(QWidget):
         col = 0
         widget_layout.addWidget(record_label, row, col)
         col += 1
-        widget_layout.addLayout(record_layout, row, col, 1, 3)
+        widget_layout.addLayout(record_layout, row, col, 1, 2)
 
         self.setLayout(widget_layout)
 
@@ -162,7 +171,7 @@ class ProcessSettingsWidget(QWidget):
 
     @property
     def amp_array(self) -> np.ndarray:
-        return self._amp_steps.value()
+        return FULL_STROKE_NM * self._amp_steps.value() / 100.0
 
     @property
     def dark_hole_mask(self) -> NDArray[np.bool] | None:
@@ -240,8 +249,8 @@ class ProcessInfoWindow(Window):
         self.process_info_figure.amp_ax.autoscale_view(scalex=False, scaley=True)
 
     @Slot(float, float, float)
-    def on_amp_fitted(self, fit_a: float, fit_b: float, fit_c: float):
-        self.amp_intensity_fit_y_data = quadratic_fit_fn(self.amp_intensity_fit_x_data, fit_a, fit_b, fit_c)
+    def on_amp_fitted(self, fit_a: float, fit_x0: float, fit_c: float):
+        self.amp_intensity_fit_y_data = quadratic_fit_fn(self.amp_intensity_fit_x_data, fit_a, fit_x0, fit_c)
 
     @Slot(float)
     def on_amp_solved(self, solve: float):
@@ -405,13 +414,13 @@ class ProcessPreviewWindow(Window):
     def on_cmap_norm_changed(self, checked: Qt.CheckState):
         if checked == Qt.CheckState.Checked:
             self.process_preview_figure_widget.cmap_norm = LogNorm(1e-5, 1)
-            self.process_preview_figure_widget.figure.get_plot_ax().set_yscale("log")
-            self.process_preview_figure_widget.figure.get_plot_ax().set_ylim(1e-5, 1)
+            self.process_preview_figure_widget.figure.get_plot_axes().set_yscale("log")
+            self.process_preview_figure_widget.figure.get_plot_axes().set_ylim(1e-5, 1)
         else:
             self.process_preview_figure_widget.cmap_norm = Normalize(1e-5, 1)
-            self.process_preview_figure_widget.figure.get_plot_ax().set_yscale("linear")
-            self.process_preview_figure_widget.figure.get_plot_ax().set_ylim(1e-5, 1)
-        self.process_preview_figure_widget.figure.get_plot_ax().set_yticklabels([])
+            self.process_preview_figure_widget.figure.get_plot_axes().set_yscale("linear")
+            self.process_preview_figure_widget.figure.get_plot_axes().set_ylim(1e-5, 1)
+        self.process_preview_figure_widget.figure.get_plot_axes().set_yticklabels([])
 
     @Slot(bool)
     def on_mask_show_changed(self, checked: Qt.CheckState):
@@ -467,11 +476,11 @@ class ProcessWindow(Window):
         self._sink = value
 
     @property
-    def speckle_calibration(self) -> dict[str, np.ndarray] | None:
+    def speckle_calibration(self) -> dict[str, dict[str, float]] | None:
         return self._speckle_calibration
 
     @speckle_calibration.setter
-    def speckle_calibration(self, value: dict[str, np.ndarray] | None):
+    def speckle_calibration(self, value: dict[str, dict[str, float]] | None):
         self._speckle_calibration = value
 
     @Slot()

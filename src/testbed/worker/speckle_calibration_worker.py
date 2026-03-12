@@ -40,9 +40,9 @@ class ProcessWorker(Worker):
         t_start = time.time()
 
         # ---- blank --------------------------------------------------------------------------------------------------
-        current_cmd = self.sink.pxmax * (np.zeros(self.sink.shape) + 0.5)
+        current_cmd = np.zeros(self.sink.shape)
 
-        self.signals.snkSampled.emit(self.sink.push_command(current_cmd.astype(np.uint16)))
+        self.signals.snkSampled.emit(self.sink.push_command(current_cmd))
         time.sleep(0.1)
 
         self.signals.srcSampled.emit(self.source.pull_capture())
@@ -60,11 +60,11 @@ class ProcessWorker(Worker):
                 i_phs = 0
                 while (self.phs_array.size > i_phs) and self._running:
 
-                    probe_command = self.amplitude * self.sink.pxmax * sinusoid(self.sink.shape, 1.0 / self.freq_array[i_freq], np.deg2rad(self.phs_array[i_phs]), np.deg2rad(self.ang_array[i_ang])) / 2
-                    command = current_cmd + probe_command
-                    command = np.clip(command, 0, self.sink.pxmax)
+                    probe_command = self.amplitude * sinusoid(self.sink.shape, 1.0 / self.freq_array[i_freq], np.deg2rad(self.phs_array[i_phs]), np.deg2rad(self.ang_array[i_ang]))
 
-                    _current_sink_sample = self.sink.push_command(command.astype(np.uint16))
+                    command = current_cmd + probe_command
+
+                    _current_sink_sample = self.sink.push_command(command)
                     self.signals.snkSampled.emit(_current_sink_sample)
                     time.sleep(0.1)
 

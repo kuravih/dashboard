@@ -240,9 +240,14 @@ def is_speckle_calibration_file_valid(filename: str) -> bool:
     return True
 
 
-def read_speckle_calibration_file(filename: str) -> dict[str, str | np.ndarray]:
+def read_speckle_calibration_file(filename: str) -> dict[str, dict[str, float]]:
     with open(filename, "rb") as _input:
         return pickle.load(_input)
+
+
+def write_speckle_calibration_file(speckle_calibration_dict: dict[str, dict[str, float]], filename: str):
+    with open(filename, "wb") as _file:
+        pickle.dump(speckle_calibration_dict, _file, protocol=pickle.HIGHEST_PROTOCOL)
 
 
 def is_camera_calibration_file_valid(filename: str, shape: tuple[int, int]) -> bool:
@@ -286,8 +291,12 @@ def constrained_sin_fit_fn(x, amplitude: float, phase: float, offset: float):
     return sin_fit_fn(x, amplitude, 1, phase, offset)
 
 
-def quadratic_fit_fn(x, a: float, b: float, c: float):
-    return a * x * x + b * x + c
+def quadratic_fit_fn(x, a: float, x0: float, c: float):
+    return a * (x - x0) ** 2 + c
+
+
+# def quadratic_fit_fn(x, a: float, b: float, c: float):
+#     return a * x * x + b * x + c
 
 
 def linear_fit_fn(x, m: float, c: float):

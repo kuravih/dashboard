@@ -272,7 +272,7 @@ def Contrast_Evolution_Plot_Preset(contrast: np.ndarray, n_iteration: int, dark_
 
     # -----------------------------------------------------------------------------------------------------------------
     def _get_image_axes() -> Axes:
-        return image_axes
+        return image_ax
 
     figure.get_image_axes = _get_image_axes
     # -----------------------------------------------------------------------------------------------------------------
@@ -286,7 +286,7 @@ def Contrast_Evolution_Plot_Preset(contrast: np.ndarray, n_iteration: int, dark_
 
     # -----------------------------------------------------------------------------------------------------------------
     def _get_plot_axes() -> Axes:
-        return plot_axes
+        return plot_ax
 
     figure.get_plot_axes = _get_plot_axes
     # -----------------------------------------------------------------------------------------------------------------
@@ -305,13 +305,13 @@ def Contrast_Evolution_Plot_Preset(contrast: np.ndarray, n_iteration: int, dark_
     figure.close = _close
     # -----------------------------------------------------------------------------------------------------------------
 
-    patch_cmap_name(imshow_image)
+    AxesImage_patch_cmap_name(imshow_image)
     imshow_image.set_cmap_name("jet")
 
-    patch_cmap_norm(imshow_image)
+    AxesImage_patch_cmap_norm(imshow_image)
     imshow_image.set_cmap_norm(LogNorm(1, 1e-5))
 
-    patch_alpha_mask_show(imshow_image, dark_hole_mask)
+    AxesImage_patch_alpha_mask_show(imshow_image, dark_hole_mask)
     imshow_image.set_alpha_mask_show(True)
 
     return figure

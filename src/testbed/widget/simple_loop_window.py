@@ -7,7 +7,7 @@ from PySide6.QtWidgets import QCheckBox, QDoubleSpinBox, QGridLayout, QHBoxLayou
 import testbed
 
 from ..device.camera import Camera
-from ..device.modulator import Modulator
+from ..device.modulator import Modulator, FULL_STROKE_NM
 from ..worker.simple_loop_worker import ProcessWorker
 from ..worker.storage_worker import SinkStorageWorker, SourceStorageWorker
 from .camera_window import InfoWindow as CameraInfoWindow
@@ -41,7 +41,6 @@ class ProcessSettingsWidget(QWidget):
         amplitude_label.setFixedWidth(100)
 
         self._amplitude_spinbox = QDoubleSpinBox(self)
-        self._amplitude_spinbox.setFixedWidth(100)
         self._amplitude_spinbox.setRange(-100, 100)
         self._amplitude_spinbox.setSuffix(" %")
         self._amplitude_spinbox.setValue(10)
@@ -59,7 +58,6 @@ class ProcessSettingsWidget(QWidget):
 
         self._continuous_checkbox = QCheckBox("continuous", self)
         self._continuous_checkbox.setToolTip("Run till stop/pause button is clicked")
-        self._continuous_checkbox.setMaximumWidth(100)
 
         @Slot(bool)
         def on_continuous_toggled(checked: bool):
@@ -71,8 +69,8 @@ class ProcessSettingsWidget(QWidget):
         self._continuous_checkbox.toggled.connect(on_continuous_toggled)
 
         n_steps_layout = QHBoxLayout()
-        n_steps_layout.addWidget(self._n_steps_spinbox)
-        n_steps_layout.addWidget(self._continuous_checkbox)
+        n_steps_layout.addWidget(self._n_steps_spinbox, stretch=1)
+        n_steps_layout.addWidget(self._continuous_checkbox, alignment=Qt.AlignmentFlag.AlignRight)
 
         sleep_label = QLabel("Sleep", self)
         sleep_label.setFixedWidth(100)
@@ -103,7 +101,7 @@ class ProcessSettingsWidget(QWidget):
         col = 0
         widget_layout.addWidget(amplitude_label, row, col)
         col += 1
-        widget_layout.addWidget(self._amplitude_spinbox, row, col)
+        widget_layout.addWidget(self._amplitude_spinbox, row, col, 1, 3)
 
         row += 1
         col = 0
@@ -127,7 +125,7 @@ class ProcessSettingsWidget(QWidget):
 
     @property
     def amplitude(self) -> float:
-        return self._amplitude_spinbox.value()
+        return FULL_STROKE_NM * self._amplitude_spinbox.value() / 100.0
 
     @property
     def continuous(self) -> bool:
