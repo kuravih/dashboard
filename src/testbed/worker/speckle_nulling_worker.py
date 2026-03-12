@@ -124,7 +124,7 @@ class ProcessWorker(Worker):
             x_min, x_max = amplitude_array[0], amplitude_array[-1]
             x_range = x_max - x_min
             intensity_range = np.nanmax(speckle_intensity_array) - np.nanmin(speckle_intensity_array)
-            a_max = intensity_range / x_range**2
+            a_max = 2*intensity_range / x_range**2
             c_min, c_max = 0, np.nanmin(speckle_intensity_array)
             (fit_a, fit_x0, fit_c), _ = least_squares_fit(speckle_intensity_array, quadratic_fit_fn, x_coord=amplitude_array, bounds=([0, x_min, c_min], [a_max, x_max, c_max]))  # pylint: disable=unbalanced-tuple-unpacking
             self.signals.ampFitted.emit(fit_a, fit_x0, fit_c)
