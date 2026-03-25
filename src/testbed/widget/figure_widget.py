@@ -402,5 +402,5 @@ class WavefrontFigureWidget(FigureWidget):
     def __init__(self, wavefront: NDArray[np.complex64], toolitems: list[str] | None = None, parent: QWidget | None = None):
         super().__init__(Wavefront_Plot_Preset(wavefront), toolitems, parent)
 
-    def set_wavefront_data(self, wavefront: NDArray[np.complex64]):
-        self.figure.get_image().set_data(wavefront)
+    def set_wavefront_data(self, wavefront: NDArray[np.complex64], abs_min: float | None = None, abs_max: float | None = None,):
+        self.figure.get_image().set_data(wavefront, abs_min, abs_max)

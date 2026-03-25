@@ -99,18 +99,21 @@ class DevicesSetupWidget(QWidget):
         self.sink_info_button.setFixedWidth(sink_device_combobox.sizeHint().height())
         self.sink_info_button.setFixedHeight(sink_device_combobox.sizeHint().height())
         self.sink_info_button.setToolTip("Information")
+        self.sink_info_button.hide()
 
         self.sink_settings_button = IconButton(QIcon(ICON_GEAR), parent=self)
         self.sink_settings_button.setEnabled(False)
         self.sink_settings_button.setFixedWidth(sink_device_combobox.sizeHint().height())
         self.sink_settings_button.setFixedHeight(sink_device_combobox.sizeHint().height())
         self.sink_settings_button.setToolTip("Settings")
+        self.sink_settings_button.hide()
 
         self.sink_preview_button = IconButton(QIcon(ICON_EYE), parent=self)
         self.sink_preview_button.setEnabled(False)
         self.sink_preview_button.setFixedWidth(sink_device_combobox.sizeHint().height())
         self.sink_preview_button.setFixedHeight(sink_device_combobox.sizeHint().height())
         self.sink_preview_button.setToolTip("Sink Preview")
+        self.sink_preview_button.hide()
 
         source_device_label = QLabel("Source")
         source_device_label.setFixedWidth(100)
@@ -131,18 +134,21 @@ class DevicesSetupWidget(QWidget):
         self.source_info_button.setFixedWidth(source_device_combobox.sizeHint().height())
         self.source_info_button.setFixedHeight(source_device_combobox.sizeHint().height())
         self.source_info_button.setToolTip("Information")
+        self.source_info_button.hide()
 
         self.source_settings_button = IconButton(QIcon(ICON_GEAR), parent=self)
         self.source_settings_button.setEnabled(False)
         self.source_settings_button.setFixedWidth(source_device_combobox.sizeHint().height())
         self.source_settings_button.setFixedHeight(source_device_combobox.sizeHint().height())
         self.source_settings_button.setToolTip("Settings")
+        self.source_settings_button.hide()
 
         self.source_preview_button = IconButton(QIcon(ICON_EYE), parent=self)
         self.source_preview_button.setEnabled(False)
         self.source_preview_button.setFixedWidth(source_device_combobox.sizeHint().height())
         self.source_preview_button.setFixedHeight(source_device_combobox.sizeHint().height())
         self.source_preview_button.setToolTip("Source Preview")
+        self.source_preview_button.hide()
 
         layout = QGridLayout()
 
@@ -156,10 +162,13 @@ class DevicesSetupWidget(QWidget):
             sink_device_combobox.show()
             layout.addWidget(sink_device_combobox, row, col)
             col += 1
+            self.sink_info_button.show()
             layout.addWidget(self.sink_info_button, row, col)
             col += 1
+            self.sink_settings_button.show()
             layout.addWidget(self.sink_settings_button, row, col)
             col += 1
+            self.sink_preview_button.show()
             layout.addWidget(self.sink_preview_button, row, col)
 
         if self.setup_source:
@@ -171,10 +180,13 @@ class DevicesSetupWidget(QWidget):
             source_device_combobox.show()
             layout.addWidget(source_device_combobox, row, col)
             col += 1
+            self.source_info_button.show()
             layout.addWidget(self.source_info_button, row, col)
             col += 1
+            self.source_settings_button.show()
             layout.addWidget(self.source_settings_button, row, col)
             col += 1
+            self.source_preview_button.show()
             layout.addWidget(self.source_preview_button, row, col)
 
         self.setLayout(layout)
@@ -750,8 +762,8 @@ class ExposureTimeArrayWidget(QWidget):
         spinbox.setSingleStep(0.001)
         spinbox.setFixedWidth(150)
         spinbox.setSuffix(" s")
-        spinbox.setValue(value)
         spinbox.setToolTip("Exposure time in s (maximum 5min)")
+        spinbox.setValue(value)
         self._spinboxes = [spinbox]
         self._layout_steps(self._layout, self._spinboxes)
         self.setLayout(self._layout)
@@ -797,8 +809,8 @@ class ExposureTimeArrayWidget(QWidget):
         spinbox.setSingleStep(0.001)
         spinbox.setFixedWidth(150)
         spinbox.setSuffix(" s")
-        spinbox.setValue(value)
         spinbox.setToolTip("Exposure time in s (maximum 5min)")
+        spinbox.setValue(value)
         self._spinboxes.append(spinbox)
         self.clear_layout(self._layout)
         self._layout_steps(self._layout, self._spinboxes)
@@ -1079,7 +1091,7 @@ class PairwiseProbeDirectionWidget(QWidget):
 def _tint_pixmap(src: QPixmap, color: QColor) -> QPixmap:
     out = QPixmap(src.size())
     out.setDevicePixelRatio(src.devicePixelRatio())
-    out.fill(Qt.transparent)  # REQUIRED
+    out.fill(Qt.GlobalColor.transparent)  # REQUIRED
     p = QPainter(out)
     p.drawPixmap(0, 0, src)
     p.setCompositionMode(QPainter.CompositionMode.CompositionMode_SourceIn)

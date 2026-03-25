@@ -1,19 +1,22 @@
 import numpy as np
 from numpy.typing import NDArray
 
+from pykato.function import chord, describe_array
+from pykato.log import setup_logger
+
 from PySide6.QtCore import Qt, Slot, QTimer
 from PySide6.QtGui import QIcon
 from PySide6.QtWidgets import QDoubleSpinBox, QGridLayout, QHBoxLayout, QLabel, QSpinBox, QVBoxLayout, QWidget, QMessageBox, QCheckBox
 
 import testbed
 
-from ..function import PairwiseProbeDirection
-from ..widget import PairwiseProbeDirectionWidget
 from ..device.camera import Camera
 from ..device.modulator import Modulator, FULL_STROKE_NM
+from ..function import is_pairwise_calibration_file_valid, read_pairwise_calibration_file, PairwiseProbeDirection
 from ..worker.pairwise_fpwfs_worker import ProcessWorker
+from ..widget import PairwiseProbeDirectionWidget
+from .camera_window import AdvancePreviewWindow as CameraPreviewWindow
 from .camera_window import InfoWindow as CameraInfoWindow
-from .camera_window import SimplePreviewWindow as CameraPreviewWindow
 from .camera_window import SettingsWindow as CameraSettingsWindow
 from .modulator_window import InfoWindow as ModulatorInfoWindow
 from .modulator_window import SimplePreviewWindow as ModulatorPreviewWindow
@@ -22,9 +25,7 @@ from .dialog import MessageDialog
 from .figure_widget import WavefrontFigureWidget
 from .resource import ICON_PAUSE, ICON_RUN
 
-from . import DevicesSetupWidget, TaskControlsWidget, Window
-
-from pykato.log import setup_logger
+from . import DevicesSetupWidget, TaskControlsWidget, Window, FileLoadWidget
 
 _PROCESS_ = testbed.PAIRWISE_FPWFS
 process_worker_id = f"{_PROCESS_}_worker"
@@ -41,6 +42,9 @@ class ProcessSettingsWidget(QWidget):
     """
 
     def __init__(self, parent=None):
+        self.dark_hole_mask = None  # chord(self.source.shape, self.source.shape[0] * 5 / 16, 0.6)
+        self.pairwise_calibration = None
+
         super().__init__(parent)
 
         probe_amp_label = QLabel("Probe Amp.", self)
@@ -49,27 +53,42 @@ class ProcessSettingsWidget(QWidget):
         self._probe_amp_spinbox = QDoubleSpinBox(self)
         self._probe_amp_spinbox.setRange(-100, 100)
         self._probe_amp_spinbox.setSuffix(" %")
-        self._probe_amp_spinbox.setValue(10)
         self._probe_amp_spinbox.setSingleStep(1)
         self._probe_amp_spinbox.setToolTip("Probe amplitude")
+        self._probe_amp_spinbox.setValue(20)
 
         probe_dξ_label = QLabel("Probe dξ", self)
         probe_dξ_label.setFixedWidth(100)
 
         self._probe_dξ = QDoubleSpinBox(self)
+        self._probe_dξ.setRange(-1.0, 1.0)
+        self._probe_dξ.setSingleStep(0.001)
+        self._probe_dξ.setDecimals(3)
         self._probe_dξ.setToolTip("Probe dξ")
+        # self._probe_dξ.setValue(0.008)
+        self._probe_dξ.setValue(0.075)
 
         probe_dη_label = QLabel("Probe dη", self)
         probe_dη_label.setFixedWidth(100)
 
         self._probe_dη = QDoubleSpinBox(self)
+        self._probe_dη.setRange(-1.0, 1.0)
+        self._probe_dη.setSingleStep(0.001)
+        self._probe_dη.setDecimals(3)
         self._probe_dη.setToolTip("Probe dη")
+        # self._probe_dη.setValue(0.017)
+        self._probe_dη.setValue(0.155)
 
         probe_ξc_label = QLabel("Probe ξc", self)
         probe_ξc_label.setFixedWidth(100)
 
         self._probe_ξc = QDoubleSpinBox(self)
+        self._probe_ξc.setRange(0.0, 100.0)
+        self._probe_ξc.setSingleStep(0.00000001)
         self._probe_ξc.setToolTip("Probe ξc")
+        # self._probe_ξc.setValue(35.0)
+        self._probe_ξc.setDecimals(8)
+        self._probe_ξc.setValue(0.00010133)
 
         probe_dir_label = QLabel("Probe dir.", self)
         probe_dir_label.setFixedWidth(100)
@@ -84,8 +103,8 @@ class ProcessSettingsWidget(QWidget):
         self._n_reps_spinbox = QSpinBox(self)
         self._n_reps_spinbox.setRange(0, 9999)
         self._n_reps_spinbox.setSingleStep(1)
-        self._n_reps_spinbox.setValue(2)
         self._n_reps_spinbox.setToolTip("Number of reps to average")
+        self._n_reps_spinbox.setValue(2)
 
         self._continuous_checkbox = QCheckBox("continuous", self)
         self._continuous_checkbox.setToolTip("Run till stop/pause button is clicked")
@@ -99,6 +118,11 @@ class ProcessSettingsWidget(QWidget):
 
         self._continuous_checkbox.toggled.connect(on_continuous_toggled)
 
+        pairwise_calibration_label = QLabel("Calibration", self)
+        pairwise_calibration_label.setFixedWidth(100)
+
+        self.calibration_widget = FileLoadWidget(caption="Open Calibration File", directory="./data/output", file_filter="Pickle file (*.pkl)", validator=is_pairwise_calibration_file_valid, parent=self)
+
         n_reps_layout = QHBoxLayout()
         n_reps_layout.addWidget(self._n_reps_spinbox, stretch=1)
         n_reps_layout.addWidget(self._continuous_checkbox, alignment=Qt.AlignmentFlag.AlignRight)
@@ -110,8 +134,8 @@ class ProcessSettingsWidget(QWidget):
         self._sleep_s_spinbox.setMinimum(0)
         self._sleep_s_spinbox.setSingleStep(0.0001)
         self._sleep_s_spinbox.setDecimals(4)
-        self._sleep_s_spinbox.setValue(0.1)
         self._sleep_s_spinbox.setSuffix(" s")
+        self._sleep_s_spinbox.setValue(0.1)
 
         widget_layout = QGridLayout()
 
@@ -153,6 +177,12 @@ class ProcessSettingsWidget(QWidget):
 
         row += 1
         col = 0
+        widget_layout.addWidget(pairwise_calibration_label, row, col)
+        col += 1
+        widget_layout.addWidget(self.calibration_widget, row, col)
+
+        row += 1
+        col = 0
         widget_layout.addWidget(sleep_label, row, col)
         col += 1
         widget_layout.addWidget(self._sleep_s_spinbox, row, col, 1, 3)
@@ -191,6 +221,21 @@ class ProcessSettingsWidget(QWidget):
     def sleep_s(self) -> float:
         return self._sleep_s_spinbox.value()
 
+    @property
+    def dark_hole_mask(self) -> NDArray[np.bool] | None:
+        return self._dark_hole_mask  # chord(self.source.shape, self.source.shape[0] * 5 / 16, 0.6)
+
+    @dark_hole_mask.setter
+    def dark_hole_mask(self, value: NDArray[np.bool] | None):
+        self._dark_hole_mask = value
+
+    @property
+    def pairwise_calibration(self) -> dict | None:
+        return self._pairwise_calibration
+
+    @pairwise_calibration.setter
+    def pairwise_calibration(self, value: dict | None):
+        self._pairwise_calibration = value
 
 class ProcessInfoWindow(Window):
     """
@@ -213,8 +258,8 @@ class ProcessInfoWindow(Window):
         self.update_timer.timeout.connect(self.on_update_timer_tick)
         self.update_timer.start(100)  # Update window every 100 ms
 
-    @Slot(np.ndarray)
-    def on_wf_sensed(self, wavefront: NDArray[np.complex64]):
+    @Slot(PairwiseProbeDirection, np.ndarray)
+    def on_wf_sensed(self, direction:PairwiseProbeDirection, wavefront: NDArray[np.complex64]):
         self.wavefront[:] = wavefront[:]
 
     def setup_info_widget(self) -> QWidget:
@@ -247,8 +292,9 @@ class ProcessWindow(Window):
         super().__init__(parent, Qt.WindowType.Dialog)
         self.setWindowModality(Qt.WindowModality.WindowModal)
         self.setWindowTitle("Pairwise FPWFS Process")
-        self._sink = None
-        self._source = None
+        self.sink = None
+        self.source = None
+        self.pairwise_calibration = None
 
         layout = QVBoxLayout()
         layout.setContentsMargins(2, 2, 2, 2)
@@ -258,16 +304,42 @@ class ProcessWindow(Window):
     @property
     def source(self) -> Camera | None:
         return self._source
+    
+    @source.setter
+    def source(self, device = Camera | None):
+        self._source = device
 
     @property
     def sink(self) -> Modulator | None:
         return self._sink
+    
+    @sink.setter
+    def sink(self, device = Modulator | None):
+        self._sink = device
 
+    @property
+    def pairwise_calibration(self) -> dict[int, NDArray[np.float64]] | None:
+        return self._pairwise_calibration
+
+    @pairwise_calibration.setter
+    def pairwise_calibration(self, value: dict[int, NDArray[np.float64]] | None):
+        self._pairwise_calibration = value
+
+    @Slot()
+    def on_calibration_change(self):
+        self.controls_widget.info_button.setEnabled(False)
+        self.controls_widget.play_pause_button.setEnabled(False)
+        if self.source is not None and self.sink is not None and self.settings_widget.calibration_widget.filepath is not None:
+            self.pairwise_calibration = read_pairwise_calibration_file(self.settings_widget.calibration_widget.filepath)
+            self.controls_widget.info_button.setEnabled(True)
+            self.controls_widget.play_pause_button.setEnabled(True)
+
+    @Slot()
     def on_source_changed(self, device: Camera):
         self.devices_widget.source_info_button.setEnabled(True)
         self.devices_widget.source_settings_button.setEnabled(True)
         self.devices_widget.source_preview_button.setEnabled(True)
-        self._source = device
+        self.source = device
         device_preview_window_id = f"{device.name}_preview_window"
         if device_preview_window_id in testbed.data.windows:
             testbed.data.windows.pop(device_preview_window_id).close()
@@ -277,18 +349,27 @@ class ProcessWindow(Window):
         device_settings_window_id = f"{device.name}_settings_window"
         if device_settings_window_id in testbed.data.windows:
             testbed.data.windows.pop(device_settings_window_id).close()
+        if process_info_window_id in testbed.data.windows:
+            testbed.data.windows.pop(process_info_window_id).close()
         self.devices_widget.source_info_button.clicked.connect(lambda _, _device=device: self.open_device_info_window(_device))
         self.devices_widget.source_settings_button.clicked.connect(lambda _, _device=device: self.open_device_settings_window(_device))
         self.devices_widget.source_preview_button.clicked.connect(lambda _, _device=device: self.open_device_preview_window(_device))
-        if self.source is not None and self.sink is not None:
-            self.controls_widget.info_button.setEnabled(True)
-            self.controls_widget.play_pause_button.setEnabled(True)
+        self.controls_widget.info_button.setEnabled(False)
+        self.controls_widget.play_pause_button.setEnabled(False)
+        if self.source is not None:
+            self.settings_widget.dark_hole_mask = chord(self.source.shape, self.source.shape[0] * 5 / 16, 0.6)
+            if self.sink is not None:
+                self.controls_widget.info_button.setEnabled(True)
+                if self.settings_widget.calibration_widget.filepath is not None:
+                    self.pairwise_calibration = read_pairwise_calibration_file(self.settings_widget.calibration_widget.filepath)
+                    self.controls_widget.play_pause_button.setEnabled(True)
 
+    @Slot()
     def on_sink_changed(self, device: Modulator):
         self.devices_widget.sink_info_button.setEnabled(True)
         self.devices_widget.sink_settings_button.setEnabled(True)
         self.devices_widget.sink_preview_button.setEnabled(True)
-        self._sink = device
+        self.sink = device
         device_preview_window_id = f"{device.name}_preview_window"
         if device_preview_window_id in testbed.data.windows:
             testbed.data.windows.pop(device_preview_window_id).close()
@@ -298,12 +379,20 @@ class ProcessWindow(Window):
         device_settings_window_id = f"{device.name}_settings_window"
         if device_settings_window_id in testbed.data.windows:
             testbed.data.windows.pop(device_settings_window_id).close()
+        if process_info_window_id in testbed.data.windows:
+            testbed.data.windows.pop(process_info_window_id).close()
         self.devices_widget.sink_info_button.clicked.connect(lambda _, _device=device: self.open_device_info_window(_device))
         self.devices_widget.sink_settings_button.clicked.connect(lambda _, _device=device: self.open_device_settings_window(_device))
         self.devices_widget.sink_preview_button.clicked.connect(lambda _, _device=device: self.open_device_preview_window(_device))
-        if self.source is not None and self.sink is not None:
-            self.controls_widget.info_button.setEnabled(True)
-            self.controls_widget.play_pause_button.setEnabled(True)
+        self.controls_widget.info_button.setEnabled(False)
+        self.controls_widget.play_pause_button.setEnabled(False)
+        if self.source is not None:
+            self.settings_widget.dark_hole_mask = chord(self.source.shape, self.source.shape[0] * 5 / 16, 0.6)
+            if self.sink is not None:
+                self.controls_widget.info_button.setEnabled(True)
+                if self.settings_widget.calibration_widget.filepath is not None:
+                    self.pairwise_calibration = read_pairwise_calibration_file(self.settings_widget.calibration_widget.filepath)
+                    self.controls_widget.play_pause_button.setEnabled(True)
 
     def open_device_info_window(self, device: Camera | Modulator):
         device_info_window_id = f"{device.name}_info_window"
@@ -315,11 +404,11 @@ class ProcessWindow(Window):
         if device_info_window_id not in testbed.data.windows:
             info_window: CameraInfoWindow | ModulatorInfoWindow | None = None
             if isinstance(device, Camera):
-                info_window = CameraInfoWindow(device, self)
+                info_window = CameraInfoWindow(device, parent=self)
                 if process_worker_id in testbed.data.workers:  # an update worker is in progress
                     testbed.data.workers[process_worker_id].signals.srcSampled.connect(info_window.on_sampled)
             elif isinstance(device, Modulator):
-                info_window = ModulatorInfoWindow(device, self)
+                info_window = ModulatorInfoWindow(device, parent=self)
                 if process_worker_id in testbed.data.workers:  # an update worker is in progress
                     testbed.data.workers[process_worker_id].signals.snkSampled.connect(info_window.on_sampled)
             else:
@@ -340,9 +429,9 @@ class ProcessWindow(Window):
         if device_settings_window_id not in testbed.data.windows:
             settings_window: CameraSettingsWindow | ModulatorSettingsWindow | None = None
             if isinstance(device, Camera):
-                settings_window = CameraSettingsWindow(device, self)
+                settings_window = CameraSettingsWindow(device, parent=self)
             elif isinstance(device, Modulator):
-                settings_window = ModulatorSettingsWindow(device, self)
+                settings_window = ModulatorSettingsWindow(device, parent=self)
             else:
                 raise ValueError("Invalid device")
             settings_window.destroyed.connect(on_window_closed)
@@ -354,18 +443,17 @@ class ProcessWindow(Window):
     def open_device_preview_window(self, device: Camera | Modulator):
         device_preview_window_id = f"{device.name}_preview_window"
 
-        @Slot()
         def on_window_closed():
             testbed.data.windows.pop(device_preview_window_id, None)
 
         if device_preview_window_id not in testbed.data.windows:
             preview_window: CameraPreviewWindow | ModulatorPreviewWindow | None = None
             if isinstance(device, Camera):
-                preview_window = CameraPreviewWindow(device, self)
+                preview_window = CameraPreviewWindow(device, alpha_mask=self.settings_widget.dark_hole_mask, parent=self)
                 if process_worker_id in testbed.data.workers:  # an update worker is in progress
                     testbed.data.workers[process_worker_id].signals.srcSampled.connect(preview_window.on_sampled)
             elif isinstance(device, Modulator):
-                preview_window = ModulatorPreviewWindow(device, self)
+                preview_window = ModulatorPreviewWindow(device, parent=self)
                 if process_worker_id in testbed.data.workers:  # an update worker is in progress
                     testbed.data.workers[process_worker_id].signals.snkSampled.connect(preview_window.on_sampled)
             else:
@@ -390,6 +478,8 @@ class ProcessWindow(Window):
             current_worker = testbed.data.workers.pop(process_worker_id)
             current_worker.stop()
             self.controls_widget.play_pause_button.setIcon(QIcon(ICON_RUN))
+            self.devices_widget.sink_settings_button.setEnabled(True)
+            self.devices_widget.source_settings_button.setEnabled(True)
 
     @Slot()
     def on_source_storage_finished(self):
@@ -434,7 +524,7 @@ class ProcessWindow(Window):
             else:
                 self.controls_widget.progressbar.setMaximum(self.settings_widget.n_reps)
 
-            worker = ProcessWorker(self.source, self.sink, self.settings_widget.probe_amplitude, self.settings_widget.probe_dξ, self.settings_widget.probe_dη, self.settings_widget.probe_ξc, self.settings_widget.probe_directions, self.settings_widget.n_reps)
+            worker = ProcessWorker(self.source, self.sink, self.settings_widget.dark_hole_mask, self.pairwise_calibration, self.settings_widget.probe_amplitude, self.settings_widget.probe_dξ, self.settings_widget.probe_dη, self.settings_widget.probe_ξc, self.settings_widget.probe_directions, self.settings_widget.n_reps)
             worker.signals.progressTicked.connect(self.on_progress_tick)
             worker.signals.finished.connect(self.on_finished)
 
@@ -478,6 +568,7 @@ class ProcessWindow(Window):
         self.devices_widget.sinkChanged.connect(self.on_sink_changed)
 
         self.settings_widget = ProcessSettingsWidget(self)
+        self.settings_widget.calibration_widget.fileChanged.connect(self.on_calibration_change)
 
         self.controls_widget = TaskControlsWidget(self)
         self.controls_widget.play_pause_button.clicked.connect(self.on_start_stop_clicked)

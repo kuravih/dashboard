@@ -327,9 +327,9 @@ class SettingsWindow(Window):
         radius_widget.spinbox.setRange(1, self.modulator.max_radius)
         radius_widget.spinbox.setSingleStep(1)
         radius_widget.spinbox.setDecimals(1)
-        radius_widget.setValue(self.modulator.radius)
         radius_widget.spinbox.setSuffix(" px")
         radius_widget.spinbox.setToolTip("Radius")
+        radius_widget.setValue(self.modulator.radius)
         radius_widget.valueSetClicked.connect(on_set_radius_clicked)
         # ---- radius setting -----------------------------------------------------------------------------------------
 
@@ -556,7 +556,7 @@ class SimplePreviewSettingsWindow(Window):
         return widget
 
 
-# ==== PreviewWindow1 =================================================================================================
+# ==== SimplePreviewWindow ============================================================================================
 class SimplePreviewWindow(Window):
     """
     Simple preview window.
@@ -630,8 +630,8 @@ class SimplePreviewWindow(Window):
         event.accept()
 
 
-# ==== AltPreviewWindowWindow =================================================================================
-class AltPreviewSettingsWindowWindow(SimplePreviewSettingsWindow):
+# ==== AltPreviewSettingsWindow =======================================================================================
+class AltPreviewSettingsWindow(SimplePreviewSettingsWindow):
     """
     Settings for the alternate preview window (with orientation control).
     """
@@ -670,7 +670,7 @@ class AltPreviewSettingsWindowWindow(SimplePreviewSettingsWindow):
         return widget
 
 
-# ==== AltModulatorPreviewWindow =========================================================================================
+# ==== AltPreviewWindow ===============================================================================================
 class AltPreviewWindow(SimplePreviewWindow):
     """
     Alternate preview window (with orientation control).
@@ -681,7 +681,7 @@ class AltPreviewWindow(SimplePreviewWindow):
 
     @Slot()
     def on_preview_settings_clicked(self):
-        preview_settings_window = AltPreviewSettingsWindowWindow(self.preview_figure_widget.cmap_name, self.preview_figure_widget.rotation, self.preview_figure_widget.flip, parent=self)
+        preview_settings_window = AltPreviewSettingsWindow(self.preview_figure_widget.cmap_name, self.preview_figure_widget.rotation, self.preview_figure_widget.flip, parent=self)
         preview_settings_window.show()
         preview_settings_window.raise_()
         preview_settings_window.activateWindow()

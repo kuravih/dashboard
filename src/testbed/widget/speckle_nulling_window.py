@@ -46,7 +46,7 @@ class ProcessSettingsWidget(QWidget):
     """
 
     def __init__(self, parent=None):
-        self.dark_hole_mask = None  # chord(self.source.shape, self.source.shape[0] * 7 / 16, 0.65)
+        self.dark_hole_mask = None  # chord(self.source.shape, self.source.shape[0] * 5 / 16, 0.6)
         self.speckle_calibration = None
 
         super().__init__(parent)
@@ -77,8 +77,8 @@ class ProcessSettingsWidget(QWidget):
         self._n_iterations_spinbox = QSpinBox(self)
         self._n_iterations_spinbox.setRange(0, 9999)
         self._n_iterations_spinbox.setSingleStep(1)
-        self._n_iterations_spinbox.setValue(2)
         self._n_iterations_spinbox.setToolTip("Number of nulling iterations")
+        self._n_iterations_spinbox.setValue(2)
 
         self._continuous_checkbox = QCheckBox("continuous", self)
         self._continuous_checkbox.setToolTip("Run till stop/pause button is clicked")
@@ -92,7 +92,6 @@ class ProcessSettingsWidget(QWidget):
 
         self._continuous_checkbox.toggled.connect(on_continuous_toggled)
 
-        # ---- speckle calibration file -------------------------------------------------------------------------------
         speckle_calibration_label = QLabel("Calibration", self)
         speckle_calibration_label.setFixedWidth(100)
 
@@ -175,7 +174,7 @@ class ProcessSettingsWidget(QWidget):
 
     @property
     def dark_hole_mask(self) -> NDArray[np.bool] | None:
-        return self._dark_hole_mask  # chord(self.source.shape, self.source.shape[0] * 7 / 16, 0.65)
+        return self._dark_hole_mask  # chord(self.source.shape, self.source.shape[0] * 5 / 16, 0.6)
 
     @dark_hole_mask.setter
     def dark_hole_mask(self, value: NDArray[np.bool] | None):
@@ -462,18 +461,18 @@ class ProcessWindow(Window):
     @property
     def source(self) -> Camera | None:
         return self._source
-
+    
     @source.setter
-    def source(self, value: Camera | None):
-        self._source = value
+    def source(self, device = Camera | None):
+        self._source = device
 
     @property
     def sink(self) -> Modulator | None:
         return self._sink
-
+    
     @sink.setter
-    def sink(self, value: Modulator | None):
-        self._sink = value
+    def sink(self, device = Modulator | None):
+        self._sink = device
 
     @property
     def speckle_calibration(self) -> dict[str, dict[str, float]] | None:
@@ -485,7 +484,11 @@ class ProcessWindow(Window):
 
     @Slot()
     def on_calibration_change(self):
+        self.controls_widget.info_button.setEnabled(False)
+        self.controls_widget.preview_button.setEnabled(False)
+        self.controls_widget.play_pause_button.setEnabled(False)
         if self.source is not None and self.sink is not None:
+            self.controls_widget.info_button.setEnabled(True)
             self.controls_widget.preview_button.setEnabled(True)
             if self.settings_widget.calibration_widget.filepath is not None:
                 self.speckle_calibration = read_speckle_calibration_file(self.settings_widget.calibration_widget.filepath)
@@ -513,8 +516,9 @@ class ProcessWindow(Window):
         self.devices_widget.source_info_button.clicked.connect(lambda _, _device=device: self.open_device_info_window(_device))
         self.devices_widget.source_settings_button.clicked.connect(lambda _, _device=device: self.open_device_settings_window(_device))
         self.devices_widget.source_preview_button.clicked.connect(lambda _, _device=device: self.open_device_preview_window(_device))
+        self.controls_widget.play_pause_button.setEnabled(False)
         if self.source is not None:
-            self.settings_widget.dark_hole_mask = chord(self.source.shape, self.source.shape[0] * 7 / 16, 0.65)
+            self.settings_widget.dark_hole_mask = chord(self.source.shape, self.source.shape[0] * 5 / 16, 0.6)
             if self.sink is not None:
                 self.controls_widget.preview_button.setEnabled(True)
                 self.controls_widget.info_button.setEnabled(True)
@@ -544,8 +548,9 @@ class ProcessWindow(Window):
         self.devices_widget.sink_info_button.clicked.connect(lambda _, _device=device: self.open_device_info_window(_device))
         self.devices_widget.sink_settings_button.clicked.connect(lambda _, _device=device: self.open_device_settings_window(_device))
         self.devices_widget.sink_preview_button.clicked.connect(lambda _, _device=device: self.open_device_preview_window(_device))
+        self.controls_widget.play_pause_button.setEnabled(False)
         if self.source is not None:
-            self.settings_widget.dark_hole_mask = chord(self.source.shape, self.source.shape[0] * 7 / 16, 0.65)
+            self.settings_widget.dark_hole_mask = chord(self.source.shape, self.source.shape[0] * 5 / 16, 0.6)
             if self.sink is not None:
                 self.controls_widget.preview_button.setEnabled(True)
                 self.controls_widget.info_button.setEnabled(True)
@@ -630,7 +635,7 @@ class ProcessWindow(Window):
         self.controls_widget.progressbar.updateProgress()
 
     @Slot()
-    def on_finish(self):
+    def on_finished(self):
         self.controls_widget.progressbar.reset()
         self.controls_widget.progressbar.updateProgress()
         if process_worker_id in testbed.data.workers:  # an update worker is in progress
@@ -641,13 +646,13 @@ class ProcessWindow(Window):
             self.devices_widget.source_settings_button.setEnabled(True)
 
     @Slot()
-    def on_source_storage_finish(self):
+    def on_source_storage_finished(self):
         if source_storage_worker_id in testbed.data.workers:
             source_storage_worker = testbed.data.workers.pop(source_storage_worker_id)
             source_storage_worker.stop()
 
     @Slot()
-    def on_sink_storage_finish(self):
+    def on_sink_storage_finished(self):
         if sink_storage_worker_id in testbed.data.workers:
             sink_storage_worker = testbed.data.workers.pop(sink_storage_worker_id)
             sink_storage_worker.stop()
@@ -685,21 +690,21 @@ class ProcessWindow(Window):
 
             worker = ProcessWorker(self.source, self.sink, self.settings_widget.dark_hole_mask, self.speckle_calibration, self.settings_widget.phs_array, self.settings_widget.amp_array, self.settings_widget.n_iterations)
             worker.signals.progressTicked.connect(self.on_progress_tick)
-            worker.signals.finished.connect(self.on_finish)
+            worker.signals.finished.connect(self.on_finished)
 
             timestamp = timestamp_string(frmt="%Y%m%d.%H%M%S", ms=None)
 
             if self.settings_widget.record_source:
                 source_storage_worker = SourceStorageWorker(f"data/output/{timestamp}_{_PROCESS_}_source.raw", self.settings_widget.n_iterations)
                 worker.signals.srcSampled.connect(source_storage_worker.on_sample)
-                source_storage_worker.signals.finished.connect(self.on_source_storage_finish)
+                source_storage_worker.signals.finished.connect(self.on_source_storage_finished)
                 testbed.data.workers[source_storage_worker_id] = source_storage_worker
                 testbed.data.threadpool.start(source_storage_worker)
 
             if self.settings_widget.record_sink:
                 sink_storage_worker = SinkStorageWorker(f"data/output/{timestamp}_{_PROCESS_}_sink.raw", self.settings_widget.n_iterations)
                 worker.signals.snkSampled.connect(sink_storage_worker.on_sample)
-                sink_storage_worker.signals.finished.connect(self.on_sink_storage_finish)
+                sink_storage_worker.signals.finished.connect(self.on_sink_storage_finished)
                 testbed.data.workers[sink_storage_worker_id] = sink_storage_worker
                 testbed.data.threadpool.start(sink_storage_worker)
 

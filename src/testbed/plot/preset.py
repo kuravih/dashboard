@@ -20,7 +20,7 @@ from pykato.log import setup_logger
 logger = setup_logger("preset", terminator="\n")
 
 
-def Image_Plot_Preset(capture: NDArray[np.float64], cmap_norm: Normalize | None = None, cmap_name: str | None = None, alpha_mask: NDArray[np.bool] | None = None, figure: Figure | None = None) -> Figure:
+def Image_Plot_Preset(capture: NDArray[np.uint16|np.float64], cmap_norm: Normalize | None = None, cmap_name: str | None = None, alpha_mask: NDArray[np.bool] | None = None, figure: Figure | None = None) -> Figure:
     """
     Plot preset used to display source images.
 
@@ -58,11 +58,30 @@ def Image_Plot_Preset(capture: NDArray[np.float64], cmap_norm: Normalize | None 
         AxesImage_patch_alpha_mask_show(figure.get_image(), alpha_mask)
         figure.get_image().set_alpha_mask_show(True)
 
+    figure.get_imshow_axes().set_xlabel("px", size=10)
+    figure.get_imshow_axes().set_ylabel("px", size=10)
+
+    return figure
+
+
+def Wavefront_Plot_Preset(wavefront: NDArray[np.complex64], abs_min: float | None = None, abs_max: float | None = None, figure: Figure | None = None) -> Figure:
+    """
+    Plot preset used to illustrate wavefronts.
+
+    Examples:
+        figure = Wavefront_Plot_Preset(wavefront)
+    """
+
+    figure = Complex_Imshow_TwoColorbars_Preset(wavefront, abs_min, abs_max)
+    figure.get_imshow_axes().set_xlabel("px", size=10)
+    figure.get_imshow_axes().set_ylabel("px", size=10)
+
     return figure
 
 
 def Histogram_Plot_Preset(capture: NDArray[np.float64], cmap_norm: Normalize | None = None, cmap_name: str | None = None) -> Figure:
     return Histogram_Colorbar_Preset(capture, nbins=256, cmap_norm=cmap_norm, cmap_name=cmap_name, position="bottom")
+
 
 def Speckle_Modulation_Plot_Preset(phs_lim: tuple[float, float], amp_lim: tuple[float, float], figure: Figure | None = None) -> Figure:
     """
@@ -344,20 +363,4 @@ def DOTF_Measurement_Plot_Preset(measure_dict: dict[int, NDArray[np.complex64]],
     # -----------------------------------------------------------------------------------------------------------------
 
     return figure
-
-
-def Wavefront_Plot_Preset(wavefront: NDArray[np.complex64], figure: Figure | None = None) -> Figure:
-    """
-    Plot preset used to illustrate wavefronts.
-
-    Examples:
-        figure = Wavefront_Plot_Preset(wavefront)
-    """
-
-    figure = Complex_Imshow_TwoColorbars_Preset(wavefront)
-    figure.get_imshow_axes().set_xlabel("px", size=10)
-    figure.get_imshow_axes().set_ylabel("px", size=10)
-
-    return figure
-
 

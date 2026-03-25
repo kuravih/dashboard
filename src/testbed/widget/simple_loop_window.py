@@ -43,9 +43,9 @@ class ProcessSettingsWidget(QWidget):
         self._amplitude_spinbox = QDoubleSpinBox(self)
         self._amplitude_spinbox.setRange(-100, 100)
         self._amplitude_spinbox.setSuffix(" %")
-        self._amplitude_spinbox.setValue(10)
         self._amplitude_spinbox.setSingleStep(1)
         self._amplitude_spinbox.setToolTip("Command amplitude")
+        self._amplitude_spinbox.setValue(10)
 
         n_steps_label = QLabel("Steps", self)
         n_steps_label.setFixedWidth(100)
@@ -53,8 +53,8 @@ class ProcessSettingsWidget(QWidget):
         self._n_steps_spinbox = QSpinBox(self)
         self._n_steps_spinbox.setRange(0, 9999)
         self._n_steps_spinbox.setSingleStep(1)
-        self._n_steps_spinbox.setValue(9)
         self._n_steps_spinbox.setToolTip("Number of steps")
+        self._n_steps_spinbox.setValue(9)
 
         self._continuous_checkbox = QCheckBox("continuous", self)
         self._continuous_checkbox.setToolTip("Run till stop/pause button is clicked")
@@ -79,8 +79,8 @@ class ProcessSettingsWidget(QWidget):
         self._sleep_s_spinbox.setMinimum(0)
         self._sleep_s_spinbox.setSingleStep(0.0001)
         self._sleep_s_spinbox.setDecimals(4)
-        self._sleep_s_spinbox.setValue(0.1)
         self._sleep_s_spinbox.setSuffix(" s")
+        self._sleep_s_spinbox.setValue(0.1)
 
         record_label = QLabel("Record", self)
         record_label.setFixedWidth(100)
@@ -157,8 +157,8 @@ class ProcessWindow(Window):
         super().__init__(parent, Qt.WindowType.Dialog)
         self.setWindowModality(Qt.WindowModality.WindowModal)
         self.setWindowTitle("Simple Process")
-        self._sink = None
-        self._source = None
+        self.sink = None
+        self.source = None
 
         layout = QVBoxLayout()
         layout.setContentsMargins(2, 2, 2, 2)
@@ -168,10 +168,18 @@ class ProcessWindow(Window):
     @property
     def source(self) -> Camera | None:
         return self._source
+    
+    @source.setter
+    def source(self, device = Camera | None):
+        self._source = device
 
     @property
     def sink(self) -> Modulator | None:
         return self._sink
+    
+    @sink.setter
+    def sink(self, device = Modulator | None):
+        self._sink = device
 
     def on_source_changed(self, device: Camera):
         self.devices_widget.source_info_button.setEnabled(True)
@@ -190,6 +198,7 @@ class ProcessWindow(Window):
         self.devices_widget.source_info_button.clicked.connect(lambda _, _device=device: self.open_device_info_window(_device))
         self.devices_widget.source_settings_button.clicked.connect(lambda _, _device=device: self.open_device_settings_window(_device))
         self.devices_widget.source_preview_button.clicked.connect(lambda _, _device=device: self.open_device_preview_window(_device))
+        self.controls_widget.play_pause_button.setEnabled(False)
         if self.source is not None and self.sink is not None:
             self.controls_widget.preview_button.setEnabled(True)
             self.controls_widget.play_pause_button.setEnabled(True)
@@ -211,6 +220,7 @@ class ProcessWindow(Window):
         self.devices_widget.sink_info_button.clicked.connect(lambda _, _device=device: self.open_device_info_window(_device))
         self.devices_widget.sink_settings_button.clicked.connect(lambda _, _device=device: self.open_device_settings_window(_device))
         self.devices_widget.sink_preview_button.clicked.connect(lambda _, _device=device: self.open_device_preview_window(_device))
+        self.controls_widget.play_pause_button.setEnabled(False)
         if self.source is not None and self.sink is not None:
             self.controls_widget.preview_button.setEnabled(True)
             self.controls_widget.play_pause_button.setEnabled(True)

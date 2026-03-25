@@ -373,8 +373,8 @@ class SettingsWindow(Window):
                 temperature_widget.spinbox.setRange(10, 30)
                 temperature_widget.spinbox.setDecimals(1)
                 temperature_widget.spinbox.setSingleStep(0.1)
-                temperature_widget.setValue(self.camera.temperature_c)
                 temperature_widget.spinbox.setToolTip("Temperature (\u00b0C)")
+                temperature_widget.setValue(self.camera.temperature_c)
                 temperature_widget.valueSetClicked.connect(on_temperature_set_clicked)
                 # ---- temperature setting --------------------------------------------------------------------------------
 
@@ -398,8 +398,8 @@ class SettingsWindow(Window):
                 expTime_widget.spinbox.setRange(0, 30000000)
                 expTime_widget.spinbox.setDecimals(6)
                 expTime_widget.spinbox.setSingleStep(0.001)
-                expTime_widget.setValue(self.camera.exposure_time_s)
                 expTime_widget.spinbox.setToolTip("Exposure time (s)")
+                expTime_widget.setValue(self.camera.exposure_time_s)
                 expTime_widget.valueSetClicked.connect(on_exposure_time_set_clicked)
                 # ---- exposure time setting ------------------------------------------------------------------------------
 
@@ -424,8 +424,8 @@ class SettingsWindow(Window):
                 gain_widget.spinbox.setRange(0, 10)
                 gain_widget.spinbox.setDecimals(1)
                 gain_widget.spinbox.setSingleStep(0.1)
-                gain_widget.setValue(self.camera.gain)
                 gain_widget.spinbox.setToolTip("gain")
+                gain_widget.setValue(self.camera.gain)
                 gain_widget.valueSetClicked.connect(on_gain_set_clicked)
                 # ---- gain setting ---------------------------------------------------------------------------------------
 
@@ -506,6 +506,10 @@ class SimplePreviewSettingsWindow(Window):
         layout = QGridLayout(widget)
         widget.setLayout(layout)
 
+        diff_label = QLabel("Difference", self)
+        self.diff_checkbox = QCheckBox("", self)
+        self.diff_checkbox.setToolTip("Show difference")
+
         scale_label = QLabel("Scale", self)
         self.log_checkbox = QCheckBox("Log", self)
         self.log_checkbox.setToolTip("Log Scale")
@@ -521,6 +525,12 @@ class SimplePreviewSettingsWindow(Window):
         self.cmap_combobox.setCurrentIndex(list(colormaps).index(self.cmap_name))
 
         row = 0
+        col = 0
+        layout.addWidget(diff_label, row, col)
+        col += 1
+        layout.addWidget(self.diff_checkbox, row, col)
+
+        row += 1
         col = 0
         layout.addWidget(scale_label, row, col)
         col += 1
@@ -617,8 +627,8 @@ class SimplePreviewWindow(Window):
         event.accept()
 
 
-# ==== AltPreviewSettingsWindowWindow =================================================================================
-class AltPreviewSettingsWindowWindow(SimplePreviewSettingsWindow):
+# ==== AltPreviewSettingsWindow =======================================================================================
+class AltPreviewSettingsWindow(SimplePreviewSettingsWindow):
     """
     Settings for the alternate preview window (with orientation control).
     """
@@ -683,7 +693,7 @@ class AltPreviewWindow(SimplePreviewWindow):
 
     @Slot()
     def on_preview_settings_clicked(self):
-        preview_settings_window = AltPreviewSettingsWindowWindow(self.preview_figure_widget.cmap_name, self.preview_figure_widget.cmap_norm, self.preview_figure_widget.rotation, self.preview_figure_widget.flip, parent=self)
+        preview_settings_window = AltPreviewSettingsWindow(self.preview_figure_widget.cmap_name, self.preview_figure_widget.cmap_norm, self.preview_figure_widget.rotation, self.preview_figure_widget.flip, parent=self)
         preview_settings_window.show()
         preview_settings_window.raise_()
         preview_settings_window.activateWindow()
@@ -706,8 +716,8 @@ class AltPreviewWindow(SimplePreviewWindow):
         self.preview_figure_widget.figure.canvas.draw_idle()
 
 
-# ==== AdvancePreviewSettingsWindowWindow =============================================================================
-class AdvancePreviewSettingsWindowWindow(SimplePreviewSettingsWindow):
+# ==== AdvancePreviewSettingsWindow ===================================================================================
+class AdvancePreviewSettingsWindow(SimplePreviewSettingsWindow):
     """
     Settings for the advance preview window (with alpha mask and a single speckle).
     """
@@ -806,7 +816,7 @@ class AdvancePreviewWindow(SimplePreviewWindow):
 
     @Slot()
     def on_preview_settings_clicked(self):
-        preview_settings_window = AdvancePreviewSettingsWindowWindow(self.preview_figure_widget.cmap_name, self.preview_figure_widget.cmap_norm, self.preview_figure_widget.alpha_mask_show, parent=self)
+        preview_settings_window = AdvancePreviewSettingsWindow(self.preview_figure_widget.cmap_name, self.preview_figure_widget.cmap_norm, self.preview_figure_widget.alpha_mask_show, parent=self)
         preview_settings_window.show()
         preview_settings_window.raise_()
         preview_settings_window.activateWindow()

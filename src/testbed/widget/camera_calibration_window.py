@@ -27,7 +27,7 @@ logger = setup_logger(f"{_PROCESS_}_window", terminator="\n")
 
 class ProcessSettingsWidget(QWidget):
     """
-    Speckle Calibration Process Settings
+    Camera Calibration Process Settings
     """
 
     def __init__(self, parent=None):
@@ -46,14 +46,14 @@ class ProcessSettingsWidget(QWidget):
 
 class ProcessWindow(Window):
     """
-    Speckle Calibration Process Window
+    Camera Calibration Process Window
     """
 
     def __init__(self, parent=None):
         super().__init__(parent, Qt.WindowType.Dialog)
         self.setWindowModality(Qt.WindowModality.WindowModal)
         self.setWindowTitle("Camera Calibration")
-        self._source = None
+        self.source = None
 
         layout = QVBoxLayout()
         layout.setContentsMargins(2, 2, 2, 2)
@@ -63,6 +63,10 @@ class ProcessWindow(Window):
     @property
     def source(self) -> Camera | None:
         return self._source
+
+    @source.setter
+    def source(self, device=Camera | None):
+        self._source = device
 
     def on_source_changed(self, device: Camera):
         self.device_widget.source_info_button.setEnabled(True)
@@ -81,6 +85,8 @@ class ProcessWindow(Window):
         self.device_widget.source_info_button.clicked.connect(lambda _, _device=device: self.open_device_info_window(_device))
         self.device_widget.source_settings_button.clicked.connect(lambda _, _device=device: self.open_device_settings_window(_device))
         self.device_widget.source_preview_button.clicked.connect(lambda _, _device=device: self.open_device_preview_window(_device))
+        self.controls_widget.preview_button.setEnabled(False)
+        self.controls_widget.play_pause_button.setEnabled(False)
         if self.source is not None:
             self.controls_widget.preview_button.setEnabled(True)
             self.controls_widget.play_pause_button.setEnabled(True)

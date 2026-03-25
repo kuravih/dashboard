@@ -46,9 +46,9 @@ class ProcessSettingsWidget(QWidget):
         self._amplitude_spinbox = QDoubleSpinBox(self)
         self._amplitude_spinbox.setRange(-100, 100)
         self._amplitude_spinbox.setSuffix(" %")
-        self._amplitude_spinbox.setValue(10)
         self._amplitude_spinbox.setSingleStep(1)
         self._amplitude_spinbox.setToolTip("Command amplitude")
+        self._amplitude_spinbox.setValue(10)
 
         angle_label = QLabel("Angle Steps", self)
         angle_label.setFixedWidth(100)
@@ -132,8 +132,8 @@ class ProcessWindow(Window):
         super().__init__(parent, Qt.WindowType.Dialog)
         self.setWindowModality(Qt.WindowModality.WindowModal)
         self.setWindowTitle("Speckle Calibration")
-        self._sink = None
-        self._source = None
+        self.sink = None
+        self.source = None
 
         layout = QVBoxLayout()
         layout.setContentsMargins(2, 2, 2, 2)
@@ -144,9 +144,17 @@ class ProcessWindow(Window):
     def source(self) -> Camera | None:
         return self._source
 
+    @source.setter
+    def source(self, device=Camera | None):
+        self._source = device
+
     @property
     def sink(self) -> Modulator | None:
         return self._sink
+
+    @sink.setter
+    def sink(self, device=Modulator | None):
+        self._sink = device
 
     def on_source_changed(self, device: Camera):
         self.devices_widget.source_info_button.setEnabled(True)
@@ -165,6 +173,7 @@ class ProcessWindow(Window):
         self.devices_widget.source_info_button.clicked.connect(lambda _, _device=device: self.open_device_info_window(_device))
         self.devices_widget.source_settings_button.clicked.connect(lambda _, _device=device: self.open_device_settings_window(_device))
         self.devices_widget.source_preview_button.clicked.connect(lambda _, _device=device: self.open_device_preview_window(_device))
+        self.controls_widget.play_pause_button.setEnabled(False)
         if self.source is not None and self.sink is not None:
             self.controls_widget.preview_button.setEnabled(True)
             self.controls_widget.play_pause_button.setEnabled(True)
@@ -186,6 +195,7 @@ class ProcessWindow(Window):
         self.devices_widget.sink_info_button.clicked.connect(lambda _, _device=device: self.open_device_info_window(_device))
         self.devices_widget.sink_settings_button.clicked.connect(lambda _, _device=device: self.open_device_settings_window(_device))
         self.devices_widget.sink_preview_button.clicked.connect(lambda _, _device=device: self.open_device_preview_window(_device))
+        self.controls_widget.play_pause_button.setEnabled(False)
         if self.source is not None and self.sink is not None:
             self.controls_widget.preview_button.setEnabled(True)
             self.controls_widget.play_pause_button.setEnabled(True)

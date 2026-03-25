@@ -3,10 +3,12 @@ from enum import Enum, IntEnum, auto
 import struct
 import numpy as np
 from datetime import datetime
+
+from numpy.typing import NDArray
 from .device import SinkSample, SourceSample
 from io import FileIO
 from pykato.log import setup_logger
-from pykato.function import box, generate_coordinates
+from pykato.function import box, generate_coordinates, invert_2x2_arrays
 
 from skimage.feature import peak_local_max
 from skimage.morphology import disk, dilation
@@ -220,8 +222,8 @@ def speckle_parameters(center: tuple[float, float], speckle_location_px: tuple[f
 
 
 def is_speckle_calibration_file_valid(filename: str) -> bool:
-    with open(filename, "rb") as _input:
-        d = pickle.load(_input)
+    with open(filename, "rb") as _file:
+        d = pickle.load(_file)
 
     if "speck_angle_cmd_angle" not in d:
         return False
@@ -241,8 +243,8 @@ def is_speckle_calibration_file_valid(filename: str) -> bool:
 
 
 def read_speckle_calibration_file(filename: str) -> dict[str, dict[str, float]]:
-    with open(filename, "rb") as _input:
-        return pickle.load(_input)
+    with open(filename, "rb") as _file:
+        return pickle.load(_file)
 
 
 def write_speckle_calibration_file(speckle_calibration_dict: dict[str, dict[str, float]], filename: str):
@@ -259,6 +261,24 @@ def is_camera_calibration_file_valid(filename: str, shape: tuple[int, int]) -> b
             return (hdul[0].data[0].shape == data_shape) & (hdul[0].data[1].shape == data_shape) & (hdul[0].data[2].shape == data_shape)
 
 
+def read_camera_calibration_file(filename: str) -> dict[str, np.ndarray]:
+    with fits.open(filename) as hdul:
+        dark_rate_data = hdul[0].data[0]
+        bias_data = hdul[0].data[1]
+        read_noise_data = hdul[0].data[2]
+        return {"dark_rate": dark_rate_data, "bias": bias_data, "read_noise": read_noise_data}
+
+
+def write_camera_calibration_file(filename: str, dark_rate: np.ndarray, bias: np.ndarray, read_noise: np.ndarray):
+    fits_dr_rn = np.stack([dark_rate, bias, read_noise], axis=0)
+    fits_dr_rn_hdu = fits.PrimaryHDU(fits_dr_rn)
+    fits_dr_rn_hdu.header["NFRAME"] = 3
+    fits_dr_rn_hdu.header["FRAME0"] = "dark_rate"
+    fits_dr_rn_hdu.header["FRAME1"] = "bias"
+    fits_dr_rn_hdu.header["FRAME2"] = "read_noise"
+    fits_dr_rn_hdu.writeto(filename, overwrite=True)
+
+
 def is_modulator_calibration_file_valid(filename: str, shape: tuple[int, int]) -> bool:
     with fits.open(filename) as hdul:
         if len(hdul[0].data) != 2:
@@ -268,19 +288,20 @@ def is_modulator_calibration_file_valid(filename: str, shape: tuple[int, int]) -
             return (hdul[0].data[0].shape == data_shape) & (hdul[0].data[1].shape == data_shape)
 
 
-def read_camera_calibration_file(filename: str) -> dict[str, np.ndarray]:
-    with fits.open(filename) as hdul:
-        dark_rate_data = hdul[0].data[0]
-        bias_data = hdul[0].data[1]
-        read_noise_data = hdul[0].data[2]
-        return {"dark_rate": dark_rate_data, "bias": bias_data, "read_noise": read_noise_data}
-
-
 def read_modulator_calibration_file(filename: str) -> dict[str, np.ndarray]:
     with fits.open(filename) as hdul:
         slope_data = hdul[0].data[0]
         flat_data = hdul[0].data[1]
         return {"slope": slope_data, "flat": flat_data}
+
+
+def write_modulator_calibration_file(filename: str, slope_nm_to_adu: np.ndarray, intercept_nm: np.ndarray):
+    fits_dr_rn = np.stack([slope_nm_to_adu, intercept_nm], axis=0)
+    fits_dr_rn_hdu = fits.PrimaryHDU(fits_dr_rn)
+    fits_dr_rn_hdu.header["NFRAME"] = 2
+    fits_dr_rn_hdu.header["FRAME0"] = "slope"
+    fits_dr_rn_hdu.header["FRAME1"] = "flat"
+    fits_dr_rn_hdu.writeto(filename, overwrite=True)
 
 
 def sin_fit_fn(x, amplitude: float, frequency: float, phase: float, offset: float):
@@ -301,25 +322,6 @@ def quadratic_fit_fn(x, a: float, x0: float, c: float):
 
 def linear_fit_fn(x, m: float, c: float):
     return m * x + c
-
-
-def write_camera_calibration_file(filename: str, dark_rate: np.ndarray, bias: np.ndarray, read_noise: np.ndarray):
-    fits_dr_rn = np.stack([dark_rate, bias, read_noise], axis=0)
-    fits_dr_rn_hdu = fits.PrimaryHDU(fits_dr_rn)
-    fits_dr_rn_hdu.header["NFRAME"] = 3
-    fits_dr_rn_hdu.header["FRAME0"] = "dark_rate"
-    fits_dr_rn_hdu.header["FRAME1"] = "bias"
-    fits_dr_rn_hdu.header["FRAME2"] = "read_noise"
-    fits_dr_rn_hdu.writeto(filename, overwrite=True)
-
-
-def write_modulator_calibration_file(filename: str, slope_nm_to_adu: np.ndarray, intercept_nm: np.ndarray):
-    fits_dr_rn = np.stack([slope_nm_to_adu, intercept_nm], axis=0)
-    fits_dr_rn_hdu = fits.PrimaryHDU(fits_dr_rn)
-    fits_dr_rn_hdu.header["NFRAME"] = 2
-    fits_dr_rn_hdu.header["FRAME0"] = "slope"
-    fits_dr_rn_hdu.header["FRAME1"] = "flat"
-    fits_dr_rn_hdu.writeto(filename, overwrite=True)
 
 
 def capture_to_countrate(capture: np.ndarray, exp_time_s: float, dark_rate: np.ndarray, bias: np.ndarray) -> np.ndarray:
@@ -471,10 +473,42 @@ def pairwise_probe(shape: tuple[int, int], dξ: float, dη: float, ξc: float, �
         _2pi_xx = 2 * np.pi * xx
         _2pi_yy = 2 * np.pi * yy
         _invξc_2pi_xx = (1 / ξc) * _2pi_xx
-        logger.info("_pairwise_probe θ = %s", θ)
-        return (np.sinc(dξ * _2pi_xx) * np.sinc(dη * _2pi_yy) * np.sin(_invξc_2pi_xx + np.deg2rad(θ)) + 1) / 2
+        return np.sinc(dξ * _2pi_xx) * np.sinc(dη * _2pi_yy) * np.sin(_invξc_2pi_xx + θ)
 
     if direction == PairwiseProbeDirection.HORIZONTAL:
         return _pairwise_probe(shape, dξ, dη, ξc, θ)
     else:
         return np.rot90(_pairwise_probe(shape, dξ, dη, ξc, θ))
+
+
+def pairwise_estimation_matrices(Δp_1: NDArray[np.complex64], Δp_2: NDArray[np.complex64]) -> tuple[float | np.ndarray, float | np.ndarray, float | np.ndarray, float | np.ndarray]:
+    return invert_2x2_arrays(-2 * np.imag(Δp_1), 2 * np.real(Δp_1), -2 * np.imag(Δp_2), 2 * np.real(Δp_2))
+
+
+def pairwise_estimate(intensity_p1: NDArray[np.float64], intensity_m1: NDArray[np.float64], intensity_p2: NDArray[np.float64], intensity_m2: NDArray[np.float64], pqrs: tuple[NDArray[np.float64], NDArray[np.float64], NDArray[np.float64], NDArray[np.float64]]) -> NDArray[np.complex64]:
+    p, q, r, s = pqrs
+    δ1 = (intensity_p1 - intensity_m1) / 2
+    δ2 = (intensity_p2 - intensity_m2) / 2
+    re_field = p * δ1 + q * δ2
+    im_field = r * δ1 + s * δ2
+    return re_field + 1j * im_field
+
+
+def is_pairwise_calibration_file_valid(filename: str) -> bool:
+    with open(filename, "rb") as _file:
+        d = pickle.load(_file)
+    if 1 not in d:
+        return False
+    if 2 not in d:
+        return False
+    return True
+
+
+def read_pairwise_calibration_file(filename: str) -> dict[int, NDArray[np.float64]]:
+    with open(filename, "rb") as _file:
+        return pickle.load(_file)
+
+
+def write_pairwise_calibration_file(pairwise_calibration_dict: dict[int, NDArray[np.float64]], filename: str):
+    with open(filename, "wb") as _file:
+        pickle.dump(pairwise_calibration_dict, _file, protocol=pickle.HIGHEST_PROTOCOL)

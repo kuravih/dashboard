@@ -94,11 +94,10 @@ class ProcessWorker(Worker):
         logger.info("%s and %s ProcessWorker.run : step %i of %i", self.source.name, self.sink.name, i_rep, self.n_reps)
 
         while ((self.n_reps is None) or (self.n_reps > i_rep)) and self._running:
-            for i_dir, direction in enumerate(self.probe_directions):
+            for direction in self.probe_directions:
                 self.dotf_measurements[direction] = self.dotf_measurements[direction] + self.measure_dotf(current_cmd, self.probe_amplitude, self.probe_size, direction)
-                self.signals.dotfMeasured.emit(direction, self.dotf_measurements[direction]/i_rep)
-
-            logger.info("%s and %s ProcessWorker.run : step %i of %i", self.source.name, self.sink.name, i_rep, self.n_reps)
+                self.signals.dotfMeasured.emit(direction, self.dotf_measurements[direction] / (i_rep + 1))
+                logger.info("%s and %s ProcessWorker.run : step %i of %i, %i", self.source.name, self.sink.name, i_rep, self.n_reps, direction)
 
             i_rep = i_rep + 1
             self.signals.progressTicked.emit(i_rep, time.time() - t_start)
