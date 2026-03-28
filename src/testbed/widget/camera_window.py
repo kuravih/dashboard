@@ -10,7 +10,7 @@ from pykato.log import setup_logger
 
 from ..device.camera import Camera, SourceSample
 from ..function import Flip, Rotation, flip_rotate, is_camera_calibration_file_valid
-from ..widget import Window, OrientationWidget, ROIWidget, DoubleValueSetWidget, FileLoadWidget
+from ..widget import Window, OrientationWidget, ROIWidget, DoubleValueSetWidget, FileLoadWidget, NDoubleSpinBoxesWidget
 from ..widget.figure_widget import SourceFigureWidget, SourceHistFigureWidget
 
 logger = setup_logger("camera_window", terminator="\n")
@@ -32,10 +32,10 @@ class SourceHistSettingsWidget(Window):
         self.setWindowTitle("Preview Settings")
         layout = QVBoxLayout()
         layout.setContentsMargins(2, 2, 2, 2)
-        layout.addWidget(self.setup_preview_settings_widget())
+        layout.addWidget(self.setup_hist_settings_widget())
         self.setLayout(layout)
 
-    def setup_preview_settings_widget(self) -> QWidget:
+    def setup_hist_settings_widget(self) -> QWidget:
         widget = QWidget(self)
         layout = QGridLayout(widget)
         widget.setLayout(layout)
@@ -284,12 +284,12 @@ class InfoWindow(Window):
 
     @Slot()
     def on_info_hist_settings_clicked(self):
-        info_hist_settings_window = SourceHistSettingsWidget(self.info_hist_figure_widget.cmap_name, self.info_hist_figure_widget.cmap_norm, parent=self)
-        info_hist_settings_window.show()
-        info_hist_settings_window.raise_()
-        info_hist_settings_window.activateWindow()
-        info_hist_settings_window.log_checkbox.checkStateChanged.connect(self.on_cmap_norm_changed)
-        info_hist_settings_window.cmap_combobox.currentTextChanged.connect(self.on_cmap_name_changed)
+        self.info_hist_settings_window = SourceHistSettingsWidget(self.info_hist_figure_widget.cmap_name, self.info_hist_figure_widget.cmap_norm, parent=self)
+        self.info_hist_settings_window.show()
+        self.info_hist_settings_window.raise_()
+        self.info_hist_settings_window.activateWindow()
+        self.info_hist_settings_window.log_checkbox.checkStateChanged.connect(self.on_cmap_norm_changed)
+        self.info_hist_settings_window.cmap_combobox.currentTextChanged.connect(self.on_cmap_name_changed)
 
     @Slot(str)
     def on_cmap_name_changed(self, colormap: str):
@@ -298,9 +298,32 @@ class InfoWindow(Window):
     @Slot(bool)
     def on_cmap_norm_changed(self, checked: bool):
         if checked == Qt.CheckState.Checked:
-            self.info_hist_figure_widget.cmap_norm = LogNorm(1, 2**12 - 1)
+            self.info_hist_settings_window.clim_label.setText("Limits (Log10)")
+            log_clim = np.floor(np.log10(1)), np.ceil(np.log10(self.camera.pxmax))
+            log_Δclim = log_clim[1] - log_clim[0]
+            log_crange = np.floor(log_clim[0] - log_Δclim * 0.2), np.ceil(log_clim[1] + log_Δclim * 0.2)
+            self.info_hist_settings_window.clim_spinboxes[0].setRange(log_crange[0], log_crange[1])
+            self.info_hist_settings_window.clim_spinboxes[0].setValue(log_clim[0])
+            self.info_hist_settings_window.clim_spinboxes[1].setRange(log_crange[0], log_crange[1])
+            self.info_hist_settings_window.clim_spinboxes[1].setValue(log_clim[1])
+            self.info_hist_figure_widget.cmap_norm = LogNorm(10 ** log_clim[0], 10 ** log_clim[1])
         else:
-            self.info_hist_figure_widget.cmap_norm = Normalize(0, 2**12 - 1)
+            self.info_hist_settings_window.clim_label.setText("Limits")
+            lin_clim = 0, self.camera.pxmax
+            lin_Δclim = lin_clim[1] - lin_clim[0]
+            lin_crange = lin_clim[0] - lin_Δclim * 0.2, lin_clim[1] + lin_Δclim * 0.2
+            self.info_hist_settings_window.clim_spinboxes[0].setRange(lin_crange[0], lin_crange[1])
+            self.info_hist_settings_window.clim_spinboxes[0].setValue(lin_clim[0])
+            self.info_hist_settings_window.clim_spinboxes[1].setRange(lin_crange[0], lin_crange[1])
+            self.info_hist_settings_window.clim_spinboxes[1].setValue(lin_clim[1])
+            self.info_hist_figure_widget.cmap_norm = Normalize(lin_clim[0], lin_clim[1])
+
+    @Slot(tuple)
+    def on_clim_changed(self, clim):
+        if self.info_hist_settings_window.log_checkbox.checkState() == Qt.CheckState.Checked:
+            self.info_hist_figure_widget.cmap_norm = LogNorm(10 ** clim[0], 10 ** clim[1])
+        else:
+            self.info_hist_figure_widget.cmap_norm = Normalize(clim[0], clim[1])
 
     @Slot()
     def on_update_timer_tick(self):
@@ -506,18 +529,32 @@ class SimplePreviewSettingsWindow(Window):
         layout = QGridLayout(widget)
         widget.setLayout(layout)
 
-        diff_label = QLabel("Difference", self)
-        self.diff_checkbox = QCheckBox("", self)
-        self.diff_checkbox.setToolTip("Show difference")
-
         scale_label = QLabel("Scale", self)
         self.log_checkbox = QCheckBox("Log", self)
         self.log_checkbox.setToolTip("Log Scale")
 
+        self.clim_label = QLabel("", self)
+        self.clim_spinboxes = NDoubleSpinBoxesWidget(parent=self)
         if isinstance(self.cmap_norm, LogNorm):
             self.log_checkbox.setChecked(True)
+            self.clim_label.setText("Limits (Log10)")
+            log_clim = np.floor(np.log10(self.cmap_norm.vmin)), np.ceil(np.log10(self.cmap_norm.vmax))
+            log_Δclim = log_clim[1] - log_clim[0]
+            log_crange = np.floor(log_clim[0] - log_Δclim * 0.2), np.ceil(log_clim[1] + log_Δclim * 0.2)
+            self.clim_spinboxes[0].setRange(log_crange[0], log_crange[1])
+            self.clim_spinboxes[0].setValue(log_clim[0])
+            self.clim_spinboxes[1].setRange(log_crange[0], log_crange[1])
+            self.clim_spinboxes[1].setValue(log_clim[1])
         else:
             self.log_checkbox.setChecked(False)
+            self.clim_label.setText("Limits")
+            lin_clim = self.cmap_norm.vmin, self.cmap_norm.vmax
+            lin_Δclim = lin_clim[1] - lin_clim[0]
+            lin_crange = lin_clim[0] - lin_Δclim * 0.2, lin_clim[1] + lin_Δclim * 0.2
+            self.clim_spinboxes[0].setRange(lin_crange[0], lin_crange[1])
+            self.clim_spinboxes[0].setValue(lin_clim[0])
+            self.clim_spinboxes[1].setRange(lin_crange[0], lin_crange[1])
+            self.clim_spinboxes[1].setValue(lin_clim[1])
 
         cmap_label = QLabel("Colormap", self)
         self.cmap_combobox = QComboBox(self)
@@ -526,15 +563,15 @@ class SimplePreviewSettingsWindow(Window):
 
         row = 0
         col = 0
-        layout.addWidget(diff_label, row, col)
-        col += 1
-        layout.addWidget(self.diff_checkbox, row, col)
-
-        row += 1
-        col = 0
         layout.addWidget(scale_label, row, col)
         col += 1
         layout.addWidget(self.log_checkbox, row, col)
+
+        row += 1
+        col = 0
+        layout.addWidget(self.clim_label, row, col)
+        col += 1
+        layout.addWidget(self.clim_spinboxes, row, col)
 
         row += 1
         col = 0
@@ -545,7 +582,7 @@ class SimplePreviewSettingsWindow(Window):
         return widget
 
 
-# ==== SimplePreviewWindow ==================================================================================================
+# ==== SimplePreviewWindow ============================================================================================
 class SimplePreviewWindow(Window):
     """
     Simple preview window.
@@ -597,12 +634,13 @@ class SimplePreviewWindow(Window):
 
     @Slot()
     def on_preview_settings_clicked(self):
-        preview_settings_window = SimplePreviewSettingsWindow(self.preview_figure_widget.cmap_name, self.preview_figure_widget.cmap_norm, parent=self)
-        preview_settings_window.show()
-        preview_settings_window.raise_()
-        preview_settings_window.activateWindow()
-        preview_settings_window.log_checkbox.checkStateChanged.connect(self.on_cmap_norm_changed)
-        preview_settings_window.cmap_combobox.currentTextChanged.connect(self.on_cmap_name_changed)
+        self.preview_settings_window = SimplePreviewSettingsWindow(self.preview_figure_widget.cmap_name, self.preview_figure_widget.cmap_norm, parent=self)
+        self.preview_settings_window.show()
+        self.preview_settings_window.raise_()
+        self.preview_settings_window.activateWindow()
+        self.preview_settings_window.log_checkbox.checkStateChanged.connect(self.on_cmap_norm_changed)
+        self.preview_settings_window.clim_spinboxes.valueChanged.connect(self.on_clim_changed)
+        self.preview_settings_window.cmap_combobox.currentTextChanged.connect(self.on_cmap_name_changed)
 
     @Slot(str)
     def on_cmap_name_changed(self, colormap: str):
@@ -611,9 +649,32 @@ class SimplePreviewWindow(Window):
     @Slot(bool)
     def on_cmap_norm_changed(self, checked: bool):
         if checked == Qt.CheckState.Checked:
-            self.preview_figure_widget.cmap_norm = LogNorm(1, 2**12 - 1)
+            self.preview_settings_window.clim_label.setText("Limits (Log10)")
+            log_clim = np.floor(np.log10(1)), np.ceil(np.log10(self.camera.pxmax))
+            log_Δclim = log_clim[1] - log_clim[0]
+            log_crange = np.floor(log_clim[0] - log_Δclim * 0.2), np.ceil(log_clim[1] + log_Δclim * 0.2)
+            self.preview_settings_window.clim_spinboxes[0].setRange(log_crange[0], log_crange[1])
+            self.preview_settings_window.clim_spinboxes[0].setValue(log_clim[0])
+            self.preview_settings_window.clim_spinboxes[1].setRange(log_crange[0], log_crange[1])
+            self.preview_settings_window.clim_spinboxes[1].setValue(log_clim[1])
+            self.preview_figure_widget.cmap_norm = LogNorm(10 ** log_clim[0], 10 ** log_clim[1])
         else:
-            self.preview_figure_widget.cmap_norm = Normalize(0, 2**12 - 1)
+            self.preview_settings_window.clim_label.setText("Limits")
+            lin_clim = 0, self.camera.pxmax
+            lin_Δclim = lin_clim[1] - lin_clim[0]
+            lin_crange = lin_clim[0] - lin_Δclim * 0.2, lin_clim[1] + lin_Δclim * 0.2
+            self.preview_settings_window.clim_spinboxes[0].setRange(lin_crange[0], lin_crange[1])
+            self.preview_settings_window.clim_spinboxes[0].setValue(lin_clim[0])
+            self.preview_settings_window.clim_spinboxes[1].setRange(lin_crange[0], lin_crange[1])
+            self.preview_settings_window.clim_spinboxes[1].setValue(lin_clim[1])
+            self.preview_figure_widget.cmap_norm = Normalize(lin_clim[0], lin_clim[1])
+
+    @Slot(tuple)
+    def on_clim_changed(self, clim):
+        if self.preview_settings_window.log_checkbox.checkState() == Qt.CheckState.Checked:
+            self.preview_figure_widget.cmap_norm = LogNorm(10 ** clim[0], 10 ** clim[1])
+        else:
+            self.preview_figure_widget.cmap_norm = Normalize(clim[0], clim[1])
 
     @Slot()
     def on_update_timer_tick(self):
@@ -647,10 +708,28 @@ class AltPreviewSettingsWindow(SimplePreviewSettingsWindow):
         self.log_checkbox = QCheckBox("Log", self)
         self.log_checkbox.setToolTip("Log Scale")
 
+        self.clim_label = QLabel("", self)
+        self.clim_spinboxes = NDoubleSpinBoxesWidget(parent=self)
         if isinstance(self.cmap_norm, LogNorm):
             self.log_checkbox.setChecked(True)
+            log_clim = np.floor(np.log10(self.cmap_norm.vmin)), np.ceil(np.log10(self.cmap_norm.vmax))
+            log_Δclim = log_clim[1] - log_clim[0]
+            log_crange = np.floor(log_clim[0] - log_Δclim * 0.2), np.ceil(log_clim[1] + log_Δclim * 0.2)
+            self.clim_label.setText("Limits (Log10)")
+            self.clim_spinboxes[0].setRange(log_crange[0], log_crange[1])
+            self.clim_spinboxes[0].setValue(log_clim[0])
+            self.clim_spinboxes[1].setRange(log_crange[0], log_crange[1])
+            self.clim_spinboxes[1].setValue(log_clim[1])
         else:
             self.log_checkbox.setChecked(False)
+            lin_clim = self.cmap_norm.vmin, self.cmap_norm.vmax
+            lin_Δclim = lin_clim[1] - lin_clim[0]
+            lin_crange = lin_clim[0] - lin_Δclim * 0.2, lin_clim[1] + lin_Δclim * 0.2
+            self.clim_label.setText("Limits")
+            self.clim_spinboxes[0].setRange(lin_crange[0], lin_crange[1])
+            self.clim_spinboxes[0].setValue(lin_clim[0])
+            self.clim_spinboxes[1].setRange(lin_crange[0], lin_crange[1])
+            self.clim_spinboxes[1].setValue(lin_clim[1])
 
         cmap_label = QLabel("Colormap", self)
         self.cmap_combobox = QComboBox(self)
@@ -666,6 +745,12 @@ class AltPreviewSettingsWindow(SimplePreviewSettingsWindow):
         layout.addWidget(scale_label, row, col)
         col += 1
         layout.addWidget(self.log_checkbox, row, col)
+
+        row += 1
+        col = 0
+        layout.addWidget(self.clim_label, row, col)
+        col += 1
+        layout.addWidget(self.clim_spinboxes, row, col)
 
         row += 1
         col = 0
@@ -693,14 +778,15 @@ class AltPreviewWindow(SimplePreviewWindow):
 
     @Slot()
     def on_preview_settings_clicked(self):
-        preview_settings_window = AltPreviewSettingsWindow(self.preview_figure_widget.cmap_name, self.preview_figure_widget.cmap_norm, self.preview_figure_widget.rotation, self.preview_figure_widget.flip, parent=self)
-        preview_settings_window.show()
-        preview_settings_window.raise_()
-        preview_settings_window.activateWindow()
-        preview_settings_window.log_checkbox.checkStateChanged.connect(self.on_cmap_norm_changed)
-        preview_settings_window.cmap_combobox.currentTextChanged.connect(self.on_cmap_name_changed)
-        preview_settings_window.orientation_widget.rotationChanged.connect(self.on_rotation_changed)
-        preview_settings_window.orientation_widget.flipChanged.connect(self.on_flip_changed)
+        self.preview_settings_window = AltPreviewSettingsWindow(self.preview_figure_widget.cmap_name, self.preview_figure_widget.cmap_norm, self.preview_figure_widget.rotation, self.preview_figure_widget.flip, parent=self)
+        self.preview_settings_window.show()
+        self.preview_settings_window.raise_()
+        self.preview_settings_window.activateWindow()
+        self.preview_settings_window.log_checkbox.checkStateChanged.connect(self.on_cmap_norm_changed)
+        self.preview_settings_window.clim_spinboxes.valueChanged.connect(self.on_clim_changed)
+        self.preview_settings_window.cmap_combobox.currentTextChanged.connect(self.on_cmap_name_changed)
+        self.preview_settings_window.orientation_widget.rotationChanged.connect(self.on_rotation_changed)
+        self.preview_settings_window.orientation_widget.flipChanged.connect(self.on_flip_changed)
 
     @Slot(str)
     def on_rotation_changed(self, rotation: Rotation):
@@ -736,10 +822,29 @@ class AdvancePreviewSettingsWindow(SimplePreviewSettingsWindow):
         scale_label = QLabel("Scale", self)
         self.log_checkbox = QCheckBox("Log", self)
         self.log_checkbox.setToolTip("Log Scale")
+
+        self.clim_label = QLabel("", self)
+        self.clim_spinboxes = NDoubleSpinBoxesWidget(parent=self)
         if isinstance(self.cmap_norm, LogNorm):
             self.log_checkbox.setChecked(True)
+            self.clim_label.setText("Limits (Log10)")
+            log_clim = np.floor(np.log10(self.cmap_norm.vmin)), np.ceil(np.log10(self.cmap_norm.vmax))
+            log_Δclim = log_clim[1] - log_clim[0]
+            log_crange = np.floor(log_clim[0] - log_Δclim * 0.2), np.ceil(log_clim[1] + log_Δclim * 0.2)
+            self.clim_spinboxes[0].setRange(log_crange[0], log_crange[1])
+            self.clim_spinboxes[0].setValue(log_clim[0])
+            self.clim_spinboxes[1].setRange(log_crange[0], log_crange[1])
+            self.clim_spinboxes[1].setValue(log_clim[1])
         else:
             self.log_checkbox.setChecked(False)
+            self.clim_label.setText("Limits")
+            lin_clim = self.cmap_norm.vmin, self.cmap_norm.vmax
+            lin_Δclim = lin_clim[1] - lin_clim[0]
+            lin_crange = lin_clim[0] - lin_Δclim * 0.2, lin_clim[1] + lin_Δclim * 0.2
+            self.clim_spinboxes[0].setRange(lin_crange[0], lin_crange[1])
+            self.clim_spinboxes[0].setValue(lin_clim[0])
+            self.clim_spinboxes[1].setRange(lin_crange[0], lin_crange[1])
+            self.clim_spinboxes[1].setValue(lin_clim[1])
 
         cmap_label = QLabel("Colormap", self)
         self.cmap_combobox = QComboBox(self)
@@ -756,6 +861,12 @@ class AdvancePreviewSettingsWindow(SimplePreviewSettingsWindow):
         layout.addWidget(scale_label, row, col)
         col += 1
         layout.addWidget(self.log_checkbox, row, col)
+
+        row += 1
+        col = 0
+        layout.addWidget(self.clim_label, row, col)
+        col += 1
+        layout.addWidget(self.clim_spinboxes, row, col)
 
         row += 1
         col = 0
@@ -816,13 +927,14 @@ class AdvancePreviewWindow(SimplePreviewWindow):
 
     @Slot()
     def on_preview_settings_clicked(self):
-        preview_settings_window = AdvancePreviewSettingsWindow(self.preview_figure_widget.cmap_name, self.preview_figure_widget.cmap_norm, self.preview_figure_widget.alpha_mask_show, parent=self)
-        preview_settings_window.show()
-        preview_settings_window.raise_()
-        preview_settings_window.activateWindow()
-        preview_settings_window.log_checkbox.checkStateChanged.connect(self.on_cmap_norm_changed)
-        preview_settings_window.cmap_combobox.currentTextChanged.connect(self.on_cmap_name_changed)
-        preview_settings_window.mask_checkbox.checkStateChanged.connect(self.on_mask_show_changed)
+        self.preview_settings_window = AdvancePreviewSettingsWindow(self.preview_figure_widget.cmap_name, self.preview_figure_widget.cmap_norm, self.preview_figure_widget.alpha_mask_show, parent=self)
+        self.preview_settings_window.show()
+        self.preview_settings_window.raise_()
+        self.preview_settings_window.activateWindow()
+        self.preview_settings_window.log_checkbox.checkStateChanged.connect(self.on_cmap_norm_changed)
+        self.preview_settings_window.clim_spinboxes.valueChanged.connect(self.on_clim_changed)
+        self.preview_settings_window.cmap_combobox.currentTextChanged.connect(self.on_cmap_name_changed)
+        self.preview_settings_window.mask_checkbox.checkStateChanged.connect(self.on_mask_show_changed)
 
     @Slot(bool)
     def on_mask_show_changed(self, checked: Qt.CheckState):
