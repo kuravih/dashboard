@@ -197,13 +197,13 @@ class SourceFigureWidget(FigureWidget):
         self.flip = flip
         self.figure.get_imshow_axes().set_title("Source", size=10)
         self.figure.get_imshow_axes().set_xlabel("px", size=10)
-        self.figure.get_imshow_axes().set_xlim((0 - 0.5, frame.shape[0] - 1 + 0.5))
+        self.figure.get_imshow_axes().set_xlim((0 - 0.5, frame.shape[1] - 1 + 0.5))
         self.figure.get_imshow_axes().set_ylabel("px", size=10)
-        self.figure.get_imshow_axes().set_ylim((0 - 0.5, frame.shape[1] - 1 + 0.5))
+        self.figure.get_imshow_axes().set_ylim((0 - 0.5, frame.shape[0] - 1 + 0.5))
         self.figure.get_cbar_axes().set_title("adu", size=10)
         self.figure.get_imshow_axes().axhline(frame.shape[0] / 2, alpha=0.25, linewidth=0.5, color="white")
         self.figure.get_imshow_axes().axvline(frame.shape[1] / 2, alpha=0.25, linewidth=0.5, color="white")
-        self.figure.get_imshow_axes().add_patch(patches.Circle((frame.shape[0] / 2, frame.shape[1] / 2), radius=225, fill=False, alpha=0.25, linewidth=0.5, color="white", transform=self.figure.get_imshow_axes().transData))
+        self.figure.get_imshow_axes().add_patch(patches.Circle((frame.shape[1] / 2, frame.shape[0] / 2), radius=225, fill=False, alpha=0.25, linewidth=0.5, color="white", transform=self.figure.get_imshow_axes().transData))
 
         self.setMinimumSize(100, 100)
 
@@ -214,6 +214,14 @@ class SourceFigureWidget(FigureWidget):
     @cmap_name.setter
     def cmap_name(self, value: str):
         self.figure.get_image().set_cmap_name(value)
+
+    @property
+    def clim(self) -> tuple[float, float]:
+        return self.figure.get_image().get_clim()
+
+    @clim.setter
+    def clim(self, lim: tuple[float, float]):
+        self.figure.get_image().set_clim(lim)
 
     @property
     def cmap_norm(self) -> Normalize:
