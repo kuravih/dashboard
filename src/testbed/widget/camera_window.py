@@ -16,8 +16,8 @@ from ..widget.figure_widget import SourceFigureWidget, SourceHistFigureWidget
 logger = setup_logger("camera_window", terminator="\n")
 
 
-# ==== SourceHistSettingsWidget =======================================================================================
-class SourceHistSettingsWidget(Window):
+# ==== SourceHistSettingsWindow =======================================================================================
+class SourceHistSettingsWindow(Window):
     """
     Settings for the simple preview window.
     """
@@ -284,7 +284,7 @@ class InfoWindow(Window):
 
     @Slot()
     def on_info_hist_settings_clicked(self):
-        self.info_hist_settings_window = SourceHistSettingsWidget(self.info_hist_figure_widget.cmap_name, self.info_hist_figure_widget.cmap_norm, parent=self)
+        self.info_hist_settings_window = SourceHistSettingsWindow(self.info_hist_figure_widget.cmap_name, self.info_hist_figure_widget.cmap_norm, parent=self)
         self.info_hist_settings_window.show()
         self.info_hist_settings_window.raise_()
         self.info_hist_settings_window.activateWindow()

@@ -17,8 +17,8 @@ logger = setup_logger("modulator_window", terminator="\n")
 
 PRESETS = ["Constant", "Gradient", "Checker", "Sinusoid", "Box", "Polka", "Register", "Text", "dOTF", "Pairwise"]
 
-# ==== SinkHistSettingsWidget =======================================================================================
-class SinkHistSettingsWidget(Window):
+# ==== SinkHistSettingsWindow =========================================================================================
+class SinkHistSettingsWindow(Window):
     """
     Settings for the simple preview window.
     """
@@ -250,7 +250,7 @@ class InfoWindow(Window):
 
     @Slot()
     def on_info_hist_settings_clicked(self):
-        info_hist_settings_window = SinkHistSettingsWidget(self.info_hist_figure_widget.cmap_name, parent=self)
+        info_hist_settings_window = SinkHistSettingsWindow(self.info_hist_figure_widget.cmap_name, parent=self)
         info_hist_settings_window.show()
         info_hist_settings_window.raise_()
         info_hist_settings_window.activateWindow()
