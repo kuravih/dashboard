@@ -374,10 +374,10 @@ class ProcessWindow(Window):
             message_dialog = MessageDialog("Devices not selected", "Source device not selected.", icon=QMessageBox.Icon.Information, buttons=QMessageBox.StandardButton.Ok)
             message_dialog.exec()
         else:
-            delta = [self.source.shape[0] / 2 - self.settings_widget.center[0], self.source.shape[1] / 2 - self.settings_widget.center[1]]
-            # reply = self.source.move_roi(delta[0], delta[1])
-            # logger.info("reply = %s", reply)
+            delta = [int(self.source.shape[0] / 2 - self.settings_widget.center[0]), int(self.source.shape[1] / 2 - self.settings_widget.center[1])]
             logger.info("delta %s", delta)
+            reply = self.source.move_roi(-delta[0], -delta[1])
+            logger.info("reply = %s", reply)
 
     def setup_main_widget(self) -> QWidget:
         widget = QWidget(self)
