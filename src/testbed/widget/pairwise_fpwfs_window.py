@@ -1,7 +1,7 @@
 import numpy as np
 from numpy.typing import NDArray
 
-from pykato.function import chord, describe_array
+from pykato.function import chord
 from pykato.log import setup_logger
 
 from PySide6.QtCore import Qt, Slot, QTimer
@@ -93,7 +93,7 @@ class ProcessSettingsWidget(QWidget):
         probe_dir_label = QLabel("Probe dir.", self)
         probe_dir_label.setFixedWidth(100)
 
-        self.probe_dir_checkboxes = PairwiseProbeDirectionWidget(self)
+        self.probe_dir_checkboxes = PairwiseProbeDirectionWidget(parent=self)
         self.probe_dir_checkboxes[1].setChecked(False)
         self.probe_dir_checkboxes.setEnabled(False)
 

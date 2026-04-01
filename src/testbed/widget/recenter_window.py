@@ -182,9 +182,9 @@ class ProcessWindow(Window):
         self.devices_widget.source_settings_button.setEnabled(True)
         self.devices_widget.source_preview_button.setEnabled(True)
         self.source = device
-        # device_preview_window_id = f"{device.name}_preview_window"
-        # if device_preview_window_id in testbed.data.windows:
-        #     testbed.data.windows.pop(device_preview_window_id).close()
+        device_preview_window_id = f"{device.name}_preview_window"
+        if device_preview_window_id in testbed.data.windows:
+            testbed.data.windows.pop(device_preview_window_id).close()
         device_info_window_id = f"{device.name}_info_window"
         if device_info_window_id in testbed.data.windows:
             testbed.data.windows.pop(device_info_window_id).close()
