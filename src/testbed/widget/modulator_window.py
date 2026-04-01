@@ -61,12 +61,13 @@ class InfoWindow(Window):
     """
 
     def __init__(self, modulator: Modulator, parent: QWidget | None = None):
-        self._modulator = modulator
-        self._sample = SinkSample(self._modulator.last_access_time, self._modulator.frame_rate_fps, self._modulator.center, self._modulator.radius, self._modulator.blank)
+        self.modulator = modulator
+        self.modulator.sync_settings()
+        self.sample = SinkSample(self.modulator.last_access_time, self.modulator.frame_rate_fps, self.modulator.center, self.modulator.radius, self.modulator.blank)
 
         super().__init__(parent, Qt.WindowType.Dialog)
 
-        self.setWindowTitle(f"{self._modulator.name} Information")
+        self.setWindowTitle(f"{self.modulator.name} Information")
 
         layout = QVBoxLayout()
         layout.setContentsMargins(2, 2, 2, 2)
@@ -81,9 +82,17 @@ class InfoWindow(Window):
     def modulator(self) -> Modulator:
         return self._modulator
 
+    @modulator.setter
+    def modulator(self, device:Modulator):
+        self._modulator = device
+
     @property
     def sample(self) -> SinkSample:
         return self._sample
+
+    @sample.setter
+    def sample(self, value:SinkSample):
+        self._sample = value
 
     @Slot(SinkSample)
     def on_sampled(self, sample: SinkSample):
@@ -283,8 +292,9 @@ class SettingsWindow(Window):
     """
 
     def __init__(self, modulator: Modulator, parent: QWidget | None = None):
-        self._modulator = modulator
-        self._sample = SinkSample(self._modulator.last_access_time, self._modulator.frame_rate_fps, self._modulator.center, self._modulator.radius, self._modulator.blank)
+        self.modulator = modulator
+        self.modulator.sync_settings()
+        self.sample = SinkSample(self._modulator.last_access_time, self._modulator.frame_rate_fps, self._modulator.center, self._modulator.radius, self._modulator.blank)
 
         super().__init__(parent, Qt.WindowType.Dialog)
 
@@ -300,10 +310,18 @@ class SettingsWindow(Window):
     @property
     def modulator(self) -> Modulator:
         return self._modulator
+    
+    @modulator.setter
+    def modulator(self, device:Modulator):
+        self._modulator = device
 
     @property
     def sample(self) -> SinkSample:
         return self._sample
+
+    @sample.setter
+    def sample(self, value:SinkSample):
+        self._sample = value
 
     @Slot(SinkSample)
     def on_sampled(self, sample: SinkSample):
@@ -563,12 +581,13 @@ class SimplePreviewWindow(Window):
     """
 
     def __init__(self, modulator: Modulator, parent: QWidget | None = None):
-        self._modulator = modulator
-        self._sample = self._modulator.sample
+        self.modulator = modulator
+        self.modulator.sync_settings()
+        self.sample = self.modulator.sample
 
         super().__init__(parent, Qt.WindowType.Dialog)
 
-        self.setWindowTitle(f"{self._modulator.name} Preview")
+        self.setWindowTitle(f"{self.modulator.name} Preview")
 
         layout = QVBoxLayout()
         layout.setContentsMargins(2, 2, 2, 2)
@@ -583,9 +602,17 @@ class SimplePreviewWindow(Window):
     def modulator(self) -> Modulator:
         return self._modulator
 
+    @modulator.setter
+    def modulator(self, device:Modulator):
+        self._modulator = device
+
     @property
     def sample(self) -> SinkSample:
         return self._sample
+
+    @sample.setter
+    def sample(self, value:SinkSample):
+        self._sample = value
 
     @Slot(SinkSample)
     def on_sampled(self, sample: SinkSample):

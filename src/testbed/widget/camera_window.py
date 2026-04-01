@@ -76,11 +76,13 @@ class InfoWindow(Window):
     """
 
     def __init__(self, camera: Camera, parent=None):
-        super().__init__(parent, Qt.WindowType.Dialog)
-        self._camera = camera
-        self._sample = SourceSample(self._camera.last_access_time, self._camera.exposure_time_s, self._camera.gain, self._camera.frame_rate_fps, self._camera.temperature_c, self._camera.roi, self._camera.blank)
+        self.camera = camera
+        self.camera.sync_settings()
+        self.sample = SourceSample(self.camera.last_access_time, self.camera.exposure_time_s, self.camera.gain, self.camera.frame_rate_fps, self.camera.temperature_c, self.camera.roi, self.camera.blank)
 
-        self.setWindowTitle(f"{self._camera.name} Information")
+        super().__init__(parent, Qt.WindowType.Dialog)
+
+        self.setWindowTitle(f"{self.camera.name} Information")
 
         layout = QVBoxLayout()
         layout.setContentsMargins(2, 2, 2, 2)
@@ -94,10 +96,18 @@ class InfoWindow(Window):
     @property
     def camera(self) -> Camera:
         return self._camera
+    
+    @camera.setter
+    def camera(self, device:Camera):
+        self._camera = device
 
     @property
     def sample(self) -> SourceSample:
         return self._sample
+
+    @sample.setter
+    def sample(self, value:SourceSample):
+        self._sample = value
 
     @Slot(SourceSample)
     def on_sampled(self, sample: SourceSample):
@@ -349,12 +359,14 @@ class SettingsWindow(Window):
     Camera settings window
     """
 
-    def __init__(self, camera: Camera, parent=None):
-        super().__init__(parent, Qt.WindowType.Dialog)
-        self._camera = camera
-        self._sample = SourceSample(self._camera.last_access_time, self._camera.exposure_time_s, self._camera.gain, self._camera.frame_rate_fps, self._camera.temperature_c, self._camera.roi, self._camera.blank)
+    def __init__(self, camera: Camera, parent: QWidget | None = None):
+        self.camera = camera
+        self.camera.sync_settings()
+        self.sample = SourceSample(self.camera.last_access_time, self.camera.exposure_time_s, self.camera.gain, self.camera.frame_rate_fps, self.camera.temperature_c, self.camera.roi, self.camera.blank)
 
-        self.setWindowTitle(f"{self._camera.name} Settings")
+        super().__init__(parent, Qt.WindowType.Dialog)
+
+        self.setWindowTitle(f"{self.camera.name} Settings")
 
         layout = QVBoxLayout()
         layout.setContentsMargins(2, 2, 2, 2)
@@ -364,10 +376,18 @@ class SettingsWindow(Window):
     @property
     def camera(self) -> Camera:
         return self._camera
+    
+    @camera.setter
+    def camera(self, device:Camera):
+        self._camera = device
 
     @property
     def sample(self) -> SourceSample:
         return self._sample
+
+    @sample.setter
+    def sample(self, value:SourceSample):
+        self._sample = value
 
     @Slot(SourceSample)
     def on_sampled(self, sample: SourceSample):
@@ -529,6 +549,10 @@ class SimplePreviewSettingsWindow(Window):
         layout = QGridLayout(widget)
         widget.setLayout(layout)
 
+        axes_label = QLabel("Axes", self)
+        self.log_checkbox = QCheckBox("Log", self)
+        self.log_checkbox.setToolTip("Log Scale")
+
         scale_label = QLabel("Scale", self)
         self.log_checkbox = QCheckBox("Log", self)
         self.log_checkbox.setToolTip("Log Scale")
@@ -589,12 +613,13 @@ class SimplePreviewWindow(Window):
     """
 
     def __init__(self, camera: Camera, parent: QWidget | None = None):
-        self._camera = camera
-        self._sample = self._camera.sample
+        self.camera = camera
+        self.camera.sync_settings()
+        self.sample = self.camera.sample
 
         super().__init__(parent, Qt.WindowType.Dialog)
 
-        self.setWindowTitle(f"{self._camera.name} Preview")
+        self.setWindowTitle(f"{self.camera.name} Preview")
 
         layout = QVBoxLayout()
         layout.setContentsMargins(2, 2, 2, 2)
@@ -608,10 +633,18 @@ class SimplePreviewWindow(Window):
     @property
     def camera(self) -> Camera:
         return self._camera
+    
+    @camera.setter
+    def camera(self, device:Camera):
+        self._camera = device
 
     @property
     def sample(self) -> SourceSample:
         return self._sample
+
+    @sample.setter
+    def sample(self, value:SourceSample):
+        self._sample = value
 
     @Slot(SourceSample)
     def on_sampled(self, sample: SourceSample):
