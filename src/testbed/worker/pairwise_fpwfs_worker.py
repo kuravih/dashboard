@@ -26,6 +26,41 @@ class ProcessWorkerSignals(WorkerSignals):
 
 class ProcessWorker(Worker):
     def __init__(self, source: Camera, sink: Modulator, dark_hole_mask: NDArray[np.bool], pairwise_calibration: dict[int, NDArray[np.float64]], probe_amplitude: float, probe_dξ: float, probe_dη: float, probe_ξc: float, probe_directions: list[PairwiseProbeDirection], n_reps: int):
+        """
+        Pairwise FPWFS Process Worker
+
+        Parameters:
+            source: Camera
+                Data source
+
+            sink: Modulator
+                Data sink
+
+            dark_hole_mask: NDArray[np.bool]
+                Dark hole mask
+
+            pairwise_calibration: dict[int, NDArray[np.float64]]
+                Pairwise FPWFS Calibration
+
+            probe_amplitude: float
+                Probe amplitude
+
+            probe_dξ: float
+                Probe dξ
+
+            probe_dη: float
+                Probe dη
+
+            probe_ξc: float
+                Probe ξc
+
+            probe_directions: list[PairwiseProbeDirection]
+                Probe Direction (PairwiseProbeDirection.HORIZONTAL or PairwiseProbeDirection.VERTICAL)
+
+            n_reps: int
+                Number of reps
+        """
+
         super().__init__()
         self.signals = ProcessWorkerSignals()
         self.source = source
@@ -106,7 +141,7 @@ class ProcessWorker(Worker):
 
         electric_field_h[self.dark_hole_mask] = pairwise_estimate(sample_p_h_1.capture[self.dark_hole_mask], sample_m_h_1.capture[self.dark_hole_mask], sample_p_h_2.capture[self.dark_hole_mask], sample_m_h_2.capture[self.dark_hole_mask], pairwise_estimation_matrices(Δp_h_1[self.dark_hole_mask], Δp_h_2[self.dark_hole_mask]))
 
-        electric_field_h[self.dark_hole_mask] =  sample_0.capture[self.dark_hole_mask] * np.exp(1j * np.angle(electric_field_h[self.dark_hole_mask]))
+        electric_field_h[self.dark_hole_mask] = sample_0.capture[self.dark_hole_mask] * np.exp(1j * np.angle(electric_field_h[self.dark_hole_mask]))
 
         return electric_field_h
 
@@ -135,7 +170,7 @@ class ProcessWorker(Worker):
         while ((self.n_reps is None) or (self.n_reps > i_rep)) and self._running:
             for direction in self.probe_directions:
                 self.wavefront[direction] = self.wavefront[direction] + self.sense_wavefront(current_cmd, self.probe_amplitude, self.probe_dξ, self.probe_dη, self.probe_ξc, direction)
-                self.signals.wfSensed.emit(direction, self.wavefront[direction] / (i_rep+1))
+                self.signals.wfSensed.emit(direction, self.wavefront[direction] / (i_rep + 1))
                 logger.info("%s and %s ProcessWorker.run : step %i of %i", self.source.name, self.sink.name, i_rep, self.n_reps)
 
             i_rep = i_rep + 1

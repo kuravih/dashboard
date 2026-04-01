@@ -24,7 +24,7 @@ class ProcessWorkerSignals(WorkerSignals):
 class ProcessWorker(Worker):
     def __init__(self, source: Camera, sink: Modulator, amplitude: float, n_steps: int | None = None):
         """
-        Simple Loop ProcessWorker
+        Simple Loop Process Worker
 
         Parameters:
             source: Camera
@@ -33,7 +33,7 @@ class ProcessWorker(Worker):
             sink: Modulator
                 Data sink
 
-            amp_perc: float
+            amplitude: float
                 Amplitude percentage
 
             n_steps: int
@@ -50,18 +50,23 @@ class ProcessWorker(Worker):
     @Slot()
     def run(self):
         super().run()
-        i_step = 0
         t_start = time.time()
+
+        self.source.pull_capture() # Flush the sensor
+        time.sleep(0.2)
 
         # ---- blank --------------------------------------------------------------------------------------------------
         current_cmd = np.zeros(self.sink.shape)
 
-        self.signals.snkSampled.emit(self.sink.push_command(current_cmd))
+        _current_sink_sample = self.sink.push_command(current_cmd)
+        self.signals.snkSampled.emit(_current_sink_sample)
         time.sleep(0.1)
 
-        self.signals.srcSampled.emit(self.source.pull_capture())
+        _current_source_sample = self.source.pull_capture()
+        self.signals.srcSampled.emit(_current_source_sample)
         time.sleep(0.2)
 
+        i_step = 0
         self.signals.progressTicked.emit(i_step, time.time() - t_start)
         # ---- blank --------------------------------------------------------------------------------------------------
 
