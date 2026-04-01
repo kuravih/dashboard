@@ -166,7 +166,7 @@ class ProcessWindow(Window):
         return self._source
     
     @source.setter
-    def source(self, device = Camera | None):
+    def source(self, device: Camera | None):
         self._source = device
 
     @property
@@ -174,17 +174,17 @@ class ProcessWindow(Window):
         return self._sink
     
     @sink.setter
-    def sink(self, device = Modulator | None):
+    def sink(self, device: Modulator | None):
         self._sink = device
 
     def on_source_changed(self, device: Camera):
         self.devices_widget.source_info_button.setEnabled(True)
         self.devices_widget.source_settings_button.setEnabled(True)
         self.devices_widget.source_preview_button.setEnabled(True)
-        self._source = device
-        device_preview_window_id = f"{device.name}_preview_window"
-        if device_preview_window_id in testbed.data.windows:
-            testbed.data.windows.pop(device_preview_window_id).close()
+        self.source = device
+        # device_preview_window_id = f"{device.name}_preview_window"
+        # if device_preview_window_id in testbed.data.windows:
+        #     testbed.data.windows.pop(device_preview_window_id).close()
         device_info_window_id = f"{device.name}_info_window"
         if device_info_window_id in testbed.data.windows:
             testbed.data.windows.pop(device_info_window_id).close()
@@ -196,15 +196,15 @@ class ProcessWindow(Window):
         self.devices_widget.source_preview_button.clicked.connect(lambda _, _device=device: self.open_device_preview_window(_device))
         self.controls_widget.play_pause_button.setEnabled(False)
         if self.source is not None:
-            self.settings_widget.center = [self._source.shape[0] / 2, self._source.shape[1] / 2]
-            if self._sink is not None:
+            self.settings_widget.center = [self.source.shape[0] / 2, self.source.shape[1] / 2]
+            if self.sink is not None:
                 self.controls_widget.play_pause_button.setEnabled(True)
 
     def on_sink_changed(self, device: Modulator):
         self.devices_widget.sink_info_button.setEnabled(True)
         self.devices_widget.sink_settings_button.setEnabled(True)
         self.devices_widget.sink_preview_button.setEnabled(True)
-        self._sink = device
+        self.sink = device
         device_preview_window_id = f"{device.name}_preview_window"
         if device_preview_window_id in testbed.data.windows:
             testbed.data.windows.pop(device_preview_window_id).close()
@@ -219,8 +219,8 @@ class ProcessWindow(Window):
         self.devices_widget.sink_preview_button.clicked.connect(lambda _, _device=device: self.open_device_preview_window(_device))
         self.controls_widget.play_pause_button.setEnabled(False)
         if self.source is not None:
-            self.settings_widget.center = [self._source.shape[0] / 2, self._source.shape[1] / 2]
-            if self._sink is not None:
+            self.settings_widget.center = [self.source.shape[0] / 2, self.source.shape[1] / 2]
+            if self.sink is not None:
                 self.controls_widget.play_pause_button.setEnabled(True)
 
     def open_device_info_window(self, device: Camera | Modulator):

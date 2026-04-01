@@ -306,7 +306,7 @@ class ProcessWindow(Window):
         return self._source
     
     @source.setter
-    def source(self, device = Camera | None):
+    def source(self, device: Camera | None):
         self._source = device
 
     @property
@@ -314,7 +314,7 @@ class ProcessWindow(Window):
         return self._sink
     
     @sink.setter
-    def sink(self, device = Modulator | None):
+    def sink(self, device: Modulator | None):
         self._sink = device
 
     @property

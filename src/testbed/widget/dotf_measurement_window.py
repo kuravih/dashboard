@@ -236,7 +236,7 @@ class ProcessWindow(Window):
         return self._source
 
     @source.setter
-    def source(self, device=Camera | None):
+    def source(self, device: Camera | None):
         self._source = device
 
     @property
@@ -251,7 +251,7 @@ class ProcessWindow(Window):
         self.devices_widget.source_info_button.setEnabled(True)
         self.devices_widget.source_settings_button.setEnabled(True)
         self.devices_widget.source_preview_button.setEnabled(True)
-        self._source = device
+        self.source = device
         device_preview_window_id = f"{device.name}_preview_window"
         if device_preview_window_id in testbed.data.windows:
             testbed.data.windows.pop(device_preview_window_id).close()
@@ -276,7 +276,7 @@ class ProcessWindow(Window):
         self.devices_widget.sink_info_button.setEnabled(True)
         self.devices_widget.sink_settings_button.setEnabled(True)
         self.devices_widget.sink_preview_button.setEnabled(True)
-        self._sink = device
+        self.sink = device
         device_preview_window_id = f"{device.name}_preview_window"
         if device_preview_window_id in testbed.data.windows:
             testbed.data.windows.pop(device_preview_window_id).close()
