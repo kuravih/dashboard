@@ -10,14 +10,14 @@ from ..worker import Worker, WorkerSignals
 logger = setup_logger("camera_worker", terminator="\n")
 
 
-class UpdateWorkerSignals(WorkerSignals):
+class ProcessWorkerSignals(WorkerSignals):
     sampled = Signal(SourceSample)
 
 
-class UpdateWorker(Worker):
+class ProcessWorker(Worker):
     def __init__(self, camera: Camera):
         super().__init__()
-        self.signals = UpdateWorkerSignals()
+        self.signals = ProcessWorkerSignals()
         self._camera = camera
 
     @Slot()

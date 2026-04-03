@@ -1113,6 +1113,7 @@ class IconButton(QPushButton):
         self._disabled = QColor(disabled_hex)
         self._last_size: QSize | None = None
         self._rebuild_icon()
+        self.setFixedWidth(self.sizeHint().height())
 
     def setTintColors(self, normal_hex: str, disabled_hex: str) -> None:
         self._normal = QColor(normal_hex)
@@ -1143,7 +1144,7 @@ class IconButton(QPushButton):
         icon.addPixmap(_tint_pixmap(src, self._normal), QIcon.Mode.Normal)
         icon.addPixmap(_tint_pixmap(src, self._disabled), QIcon.Mode.Disabled)
 
-        super().setIcon(icon)
+        self.setIcon(icon)
 
     def changeEvent(self, event):
         # Rebuild when style/palette/screen changes can affect icon sizes/DPR
@@ -1156,3 +1157,8 @@ class IconButton(QPushButton):
         # If some code updates iconSize indirectly with layout changes, catch it
         self._rebuild_icon()
         super().resizeEvent(event)
+
+    def setIconHint(self, icon: QIcon, hint:str):
+        self.setIcon(icon)
+        self.setToolTip(hint)
+

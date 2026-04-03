@@ -33,8 +33,8 @@ PAIRWISE_FPWFS = "pairwise_fpwfs"
 from .widget.pairwise_fpwfs_window import ProcessWindow as PairwiseFPWFSWindow
 from .worker.pairwise_fpwfs_worker import ProcessWorker as PairwiseFPWFSWorker
 
-from .worker.camera_worker import UpdateWorker as CameraUpdateWorker
-from .worker.modulator_worker import UpdateWorker as ModulatorUpdateWorker
+from .worker.camera_worker import ProcessWorker as CameraSamplingWorker
+from .worker.modulator_worker import ProcessWorker as ModulatorSamplingWorker
 from .worker.storage_worker import SourceStorageWorker, SinkStorageWorker
 
 
@@ -42,7 +42,7 @@ class Data:
     threadpool = QThreadPool.globalInstance()
     devices: dict[str, Camera | Modulator] = {}
     windows: dict[str, CameraPreviewWindow | CameraInfoWindow | CameraSettingsWindow | ModulatorPreviewWindow | ModulatorInfoWindow | ModulatorSettingsWindow | SimpleLoopWindow | SpeckleCalibrationWindow | SpeckleNullingWindow | SpeckleNullingPreviewWindow | SpeckleNullingInfoWindow | RecenterWindow | CameraCalibrationWindow | DOTFMeasurementWindow | PairwiseFPWFSWindow] = {}
-    workers: dict[str, CameraUpdateWorker | ModulatorUpdateWorker | SourceStorageWorker | SinkStorageWorker | SimpleLoopWorker | SpeckleCalibrationWorker | SpeckleNullingWorker | RecenterWorker | CameraCalibrationWorker | DOTFMeasurementWorker | PairwiseFPWFSWorker] = {}
+    workers: dict[str, CameraSamplingWorker | ModulatorSamplingWorker | SourceStorageWorker | SinkStorageWorker | SimpleLoopWorker | SpeckleCalibrationWorker | SpeckleNullingWorker | RecenterWorker | CameraCalibrationWorker | DOTFMeasurementWorker | PairwiseFPWFSWorker] = {}
 
 
 data = Data()

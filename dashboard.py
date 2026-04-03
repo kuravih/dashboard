@@ -9,11 +9,11 @@ from testbed.device import Stream
 
 from testbed.device.camera import Camera
 from testbed.widget.camera_window import AltPreviewWindow as CameraPreviewWindow, InfoWindow as CameraInfoWindow, SettingsWindow as CameraSettingsWindow
-from testbed.worker.camera_worker import UpdateWorker as CameraUpdateWorker
+from testbed.worker.camera_worker import ProcessWorker as CameraSamplingWorker
 
 from testbed.device.modulator import Modulator
 from testbed.widget.modulator_window import AltPreviewWindow as ModulatorPreviewWindow, InfoWindow as ModulatorInfoWindow, SettingsWindow as ModulatorSettingsWindow
-from testbed.worker.modulator_worker import UpdateWorker as ModulatorUpdateWorker
+from testbed.worker.modulator_worker import ProcessWorker as ModulatorSamplingWorker
 
 from testbed.widget.simple_loop_window import ProcessWindow as SimpleLoopWindow
 from testbed.widget.speckle_calibration_window import ProcessWindow as SpeckleCalibrationWindow
@@ -95,7 +95,7 @@ class MainWindow(QMainWindow):
 
     def open_device_preview_window(self, _device: Camera | Modulator):
         device_preview_window_id = f"{_device.name}_preview_window"
-        device_update_worker_id = f"{_device.name}_update_worker"
+        device_sampling_worker_id = f"{_device.name}_sampling_worker"
 
         @Slot()
         def on_window_closed():
@@ -116,13 +116,13 @@ class MainWindow(QMainWindow):
             preview_window.activateWindow()
             testbed.data.windows[device_preview_window_id] = preview_window
 
-            if device_update_worker_id in testbed.data.workers:
-                testbed.data.workers[device_update_worker_id].signals.sampled.connect(testbed.data.windows[device_preview_window_id].on_sampled)
+            if device_sampling_worker_id in testbed.data.workers:
+                testbed.data.workers[device_sampling_worker_id].signals.sampled.connect(testbed.data.windows[device_preview_window_id].on_sampled)
 
     def open_device_info_window(self, _device: Camera | Modulator):
 
         device_info_window_id = f"{_device.name}_info_window"
-        device_update_worker_id = f"{_device.name}_update_worker"
+        device_sampling_worker_id = f"{_device.name}_sampling_worker"
 
         @Slot()
         def on_window_closed():
@@ -142,13 +142,13 @@ class MainWindow(QMainWindow):
             info_window.activateWindow()
             testbed.data.windows[device_info_window_id] = info_window
 
-            if device_update_worker_id in testbed.data.workers:
-                testbed.data.workers[device_update_worker_id].signals.sampled.connect(testbed.data.windows[device_info_window_id].on_sampled)
+            if device_sampling_worker_id in testbed.data.workers:
+                testbed.data.workers[device_sampling_worker_id].signals.sampled.connect(testbed.data.windows[device_info_window_id].on_sampled)
 
     def open_device_settings_window(self, _device: Camera | Modulator):
 
         device_settings_window_id = f"{_device.name}_settings_window"
-        device_update_worker_id = f"{_device.name}_update_worker"
+        device_sampling_worker_id = f"{_device.name}_sampling_worker"
 
         @Slot()
         def on_window_closed():
@@ -168,43 +168,41 @@ class MainWindow(QMainWindow):
             settings_window.activateWindow()
             testbed.data.windows[device_settings_window_id] = settings_window
 
-            if device_update_worker_id in testbed.data.workers:
-                testbed.data.workers[device_update_worker_id].signals.sampled.connect(testbed.data.windows[device_settings_window_id].on_sampled)
+            if device_sampling_worker_id in testbed.data.workers:
+                testbed.data.workers[device_sampling_worker_id].signals.sampled.connect(testbed.data.windows[device_settings_window_id].on_sampled)
 
-    def on_start_stop(self, _device: Camera | Modulator, _button: QPushButton):
+    def on_start_stop(self, _device: Camera | Modulator, _button: IconButton):
 
         device_preview_window_id = f"{_device.name}_preview_window"
         device_info_window_id = f"{_device.name}_info_window"
         device_settings_window_id = f"{_device.name}_settings_window"
-        device_update_worker_id = f"{_device.name}_update_worker"
+        device_sampling_worker_id = f"{_device.name}_sampling_worker"
 
-        if device_update_worker_id in testbed.data.workers:  # an update worker is in progress
-            current_device_update_worker = testbed.data.workers.pop(device_update_worker_id)
-            current_device_update_worker.stop()
-            _button.setIcon(QIcon(ICON_PLAY))
-            _button.setToolTip("Stop")
+        if device_sampling_worker_id in testbed.data.workers:  # an update worker is in progress
+            current_device_sampling_worker = testbed.data.workers.pop(device_sampling_worker_id)
+            current_device_sampling_worker.stop()
+            _button.setIconHint(QIcon(ICON_PLAY), "Stop")
             return
 
-        device_update_worker: CameraUpdateWorker | ModulatorUpdateWorker | None = None
+        device_sampling_worker: CameraSamplingWorker | ModulatorSamplingWorker | None = None
         if isinstance(_device, Camera):
-            device_update_worker = CameraUpdateWorker(_device)
+            device_sampling_worker = CameraSamplingWorker(_device)
         elif isinstance(_device, Modulator):
-            device_update_worker = ModulatorUpdateWorker(_device)
+            device_sampling_worker = ModulatorSamplingWorker(_device)
         else:
             raise ValueError("Invalid device")
 
         if device_preview_window_id in testbed.data.windows:
-            device_update_worker.signals.sampled.connect(testbed.data.windows[device_preview_window_id].on_sampled)
+            device_sampling_worker.signals.sampled.connect(testbed.data.windows[device_preview_window_id].on_sampled)
         if device_info_window_id in testbed.data.windows:
-            device_update_worker.signals.sampled.connect(testbed.data.windows[device_info_window_id].on_sampled)
+            device_sampling_worker.signals.sampled.connect(testbed.data.windows[device_info_window_id].on_sampled)
         if device_settings_window_id in testbed.data.windows:
-            device_update_worker.signals.sampled.connect(testbed.data.windows[device_settings_window_id].on_sampled)
+            device_sampling_worker.signals.sampled.connect(testbed.data.windows[device_settings_window_id].on_sampled)
 
-        testbed.data.workers[device_update_worker_id] = device_update_worker
+        testbed.data.workers[device_sampling_worker_id] = device_sampling_worker
 
-        testbed.data.threadpool.start(device_update_worker)
-        _button.setIcon(QIcon(ICON_PAUSE))
-        _button.setToolTip("Start")
+        testbed.data.threadpool.start(device_sampling_worker)
+        _button.setIconHint(QIcon(ICON_PAUSE), "Start")
 
     @Slot()
     def on_add_device_clicked(self):
@@ -224,22 +222,18 @@ class MainWindow(QMainWindow):
                 button_layout.setContentsMargins(0, 0, 0, 0)
 
                 info_button = IconButton(QIcon(ICON_INFO), flat=True, parent=self)
-                info_button.setFixedWidth(info_button.sizeHint().height())
                 info_button.setToolTip("Information")
                 button_layout.addWidget(info_button)
 
                 settings_button = IconButton(QIcon(ICON_GEAR), flat=True, parent=self)
-                settings_button.setFixedWidth(settings_button.sizeHint().height())
                 settings_button.setToolTip("Settings")
                 button_layout.addWidget(settings_button)
 
                 preview_button = IconButton(QIcon(ICON_EYE), flat=True, parent=self)
-                preview_button.setFixedWidth(preview_button.sizeHint().height())
                 preview_button.setToolTip("Preview")
                 button_layout.addWidget(preview_button)
 
                 play_pause_button = IconButton(QIcon(ICON_PLAY), flat=True, parent=self)
-                play_pause_button.setFixedWidth(play_pause_button.sizeHint().height())
                 play_pause_button.setToolTip("Start")
                 button_layout.addWidget(play_pause_button)
 

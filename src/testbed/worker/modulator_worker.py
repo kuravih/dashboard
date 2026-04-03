@@ -10,14 +10,14 @@ from ..worker import Worker, WorkerSignals
 logger = setup_logger("modulator_worker", terminator="\n")
 
 
-class UpdateWorkerSignals(WorkerSignals):
+class ProcessWorkerSignals(WorkerSignals):
     sampled = Signal(SinkSample)
 
 
-class UpdateWorker(Worker):
+class ProcessWorker(Worker):
     def __init__(self, modulator: Modulator):
         super().__init__()
-        self.signals = UpdateWorkerSignals()
+        self.signals = ProcessWorkerSignals()
         self._modulator = modulator
 
     @Slot()
