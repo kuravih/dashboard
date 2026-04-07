@@ -11,15 +11,15 @@ import testbed
 
 from ..device.camera import Camera
 from ..device.modulator import Modulator, FULL_STROKE_NM
-from ..function import flip_rotate_frame, flip_rotate_points
 from ..worker.recenter_worker import ProcessWorker
-from .dialog import MessageDialog
-from .resource import ICON_PAUSE, ICON_RUN, ICON_CENTER
-from ..widget.camera_window import PreviewWindow as CameraPreviewWindow
-from ..widget.modulator_window import PreviewWindow as ModulatorPreviewWindow
 from ..worker.camera_worker import ProcessWorker as CameraSamplingWorker
 from ..worker.modulator_worker import ProcessWorker as ModulatorSamplingWorker
 from ..worker.storage_worker import SourceStorageWorker, SinkStorageWorker
+from ..function import flip_rotate_frame, flip_rotate_points
+from .camera_window import PreviewWindow as CameraPreviewWindow
+from .modulator_window import PreviewWindow as ModulatorPreviewWindow
+from .dialog import MessageDialog
+from .resource import ICON_PAUSE, ICON_RUN, ICON_CENTER
 
 from . import DevicesSetupWidget, TaskControlsWidget, Window, IconButton
 

@@ -9,11 +9,11 @@ import testbed
 from ..device.camera import Camera
 from ..device.modulator import Modulator, FULL_STROKE_NM
 from ..worker.simple_loop_worker import ProcessWorker
-from ..widget.camera_window import PreviewWindow as CameraPreviewWindow
-from ..widget.modulator_window import PreviewWindow as ModulatorPreviewWindow
 from ..worker.camera_worker import ProcessWorker as CameraSamplingWorker
 from ..worker.modulator_worker import ProcessWorker as ModulatorSamplingWorker
 from ..worker.storage_worker import SinkStorageWorker, SourceStorageWorker
+from .camera_window import PreviewWindow as CameraPreviewWindow
+from .modulator_window import PreviewWindow as ModulatorPreviewWindow
 from .dialog import MessageDialog
 from .resource import ICON_PAUSE, ICON_RUN
 

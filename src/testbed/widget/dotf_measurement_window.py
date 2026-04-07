@@ -12,9 +12,11 @@ from ..widget import NSpinBoxesWidget, DOTFProbeDirectionWidget
 from ..device.camera import Camera
 from ..device.modulator import Modulator, FULL_STROKE_NM
 from ..worker.dotf_measurement_worker import ProcessWorker
-from .camera_window import InfoWindow, PreviewWindow as CameraPreviewWindow
-from .modulator_window import PreviewWindow as ModulatorPreviewWindow
+from ..worker.camera_worker import ProcessWorker as CameraSamplingWorker
+from ..worker.modulator_worker import ProcessWorker as ModulatorSamplingWorker
 from ..worker.storage_worker import SinkStorageWorker, SourceStorageWorker
+from .camera_window import PreviewWindow as CameraPreviewWindow
+from .modulator_window import PreviewWindow as ModulatorPreviewWindow
 from .dialog import MessageDialog
 from .figure_widget import DOTFMeasureFigureWidget
 from .resource import ICON_PAUSE, ICON_RUN
@@ -26,8 +28,6 @@ from pykato.log import setup_logger
 _PROCESS_ = testbed.DOTF_MEASUREMENT
 process_worker_id = f"{_PROCESS_}_worker"
 process_info_window_id = f"{_PROCESS_}_info_window"
-# source_storage_worker_id = f"{_PROCESS_}_source_storage_worker"
-# sink_storage_worker_id = f"{_PROCESS_}_sink_storage_worker"
 
 logger = setup_logger(f"{_PROCESS_}_window", terminator="\n")
 
