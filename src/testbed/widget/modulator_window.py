@@ -8,7 +8,7 @@ from pykato.log import setup_logger
 from pykato.function import timestamp_string
 
 from ..widget import Window, OrientationWidget, CenterWidget, DoubleValueSetWidget, FileLoadWidget
-from ..function import write_sink_sample_header, write_sink_sample_data, Flip, Rotation, flip_rotate, is_modulator_calibration_file_valid
+from ..function import write_sink_sample_header, write_sink_sample_data, Flip, Rotation, flip_rotate_frame, is_modulator_calibration_file_valid
 from ..device.modulator import Modulator, SinkSample, FULL_STROKE_NM
 from ..widget.command_preset_widget import ConstantPresetWidget, GradientPresetWidget, CheckerPresetWidget, SinusoidPresetWidget, BoxPresetWidget, PolkaPresetWidget, RegisterPresetWidget, TextPresetWidget, DOTFProbePresetWidget, PairwiseProbePresetWidget
 from ..widget.figure_widget import ModulatorFigureWidget, SinkHistFigureWidget
@@ -17,8 +17,9 @@ logger = setup_logger("modulator_window", terminator="\n")
 
 PRESETS = ["Constant", "Gradient", "Checker", "Sinusoid", "Box", "Polka", "Register", "Text", "dOTF", "Pairwise"]
 
-# ==== SinkHistSettingsWindow =========================================================================================
-class SinkHistSettingsWindow(Window):
+
+# ==== HistogramSettingsWindow ========================================================================================
+class HistogramSettingsWindow(Window):
     """
     Settings for the simple preview window.
     """
@@ -52,7 +53,7 @@ class SinkHistSettingsWindow(Window):
         layout.addWidget(self.cmap_combobox, row, col)
 
         return widget
-    
+
 
 # ==== InfoWindow =====================================================================================================
 class InfoWindow(Window):
@@ -62,7 +63,7 @@ class InfoWindow(Window):
 
     def __init__(self, modulator: Modulator, parent: QWidget | None = None):
         self.modulator = modulator
-        self.modulator.sync_settings()
+        # self.modulator.sync_settings()
         self.sample = SinkSample(self.modulator.last_access_time, self.modulator.frame_rate_fps, self.modulator.center, self.modulator.radius, self.modulator.blank)
 
         super().__init__(parent, Qt.WindowType.Dialog)
@@ -83,7 +84,7 @@ class InfoWindow(Window):
         return self._modulator
 
     @modulator.setter
-    def modulator(self, device:Modulator):
+    def modulator(self, device: Modulator):
         self._modulator = device
 
     @property
@@ -91,7 +92,7 @@ class InfoWindow(Window):
         return self._sample
 
     @sample.setter
-    def sample(self, value:SinkSample):
+    def sample(self, value: SinkSample):
         self._sample = value
 
     @Slot(SinkSample)
@@ -173,9 +174,9 @@ class InfoWindow(Window):
         self.info_radius_value_label = QLabel(f"{self.modulator.radius}", self)
         self.info_radius_value_label.setToolTip("Radius")
 
-        self.info_hist_figure_widget = SinkHistFigureWidget(self.modulator.blank, self.modulator.pxmax, parent=self)
-        if self.info_hist_figure_widget.toolbar is not None:
-            self.info_hist_figure_widget.toolbar.settingsClicked.connect(self.on_info_hist_settings_clicked)
+        self.hist_figure_widget = SinkHistFigureWidget(self.modulator.blank, self.modulator.pxmax, parent=self)
+        if self.hist_figure_widget.toolbar is not None:
+            self.hist_figure_widget.toolbar.settingsClicked.connect(self.on_histogram_settings_clicked)
 
         row = 0
         col = 0
@@ -245,7 +246,7 @@ class InfoWindow(Window):
 
         row += 1
         col = 0
-        layout.addWidget(self.info_hist_figure_widget, row, col, 1, 2)
+        layout.addWidget(self.hist_figure_widget, row, col, 1, 2)
 
         row += 1
         layout.setRowStretch(row, row)
@@ -258,16 +259,16 @@ class InfoWindow(Window):
         return widget
 
     @Slot()
-    def on_info_hist_settings_clicked(self):
-        info_hist_settings_window = SinkHistSettingsWindow(self.info_hist_figure_widget.cmap_name, parent=self)
-        info_hist_settings_window.show()
-        info_hist_settings_window.raise_()
-        info_hist_settings_window.activateWindow()
-        info_hist_settings_window.cmap_combobox.currentTextChanged.connect(self.on_cmap_name_changed)
+    def on_histogram_settings_clicked(self):
+        histogram_settings_window = HistogramSettingsWindow(self.hist_figure_widget.cmap_name, parent=self)
+        histogram_settings_window.show()
+        histogram_settings_window.raise_()
+        histogram_settings_window.activateWindow()
+        histogram_settings_window.cmap_combobox.currentTextChanged.connect(self.on_cmap_name_changed)
 
     @Slot(str)
     def on_cmap_name_changed(self, colormap: str):
-        self.info_hist_figure_widget.cmap_name = colormap
+        self.hist_figure_widget.cmap_name = colormap
 
     @Slot()
     def on_update_timer_tick(self):
@@ -275,8 +276,8 @@ class InfoWindow(Window):
         self.info_center_value_label.setText(f"({self.sample.center[0]}, {self.sample.center[1]})")
         self.info_radius_value_label.setText(f"{self.sample.radius}")
         self.info_frame_rate_value_label.setText(f"{self.sample.frame_rate_fps:.2f}")
-        self.info_hist_figure_widget.figure.set_data(self.sample.command)
-        self.info_hist_figure_widget.figure.canvas.draw_idle()
+        self.hist_figure_widget.figure.set_data(self.sample.command)
+        self.hist_figure_widget.figure.canvas.draw_idle()
 
     def closeEvent(self, event):
         if self.update_timer.isActive():
@@ -293,7 +294,7 @@ class SettingsWindow(Window):
 
     def __init__(self, modulator: Modulator, parent: QWidget | None = None):
         self.modulator = modulator
-        self.modulator.sync_settings()
+        # self.modulator.sync_settings()
         self.sample = SinkSample(self._modulator.last_access_time, self._modulator.frame_rate_fps, self._modulator.center, self._modulator.radius, self._modulator.blank)
 
         super().__init__(parent, Qt.WindowType.Dialog)
@@ -310,9 +311,9 @@ class SettingsWindow(Window):
     @property
     def modulator(self) -> Modulator:
         return self._modulator
-    
+
     @modulator.setter
-    def modulator(self, device:Modulator):
+    def modulator(self, device: Modulator):
         self._modulator = device
 
     @property
@@ -320,7 +321,7 @@ class SettingsWindow(Window):
         return self._sample
 
     @sample.setter
-    def sample(self, value:SinkSample):
+    def sample(self, value: SinkSample):
         self._sample = value
 
     @Slot(SinkSample)
@@ -421,7 +422,7 @@ class SettingsWindow(Window):
             # self.modulator.push_command(np.clip(current.command + self.preset_widget.command - np.nanmean(self.preset_widget.command), 0, self.modulator.pxmax))
             pass
 
-        preset_figure_widget = ModulatorFigureWidget(self.modulator.blank, (-FULL_STROKE_NM/2, FULL_STROKE_NM/2), parent=self)
+        preset_figure_widget = ModulatorFigureWidget(self.modulator.blank, (-FULL_STROKE_NM / 2, FULL_STROKE_NM / 2), parent=self)
 
         @Slot(np.ndarray)
         def on_preset_changed(command):
@@ -537,15 +538,16 @@ class SettingsWindow(Window):
         event.accept()
 
 
-# ==== SimplePreviewSettingsWindow ====================================================================================
-class SimplePreviewSettingsWindow(Window):
+# ==== PreviewSettingsWindow ====================================================================================
+class PreviewSettingsWindow(Window):
     """
     Settings for the simple preview window.
     """
 
-    def __init__(self, cmap_name: str, parent=None):
-        self.cmap_name = cmap_name
-
+    def __init__(self, cmap_name: str, rotation: Rotation, flip: Flip, parent: QWidget | None = None):
+        self.cmap_name: str = cmap_name
+        self.rotation: Rotation = rotation
+        self.flip: Flip = flip
         super().__init__(parent, Qt.WindowType.Dialog)
 
         self.setWindowModality(Qt.WindowModality.WindowModal)
@@ -554,119 +556,6 @@ class SimplePreviewSettingsWindow(Window):
         layout.setContentsMargins(2, 2, 2, 2)
         layout.addWidget(self.setup_preview_settings_widget())
         self.setLayout(layout)
-
-    def setup_preview_settings_widget(self) -> QWidget:
-        widget = QWidget(self)
-        layout = QGridLayout(widget)
-        widget.setLayout(layout)
-
-        cmap_label = QLabel("Colormap", self)
-        self.cmap_combobox = QComboBox(self)
-        self.cmap_combobox.addItems(list(colormaps))
-        self.cmap_combobox.setCurrentIndex(list(colormaps).index(self.cmap_name))
-
-        row = 0
-        col = 0
-        layout.addWidget(cmap_label, row, col)
-        col += 1
-        layout.addWidget(self.cmap_combobox, row, col)
-
-        return widget
-
-
-# ==== SimplePreviewWindow ============================================================================================
-class SimplePreviewWindow(Window):
-    """
-    Simple preview window.
-    """
-
-    def __init__(self, modulator: Modulator, parent: QWidget | None = None):
-        self.modulator = modulator
-        self.modulator.sync_settings()
-        self.sample = self.modulator.sample
-
-        super().__init__(parent, Qt.WindowType.Dialog)
-
-        self.setWindowTitle(f"{self.modulator.name} Preview")
-
-        layout = QVBoxLayout()
-        layout.setContentsMargins(2, 2, 2, 2)
-        layout.addWidget(self.setup_preview_widget())
-        self.setLayout(layout)
-
-        self.update_timer = QTimer(self)
-        self.update_timer.timeout.connect(self.on_update_timer_tick)
-        self.update_timer.start(100)  # Update window every 100 ms
-
-    @property
-    def modulator(self) -> Modulator:
-        return self._modulator
-
-    @modulator.setter
-    def modulator(self, device:Modulator):
-        self._modulator = device
-
-    @property
-    def sample(self) -> SinkSample:
-        return self._sample
-
-    @sample.setter
-    def sample(self, value:SinkSample):
-        self._sample = value
-
-    @Slot(SinkSample)
-    def on_sampled(self, sample: SinkSample):
-        self._sample = sample
-
-    def setup_preview_widget(self) -> QWidget:
-        widget = QWidget(self)
-        layout = QVBoxLayout(widget)
-        layout.setContentsMargins(2, 2, 2, 2)
-        widget.setLayout(layout)
-
-        self._sample = self.modulator.sample
-        self.preview_figure_widget = ModulatorFigureWidget(self.modulator.blank, (-FULL_STROKE_NM/2, FULL_STROKE_NM/2), parent=self)
-        if self.preview_figure_widget.toolbar is not None:
-            self.preview_figure_widget.toolbar.settingsClicked.connect(self.on_preview_settings_clicked)
-
-        layout.addWidget(self.preview_figure_widget)
-
-        return widget
-
-    @Slot()
-    def on_preview_settings_clicked(self):
-        preview_settings_window = SimplePreviewSettingsWindow(self.preview_figure_widget.cmap_name, parent=self)
-        preview_settings_window.show()
-        preview_settings_window.raise_()
-        preview_settings_window.activateWindow()
-        preview_settings_window.cmap_combobox.currentTextChanged.connect(self.on_cmap_changed)
-
-    @Slot(str)
-    def on_cmap_changed(self, colormap: str):
-        self.preview_figure_widget.cmap_name = colormap
-
-    @Slot()
-    def on_update_timer_tick(self):
-        self.preview_figure_widget.figure.get_image().set_data(self.sample.command)
-        self.preview_figure_widget.figure.canvas.draw_idle()
-
-    def closeEvent(self, event):
-        if self.update_timer.isActive():
-            self.update_timer.stop()
-        self.deleteLater()
-        event.accept()
-
-
-# ==== AltPreviewSettingsWindow =======================================================================================
-class AltPreviewSettingsWindow(SimplePreviewSettingsWindow):
-    """
-    Settings for the alternate preview window (with orientation control).
-    """
-
-    def __init__(self, cmap_name: str, rotation: Rotation, flip: Flip, parent: QWidget | None = None):
-        self.rotation: Rotation = rotation
-        self.flip: Flip = flip
-        super().__init__(cmap_name, parent=parent)
 
     def setup_preview_settings_widget(self) -> QWidget:
         widget = QWidget(self)
@@ -697,24 +586,78 @@ class AltPreviewSettingsWindow(SimplePreviewSettingsWindow):
         return widget
 
 
-# ==== AltPreviewWindow ===============================================================================================
-class AltPreviewWindow(SimplePreviewWindow):
+# ==== PreviewWindow ============================================================================================
+class PreviewWindow(Window):
     """
-    Alternate preview window (with orientation control).
+    Simple preview window.
     """
 
     def __init__(self, modulator: Modulator, parent: QWidget | None = None):
-        super().__init__(modulator, parent=parent)
+        self.modulator = modulator
+        # self.modulator.sync_settings()
+        self.sample = self.modulator.sample
+
+        super().__init__(parent, Qt.WindowType.Dialog)
+
+        self.setWindowTitle(f"{self.modulator.name} Preview")
+
+        layout = QVBoxLayout()
+        layout.setContentsMargins(2, 2, 2, 2)
+        layout.addWidget(self.setup_preview_widget())
+        self.setLayout(layout)
+
+        self.update_timer = QTimer(self)
+        self.update_timer.timeout.connect(self.on_update_timer_tick)
+        self.update_timer.start(100)  # Update window every 100 ms
+
+    @property
+    def modulator(self) -> Modulator:
+        return self._modulator
+
+    @modulator.setter
+    def modulator(self, device: Modulator):
+        self._modulator = device
+
+    @property
+    def sample(self) -> SinkSample:
+        return self._sample
+
+    @sample.setter
+    def sample(self, value: SinkSample):
+        self._sample = value
+
+    def setup_preview_widget(self) -> QWidget:
+        widget = QWidget(self)
+        layout = QVBoxLayout(widget)
+        layout.setContentsMargins(2, 2, 2, 2)
+        widget.setLayout(layout)
+
+        self._sample = self.modulator.sample
+        self.preview_figure_widget = ModulatorFigureWidget(self.modulator.blank, (-FULL_STROKE_NM / 2, FULL_STROKE_NM / 2), parent=self)
+        if self.preview_figure_widget.toolbar is not None:
+            self.preview_figure_widget.toolbar.settingsClicked.connect(self.on_preview_settings_clicked)
+
+        layout.addWidget(self.preview_figure_widget)
+
+        return widget
+
+    @Slot(SinkSample)
+    def on_sampled(self, sample: SinkSample):
+        self._sample = sample
 
     @Slot()
     def on_preview_settings_clicked(self):
-        preview_settings_window = AltPreviewSettingsWindow(self.preview_figure_widget.cmap_name, self.preview_figure_widget.rotation, self.preview_figure_widget.flip, parent=self)
+        preview_settings_window = PreviewSettingsWindow(self.preview_figure_widget.cmap_name, self.preview_figure_widget.rotation, self.preview_figure_widget.flip, parent=self)
         preview_settings_window.show()
         preview_settings_window.raise_()
         preview_settings_window.activateWindow()
         preview_settings_window.cmap_combobox.currentTextChanged.connect(self.on_cmap_changed)
         preview_settings_window.orientation_widget.rotationChanged.connect(self.on_rotation_changed)
         preview_settings_window.orientation_widget.flipChanged.connect(self.on_flip_changed)
+
+    @Slot(str)
+    def on_cmap_changed(self, colormap: str):
+        self.preview_figure_widget.cmap_name = colormap
 
     @Slot(str)
     def on_rotation_changed(self, rotation: Rotation):
@@ -726,5 +669,11 @@ class AltPreviewWindow(SimplePreviewWindow):
 
     @Slot()
     def on_update_timer_tick(self):
-        self.preview_figure_widget.figure.get_image().set_data(flip_rotate(self.sample.command, self.preview_figure_widget.flip, self.preview_figure_widget.rotation))
+        self.preview_figure_widget.figure.get_image().set_data(flip_rotate_frame(self.sample.command, self.preview_figure_widget.flip, self.preview_figure_widget.rotation))
         self.preview_figure_widget.figure.canvas.draw_idle()
+
+    def closeEvent(self, event):
+        if self.update_timer.isActive():
+            self.update_timer.stop()
+        self.deleteLater()
+        event.accept()

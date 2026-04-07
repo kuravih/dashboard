@@ -20,7 +20,7 @@ logger = setup_logger(f"{_PROCESS_}_worker", terminator="\n")
 class ProcessWorkerSignals(WorkerSignals):
     srcSampled = Signal(SourceSample)
     snkSampled = Signal(SinkSample)
-    specklesLocated = Signal(float, float, float, float)
+    specklesLocated = Signal(np.ndarray)
     centerLocated = Signal(float, float)
 
 
@@ -38,7 +38,9 @@ class ProcessWorker(Worker):
         phs_array = np.array([0, 90])
         self.ang_array = np.linspace(0, 180, n_steps, endpoint=False) + (180.0 / n_steps) / 2
         i_ang = 0
-        all_speckles = np.zeros((self.ang_array.size, 2, 2))
+        all_speckles = np.full((self.ang_array.size, 2, 2), np.nan)
+        t_start = time.time()
+
         while (self.ang_array.size > i_ang) and self._running:
             i_phs = 0
             mean_cap = np.zeros_like(current_cap, dtype=float)
@@ -62,9 +64,10 @@ class ProcessWorker(Worker):
 
             all_speckles[i_ang], speckle_stencil = find_speckles(mean_cap / 2 - current_cap.astype(float), 2, 5, 50)
 
-            self.signals.specklesLocated.emit(all_speckles[i_ang][0][0], all_speckles[i_ang][0][1], all_speckles[i_ang][1][0], all_speckles[i_ang][1][1])
-
             i_ang = i_ang + 1
+
+            self.signals.specklesLocated.emit(all_speckles)
+            self.signals.progressTicked.emit(i_ang, time.time() - t_start)
 
         return np.mean(all_speckles, axis=(0, 1))
 
@@ -99,4 +102,5 @@ class ProcessWorker(Worker):
 
         self.recenter(_current_sink_sample.command, _current_source_sample.capture, self.n_steps)
 
+        time.sleep(0.2)
         self.signals.finished.emit()

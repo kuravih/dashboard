@@ -7,7 +7,7 @@ from ..device import SourceSample
 from ..device.camera import Camera
 from ..worker import Worker, WorkerSignals
 
-logger = setup_logger("camera_worker", terminator="\n")
+logger = setup_logger("camera_sampling_worker", terminator="\n")
 
 
 class ProcessWorkerSignals(WorkerSignals):
@@ -27,4 +27,5 @@ class ProcessWorker(Worker):
             time.sleep(0.1)
             # logger.info("%s UpdateWorker.run", self._camera.name)
             self.signals.sampled.emit(self._camera.pull_capture())
+        logger.info("camera sampling worker finished")
         self.signals.finished.emit()

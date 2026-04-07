@@ -1,5 +1,7 @@
 import numpy as np
 
+from matplotlib.lines import Line2D
+from numpy.typing import NDArray
 from pykato.log import setup_logger
 from PySide6.QtCore import Qt, Slot
 from PySide6.QtGui import QIcon
@@ -9,22 +11,20 @@ import testbed
 
 from ..device.camera import Camera
 from ..device.modulator import Modulator, FULL_STROKE_NM
+from ..function import flip_rotate_frame, flip_rotate_points
 from ..worker.recenter_worker import ProcessWorker
-from .camera_window import InfoWindow as CameraInfoWindow
-from .camera_window import RecenterPreviewWindow as CameraPreviewWindow
-from .camera_window import SettingsWindow as CameraSettingsWindow
-from .modulator_window import InfoWindow as ModulatorInfoWindow
-from .modulator_window import SimplePreviewWindow as ModulatorPreviewWindow
-from .modulator_window import SettingsWindow as ModulatorSettingsWindow
 from .dialog import MessageDialog
 from .resource import ICON_PAUSE, ICON_RUN, ICON_CENTER
+from ..widget.camera_window import PreviewWindow as CameraPreviewWindow
+from ..widget.modulator_window import PreviewWindow as ModulatorPreviewWindow
+from ..worker.camera_worker import ProcessWorker as CameraSamplingWorker
+from ..worker.modulator_worker import ProcessWorker as ModulatorSamplingWorker
+from ..worker.storage_worker import SourceStorageWorker, SinkStorageWorker
 
 from . import DevicesSetupWidget, TaskControlsWidget, Window, IconButton
 
 _PROCESS_ = testbed.RECENTER
 process_worker_id = f"{_PROCESS_}_worker"
-source_storage_worker_id = f"{_PROCESS_}_source_storage_worker"
-sink_storage_worker_id = f"{_PROCESS_}_sink_storage_worker"
 
 logger = setup_logger(f"{_PROCESS_}_window", terminator="\n")
 
@@ -41,48 +41,48 @@ class ProcessSettingsWidget(QWidget):
         amplitude_label = QLabel("Amplitude", self)
         amplitude_label.setFixedWidth(100)
 
-        self._amplitude_spinbox = QDoubleSpinBox(self)
-        self._amplitude_spinbox.setRange(-100, 100)
-        self._amplitude_spinbox.setSuffix(" %")
-        self._amplitude_spinbox.setSingleStep(1)
-        self._amplitude_spinbox.setToolTip("Command amplitude")
-        self._amplitude_spinbox.setValue(10)
+        self.amplitude_spinbox = QDoubleSpinBox(self)
+        self.amplitude_spinbox.setRange(-100, 100)
+        self.amplitude_spinbox.setSuffix(" %")
+        self.amplitude_spinbox.setSingleStep(1)
+        self.amplitude_spinbox.setToolTip("Command amplitude")
+        self.amplitude_spinbox.setValue(10)
 
         n_steps_label = QLabel("Steps", self)
         n_steps_label.setFixedWidth(100)
 
-        self._n_steps_spinbox = QSpinBox(self)
-        self._n_steps_spinbox.setRange(0, 9999)
-        self._n_steps_spinbox.setSingleStep(1)
-        self._n_steps_spinbox.setToolTip("Number of steps")
-        self._n_steps_spinbox.setValue(2)
+        self.n_steps_spinbox = QSpinBox(self)
+        self.n_steps_spinbox.setRange(0, 9999)
+        self.n_steps_spinbox.setSingleStep(1)
+        self.n_steps_spinbox.setToolTip("Number of steps")
+        self.n_steps_spinbox.setValue(2)
 
         n_steps_layout = QHBoxLayout()
-        n_steps_layout.addWidget(self._n_steps_spinbox)
+        n_steps_layout.addWidget(self.n_steps_spinbox)
 
         sleep_label = QLabel("Sleep", self)
         sleep_label.setFixedWidth(100)
 
-        self._sleep_s_spinbox = QDoubleSpinBox(self)
-        self._sleep_s_spinbox.setMinimum(0)
-        self._sleep_s_spinbox.setSingleStep(0.0001)
-        self._sleep_s_spinbox.setDecimals(4)
-        self._sleep_s_spinbox.setSuffix(" s")
-        self._sleep_s_spinbox.setValue(0.1)
+        self.sleep_s_spinbox = QDoubleSpinBox(self)
+        self.sleep_s_spinbox.setMinimum(0)
+        self.sleep_s_spinbox.setSingleStep(0.0001)
+        self.sleep_s_spinbox.setDecimals(4)
+        self.sleep_s_spinbox.setSuffix(" s")
+        self.sleep_s_spinbox.setValue(0.1)
 
         center_label = QLabel("Center", self)
         sleep_label.setFixedWidth(100)
 
-        self._center_xvalue_textbox = QLineEdit(self)
-        self._center_xvalue_textbox.setEnabled(False)
-        self._center_xvalue_textbox.setText(f"{self._center[0]:.0f}")
-        self._center_yvalue_textbox = QLineEdit(self)
-        self._center_yvalue_textbox.setEnabled(False)
-        self._center_yvalue_textbox.setText(f"{self._center[1]:.0f}")
+        self.center_xvalue_textbox = QLineEdit(self)
+        self.center_xvalue_textbox.setEnabled(False)
+        self.center_xvalue_textbox.setText(f"{self._center[0]:.0f}")
+        self.center_yvalue_textbox = QLineEdit(self)
+        self.center_yvalue_textbox.setEnabled(False)
+        self.center_yvalue_textbox.setText(f"{self._center[1]:.0f}")
 
         self.move_pushbutton = IconButton(QIcon(ICON_CENTER), parent=self)
-        self.move_pushbutton.setFixedHeight(self._amplitude_spinbox.sizeHint().height())
-        self.move_pushbutton.setFixedWidth(self._amplitude_spinbox.sizeHint().height())
+        self.move_pushbutton.setFixedHeight(self.amplitude_spinbox.sizeHint().height())
+        self.move_pushbutton.setFixedWidth(self.amplitude_spinbox.sizeHint().height())
         self.move_pushbutton.setToolTip("Move to center")
         self.move_pushbutton.setEnabled(False)
 
@@ -92,7 +92,7 @@ class ProcessSettingsWidget(QWidget):
         col = 0
         widget_layout.addWidget(amplitude_label, row, col)
         col += 1
-        widget_layout.addWidget(self._amplitude_spinbox, row, col, 1, 3)
+        widget_layout.addWidget(self.amplitude_spinbox, row, col, 1, 3)
 
         row += 1
         col = 0
@@ -104,15 +104,15 @@ class ProcessSettingsWidget(QWidget):
         col = 0
         widget_layout.addWidget(sleep_label, row, col)
         col += 1
-        widget_layout.addWidget(self._sleep_s_spinbox, row, col, 1, 3)
+        widget_layout.addWidget(self.sleep_s_spinbox, row, col, 1, 3)
 
         row += 1
         col = 0
         widget_layout.addWidget(center_label, row, col)
         col += 1
-        widget_layout.addWidget(self._center_xvalue_textbox, row, col)
+        widget_layout.addWidget(self.center_xvalue_textbox, row, col)
         col += 1
-        widget_layout.addWidget(self._center_yvalue_textbox, row, col)
+        widget_layout.addWidget(self.center_yvalue_textbox, row, col)
         col += 1
         widget_layout.addWidget(self.move_pushbutton, row, col)
 
@@ -120,15 +120,15 @@ class ProcessSettingsWidget(QWidget):
 
     @property
     def amplitude(self) -> float:
-        return FULL_STROKE_NM * self._amplitude_spinbox.value() / 100.0
+        return FULL_STROKE_NM * self.amplitude_spinbox.value() / 100.0
 
     @property
     def n_steps(self) -> int:
-        return self._n_steps_spinbox.value()
+        return self.n_steps_spinbox.value()
 
     @property
     def sleep_s(self) -> float:
-        return self._sleep_s_spinbox.value()
+        return self.sleep_s_spinbox.value()
 
     @property
     def center(self) -> list[float]:
@@ -137,8 +137,8 @@ class ProcessSettingsWidget(QWidget):
     @center.setter
     def center(self, value: list[float]):
         self._center = value
-        self._center_xvalue_textbox.setText(f"{self._center[0]:.0f}")
-        self._center_yvalue_textbox.setText(f"{self._center[1]:.0f}")
+        self.center_xvalue_textbox.setText(f"{self._center[0]:.0f}")
+        self.center_yvalue_textbox.setText(f"{self._center[1]:.0f}")
         if (self._center[0] != 0) or (self._center[1] != 0):
             self.move_pushbutton.setEnabled(True)
 
@@ -150,21 +150,25 @@ class ProcessWindow(Window):
 
     def __init__(self, parent=None):
         super().__init__(parent, Qt.WindowType.Dialog)
-        self.setWindowModality(Qt.WindowModality.WindowModal)
+        # self.setWindowModality(Qt.WindowModality.WindowModal)
         self.setWindowTitle("Recenter Process")
         self.sink = None
         self.source = None
-        self._center = [np.nan, np.nan]
 
         layout = QVBoxLayout()
         layout.setContentsMargins(2, 2, 2, 2)
         layout.addWidget(self.setup_main_widget())
+
+        self.speckles = np.full((self.settings_widget.n_steps, 2, 2), np.nan)
+        self.speckles_plot = None
+        self.center_plot = None
+
         self.setLayout(layout)
 
     @property
     def source(self) -> Camera | None:
         return self._source
-    
+
     @source.setter
     def source(self, device: Camera | None):
         self._source = device
@@ -172,127 +176,56 @@ class ProcessWindow(Window):
     @property
     def sink(self) -> Modulator | None:
         return self._sink
-    
+
     @sink.setter
     def sink(self, device: Modulator | None):
         self._sink = device
 
+    @property
+    def speckles(self) -> NDArray[np.float64]:
+        return self._speckles
+
+    @speckles.setter
+    def speckles(self, value: NDArray[np.float64]):
+        self._speckles = value
+
+    @property
+    def speckles_plot(self) -> Line2D | None:
+        return self._speckles_plot
+
+    @speckles_plot.setter
+    def speckles_plot(self, value: Line2D | None):
+        self._speckles_plot = value
+
+    @property
+    def center(self) -> list[float]:
+        return self.settings_widget.center
+
+    @center.setter
+    def center(self, value: list[float]):
+        self.settings_widget.center = value
+
+    @property
+    def center_plot(self) -> Line2D | None:
+        return self._center_plot
+
+    @center_plot.setter
+    def center_plot(self, value: Line2D | None):
+        self._center_plot = value
+
+    @Slot(Camera)
     def on_source_changed(self, device: Camera):
-        self.devices_widget.source_info_button.setEnabled(True)
-        self.devices_widget.source_settings_button.setEnabled(True)
-        self.devices_widget.source_preview_button.setEnabled(True)
         self.source = device
-        device_preview_window_id = f"{device.name}_preview_window"
-        if device_preview_window_id in testbed.data.windows:
-            testbed.data.windows.pop(device_preview_window_id).close()
-        device_info_window_id = f"{device.name}_info_window"
-        if device_info_window_id in testbed.data.windows:
-            testbed.data.windows.pop(device_info_window_id).close()
-        device_settings_window_id = f"{device.name}_settings_window"
-        if device_settings_window_id in testbed.data.windows:
-            testbed.data.windows.pop(device_settings_window_id).close()
-        self.devices_widget.source_info_button.clicked.connect(lambda _, _device=device: self.open_device_info_window(_device))
-        self.devices_widget.source_settings_button.clicked.connect(lambda _, _device=device: self.open_device_settings_window(_device))
-        self.devices_widget.source_preview_button.clicked.connect(lambda _, _device=device: self.open_device_preview_window(_device))
         self.controls_widget.play_pause_button.setEnabled(False)
-        if self.source is not None:
-            self.settings_widget.center = [self.source.shape[0] / 2, self.source.shape[1] / 2]
-            if self.sink is not None:
-                self.controls_widget.play_pause_button.setEnabled(True)
+        if self.source is not None and self.sink is not None:
+            self.controls_widget.play_pause_button.setEnabled(True)
 
+    @Slot(Modulator)
     def on_sink_changed(self, device: Modulator):
-        self.devices_widget.sink_info_button.setEnabled(True)
-        self.devices_widget.sink_settings_button.setEnabled(True)
-        self.devices_widget.sink_preview_button.setEnabled(True)
         self.sink = device
-        device_preview_window_id = f"{device.name}_preview_window"
-        if device_preview_window_id in testbed.data.windows:
-            testbed.data.windows.pop(device_preview_window_id).close()
-        device_info_window_id = f"{device.name}_info_window"
-        if device_info_window_id in testbed.data.windows:
-            testbed.data.windows.pop(device_info_window_id).close()
-        device_settings_window_id = f"{device.name}_settings_window"
-        if device_settings_window_id in testbed.data.windows:
-            testbed.data.windows.pop(device_settings_window_id).close()
-        self.devices_widget.sink_info_button.clicked.connect(lambda _, _device=device: self.open_device_info_window(_device))
-        self.devices_widget.sink_settings_button.clicked.connect(lambda _, _device=device: self.open_device_settings_window(_device))
-        self.devices_widget.sink_preview_button.clicked.connect(lambda _, _device=device: self.open_device_preview_window(_device))
         self.controls_widget.play_pause_button.setEnabled(False)
-        if self.source is not None:
-            self.settings_widget.center = [self.source.shape[0] / 2, self.source.shape[1] / 2]
-            if self.sink is not None:
-                self.controls_widget.play_pause_button.setEnabled(True)
-
-    def open_device_info_window(self, device: Camera | Modulator):
-        device_info_window_id = f"{device.name}_info_window"
-
-        @Slot()
-        def on_window_closed():
-            testbed.data.windows.pop(device_info_window_id, None)
-
-        if device_info_window_id not in testbed.data.windows:
-            info_window: CameraInfoWindow | ModulatorInfoWindow | None = None
-            if isinstance(device, Camera):
-                info_window = CameraInfoWindow(device, self)
-                if process_worker_id in testbed.data.workers:  # an update worker is in progress
-                    testbed.data.workers[process_worker_id].signals.srcSampled.connect(info_window.on_sampled)
-            elif isinstance(device, Modulator):
-                info_window = ModulatorInfoWindow(device, self)
-                if process_worker_id in testbed.data.workers:  # an update worker is in progress
-                    testbed.data.workers[process_worker_id].signals.snkSampled.connect(info_window.on_sampled)
-            else:
-                raise ValueError("Invalid device")
-            info_window.destroyed.connect(on_window_closed)
-            info_window.show()
-            info_window.raise_()
-            info_window.activateWindow()
-            testbed.data.windows[device_info_window_id] = info_window
-
-    def open_device_settings_window(self, device: Camera | Modulator):
-        device_settings_window_id = f"{device.name}_settings_window"
-
-        @Slot()
-        def on_window_closed():
-            testbed.data.windows.pop(device_settings_window_id, None)
-
-        if device_settings_window_id not in testbed.data.windows:
-            settings_window: CameraSettingsWindow | ModulatorSettingsWindow | None = None
-            if isinstance(device, Camera):
-                settings_window = CameraSettingsWindow(device, self)
-            elif isinstance(device, Modulator):
-                settings_window = ModulatorSettingsWindow(device, self)
-            else:
-                raise ValueError("Invalid device")
-            settings_window.destroyed.connect(on_window_closed)
-            settings_window.show()
-            settings_window.raise_()
-            settings_window.activateWindow()
-            testbed.data.windows[device_settings_window_id] = settings_window
-
-    def open_device_preview_window(self, device: Camera | Modulator):
-        device_preview_window_id = f"{device.name}_preview_window"
-
-        @Slot()
-        def on_window_closed():
-            testbed.data.windows.pop(device_preview_window_id, None)
-
-        if device_preview_window_id not in testbed.data.windows:
-            preview_window: CameraPreviewWindow | ModulatorPreviewWindow | None = None
-            if isinstance(device, Camera):
-                preview_window = CameraPreviewWindow(device, self.settings_widget.center, parent=self)
-                if process_worker_id in testbed.data.workers:  # an update worker is in progress
-                    testbed.data.workers[process_worker_id].signals.srcSampled.connect(preview_window.on_sampled)
-            elif isinstance(device, Modulator):
-                preview_window = ModulatorPreviewWindow(device, parent=self)
-                if process_worker_id in testbed.data.workers:  # an update worker is in progress
-                    testbed.data.workers[process_worker_id].signals.snkSampled.connect(preview_window.on_sampled)
-            else:
-                raise ValueError("Invalid device")
-            preview_window.destroyed.connect(on_window_closed)
-            preview_window.show()
-            preview_window.raise_()
-            preview_window.activateWindow()
-            testbed.data.windows[device_preview_window_id] = preview_window
+        if self.source is not None and self.sink is not None:
+            self.controls_widget.play_pause_button.setEnabled(True)
 
     @Slot(int, float)  # step, elapsed_time
     def on_progress_tick(self, step: int, t_elapsed: float):
@@ -301,27 +234,30 @@ class ProcessWindow(Window):
         self.controls_widget.progressbar.updateProgress()
 
     @Slot()
-    def on_finished(self):
+    def on_process_finished(self):
         self.controls_widget.progressbar.reset()
         self.controls_widget.progressbar.updateProgress()
         if process_worker_id in testbed.data.workers:  # an update worker is in progress
-            current_worker = testbed.data.workers.pop(process_worker_id)
-            current_worker.stop()
-            self.controls_widget.play_pause_button.setIcon(QIcon(ICON_RUN))
-            self.devices_widget.sink_settings_button.setEnabled(True)
-            self.devices_widget.source_settings_button.setEnabled(True)
+            process_worker: ProcessWorker = testbed.data.workers[process_worker_id]
+            process_worker.stop()
+            self.controls_widget.play_pause_button.setIconHint(QIcon(ICON_RUN), "Run")
+            testbed.data.workers.pop(process_worker_id)
 
-    @Slot()
-    def on_source_storage_finished(self):
-        if source_storage_worker_id in testbed.data.workers:
-            source_storage_worker = testbed.data.workers.pop(source_storage_worker_id)
-            source_storage_worker.stop()
+        assert self.source is not None
+        source_preview_window_id = f"{self.source.name}_preview_window"
+        if source_preview_window_id in testbed.data.windows:
+            source_preview_window: CameraPreviewWindow = testbed.data.windows[source_preview_window_id]
+            source_preview_window.update_timer.stop()
+            source_preview_window.update_timer.timeout.disconnect()
+            source_preview_window.update_timer.timeout.connect(source_preview_window.on_update_timer_tick)
 
-    @Slot()
-    def on_sink_storage_finished(self):
-        if sink_storage_worker_id in testbed.data.workers:
-            sink_storage_worker = testbed.data.workers.pop(sink_storage_worker_id)
-            sink_storage_worker.stop()
+        assert self.sink is not None
+        sink_preview_window_id = f"{self.sink.name}_preview_window"
+        if sink_preview_window_id in testbed.data.windows:
+            sink_preview_window: ModulatorPreviewWindow = testbed.data.windows[sink_preview_window_id]
+            sink_preview_window.update_timer.stop()
+            sink_preview_window.update_timer.timeout.disconnect()
+            sink_preview_window.update_timer.timeout.connect(sink_preview_window.on_update_timer_tick)
 
     @Slot()
     def on_start_stop_clicked(self):
@@ -329,46 +265,106 @@ class ProcessWindow(Window):
             message_dialog = MessageDialog("Devices not selected", "Source and sink devices not selected.", icon=QMessageBox.Icon.Information, buttons=QMessageBox.StandardButton.Ok)
             message_dialog.exec()
         else:
-            source_preview_window_id = f"{self.source.name}_preview_window"
-            sink_preview_window_id = f"{self.sink.name}_preview_window"
+            source_sampling_worker_id = f"{self.source.name}_sampling_worker"
+            if source_sampling_worker_id in testbed.data.workers:
+                source_sampling_worker: CameraSamplingWorker = testbed.data.workers[source_sampling_worker_id]
+                source_sampling_worker.stop()
+                testbed.data.workers.pop(source_sampling_worker_id)
+
+            source_storage_worker_id = f"{self.source.name}_storage_worker"
+            if source_storage_worker_id in testbed.data.workers:
+                source_storage_worker: SourceStorageWorker = testbed.data.workers[source_storage_worker_id]
+                source_storage_worker.stop()
+                testbed.data.workers.pop(source_storage_worker_id)
+
+            sink_sampling_worker_id = f"{self.sink.name}_sampling_worker"
+            if sink_sampling_worker_id in testbed.data.workers:
+                sink_sampling_worker: ModulatorSamplingWorker = testbed.data.workers[sink_sampling_worker_id]
+                sink_sampling_worker.stop()
+                testbed.data.workers.pop(sink_sampling_worker_id)
+
+            sink_storage_worker_id = f"{self.sink.name}_storage_worker"
+            if sink_storage_worker_id in testbed.data.workers:
+                sink_storage_worker: SinkStorageWorker = testbed.data.workers[sink_storage_worker_id]
+                sink_storage_worker.stop()
+                testbed.data.workers.pop(sink_storage_worker_id)
 
             if process_worker_id in testbed.data.workers:  # an update worker is in progress
-                current_worker = testbed.data.workers.pop(process_worker_id)
-                current_worker.stop()
-                self.controls_widget.play_pause_button.setIcon(QIcon(ICON_RUN))
-                self.devices_widget.sink_settings_button.setEnabled(True)
-                self.devices_widget.source_settings_button.setEnabled(True)
+                process_worker: ProcessWorker = testbed.data.workers[process_worker_id]
+                process_worker.stop()
+                testbed.data.workers.pop(process_worker_id)
+
+                self.controls_widget.play_pause_button.setIconHint(QIcon(ICON_RUN), "Run")
                 self.controls_widget.progressbar.setMaximum(100)
                 self.controls_widget.progressbar.reset()
                 self.controls_widget.progressbar.updateProgress()
-                if source_storage_worker_id in testbed.data.workers:
-                    current_source_storage_worker = testbed.data.workers.pop(source_storage_worker_id)
-                    current_source_storage_worker.stop()
-                if sink_storage_worker_id in testbed.data.workers:
-                    current_sink_storage_worker = testbed.data.workers.pop(sink_storage_worker_id)
-                    current_sink_storage_worker.stop()
+
                 return
 
-            worker = ProcessWorker(self.source, self.sink, self.settings_widget.amplitude, self.settings_widget.n_steps)
-            worker.signals.progressTicked.connect(self.on_progress_tick)
-            worker.signals.finished.connect(self.on_finished)
+            self.controls_widget.progressbar.setMaximum(self.settings_widget.n_steps)
 
-            self.controls_widget.play_pause_button.setIcon(QIcon(ICON_PAUSE))
-            self.devices_widget.sink_settings_button.setEnabled(False)
-            self.devices_widget.source_settings_button.setEnabled(False)
+            process_worker = ProcessWorker(self.source, self.sink, self.settings_widget.amplitude, self.settings_widget.n_steps)
+            process_worker.signals.progressTicked.connect(self.on_progress_tick)
+            process_worker.signals.finished.connect(self.on_process_finished)
 
+            self.controls_widget.play_pause_button.setIconHint(QIcon(ICON_PAUSE), "Pause")
+
+            source_preview_window_id = f"{self.source.name}_preview_window"
             if source_preview_window_id in testbed.data.windows:
-                worker.signals.srcSampled.connect(testbed.data.windows[source_preview_window_id].on_sampled)
-                worker.signals.specklesLocated.connect(testbed.data.windows[source_preview_window_id].on_speckles_located)
-                worker.signals.centerLocated.connect(testbed.data.windows[source_preview_window_id].on_center_located)
+                source_preview_window: CameraPreviewWindow = testbed.data.windows[source_preview_window_id]
+                process_worker.signals.srcSampled.connect(source_preview_window.on_sampled)
+
+                if self.speckles_plot is not None:
+                    self.speckles_plot.remove()
+                    self.speckles = np.full((self.settings_widget.n_steps, 2, 2), np.nan)
+
+                if self.center_plot is not None:
+                    self.center_plot.remove()
+                    self.center = [np.nan, np.nan]
+
+                (self.speckles_plot,) = source_preview_window.preview_figure_widget.figure.get_imshow_axes().plot([], [], color="red", marker="o", markersize=10, markerfacecolor="none", linestyle="none")
+
+                @Slot(np.ndarray)
+                def on_speckles_located(speckles):
+                    self.speckles = speckles
+
+                process_worker.signals.specklesLocated.connect(on_speckles_located)
+
+                (self.center_plot,) = source_preview_window.preview_figure_widget.figure.get_imshow_axes().plot([], [], color="blue", marker="o", markersize=10, markerfacecolor="none", linestyle="none")
+
+                @Slot(float, float)
+                def on_center_located(xc: float, yc: float):
+                    self.center = [xc, yc]
+                    self.settings_widget.center = [xc, yc]
+
+                process_worker.signals.centerLocated.connect(on_center_located)
+
+                source_preview_window.update_timer.stop()
+                source_preview_window.update_timer.timeout.disconnect()
+
+                @Slot()
+                def on_source_update_timer_tick():
+                    source_preview_window.preview_figure_widget.figure.get_image().set_data(flip_rotate_frame(source_preview_window.sample.capture, source_preview_window.preview_figure_widget.flip, source_preview_window.preview_figure_widget.rotation))
+                    speckles_x, speckles_y = flip_rotate_points(self.speckles[:, :, 0], self.speckles[:, :, 1], source_preview_window.sample.capture.shape, source_preview_window.preview_figure_widget.flip, source_preview_window.preview_figure_widget.rotation)
+                    self.speckles_plot.set_xdata([speckles_x])
+                    self.speckles_plot.set_ydata([speckles_y])
+                    center_x, center_y = flip_rotate_points(self.center[0], self.center[1], source_preview_window.sample.capture.shape, source_preview_window.preview_figure_widget.flip, source_preview_window.preview_figure_widget.rotation)
+                    self.center_plot.set_xdata([center_x])
+                    self.center_plot.set_ydata([center_y])
+                    source_preview_window.preview_figure_widget.figure.canvas.draw_idle()
+
+                source_preview_window.update_timer.timeout.connect(on_source_update_timer_tick)
+                source_preview_window.update_timer.start(100)  # Update window every 100 ms
+
+            sink_preview_window_id = f"{self.sink.name}_preview_window"
             if sink_preview_window_id in testbed.data.windows:
-                worker.signals.snkSampled.connect(testbed.data.windows[sink_preview_window_id].on_sampled)
+                sink_preview_window: ModulatorPreviewWindow = testbed.data.windows[sink_preview_window_id]
+                process_worker.signals.snkSampled.connect(sink_preview_window.on_sampled)
 
-            worker.signals.centerLocated.connect(self.on_center_located)
+            testbed.data.workers[process_worker_id] = process_worker
+            testbed.data.threadpool.start(process_worker)
 
-            testbed.data.workers[process_worker_id] = worker
-            testbed.data.threadpool.start(worker)
-
+    @Slot()
     def on_center_move_clicked(self):
         if self.source is None:
             message_dialog = MessageDialog("Devices not selected", "Source device not selected.", icon=QMessageBox.Icon.Information, buttons=QMessageBox.StandardButton.Ok)
@@ -402,10 +398,6 @@ class ProcessWindow(Window):
         layout.addStretch(5)
 
         return widget
-
-    @Slot(float, float)
-    def on_center_located(self, xc: float, yc: float):
-        self.settings_widget.center = [xc, yc]
 
     def closeEvent(self, event):
         while testbed.data.workers:

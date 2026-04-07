@@ -7,7 +7,7 @@ from ..device import SinkSample
 from ..device.modulator import Modulator
 from ..worker import Worker, WorkerSignals
 
-logger = setup_logger("modulator_worker", terminator="\n")
+logger = setup_logger("modulator_sampling_worker", terminator="\n")
 
 
 class ProcessWorkerSignals(WorkerSignals):
@@ -26,3 +26,5 @@ class ProcessWorker(Worker):
         while self._running:
             time.sleep(0.1)
             self.signals.sampled.emit(self._modulator.sample)
+        logger.info("modulator sampling worker finished")
+        self.signals.finished.emit()

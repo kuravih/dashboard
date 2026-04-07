@@ -2,7 +2,7 @@ import numpy as np
 from datetime import datetime
 
 from . import Device, Stream, ZMQLink, SinkSample
-from ..function import Flip, Rotation, flip_rotate
+from ..function import Flip, Rotation, flip_rotate_frame
 
 from pykato.log import setup_logger
 
@@ -76,7 +76,7 @@ class Mirror(Device):
 
     @property
     def command(self) -> np.ndarray:
-        return flip_rotate(self._command, self.flip, self.rotation)
+        return flip_rotate_frame(self._command, self.flip, self.rotation)
 
     @command.setter
     def command(self, cmd: np.ndarray):

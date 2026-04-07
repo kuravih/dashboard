@@ -1,5 +1,4 @@
 import numpy as np
-from numpy.typing import NDArray
 
 from PySide6.QtWidgets import QWidget, QVBoxLayout, QLabel, QRadioButton, QSpacerItem, QButtonGroup, QSizePolicy, QGridLayout, QHBoxLayout, QCheckBox, QComboBox
 from PySide6.QtCore import Slot, QTimer, Qt
@@ -9,17 +8,17 @@ from matplotlib.colors import LogNorm, Normalize
 from pykato.log import setup_logger
 
 from ..device.camera import Camera, SourceSample
-from ..function import Flip, Rotation, flip_rotate, is_camera_calibration_file_valid
+from ..function import Flip, Rotation, flip_rotate_frame, is_camera_calibration_file_valid
 from ..widget import Window, OrientationWidget, ROIWidget, DoubleValueSetWidget, FileLoadWidget, NDoubleSpinBoxesWidget
 from ..widget.figure_widget import SourceFigureWidget, SourceHistFigureWidget
 
 logger = setup_logger("camera_window", terminator="\n")
 
 
-# ==== SourceHistSettingsWindow =======================================================================================
-class SourceHistSettingsWindow(Window):
+# ==== HistogramSettingsWindow ========================================================================================
+class HistogramSettingsWindow(Window):
     """
-    Settings for the simple preview window.
+    Settings for the histogram.
     """
 
     def __init__(self, cmap_name: str, cmap_norm: Normalize, parent=None):
@@ -77,7 +76,7 @@ class InfoWindow(Window):
 
     def __init__(self, camera: Camera, parent=None):
         self.camera = camera
-        self.camera.sync_settings()
+        # self.camera.sync_settings()
         self.sample = SourceSample(self.camera.last_access_time, self.camera.exposure_time_s, self.camera.gain, self.camera.frame_rate_fps, self.camera.temperature_c, self.camera.roi, self.camera.blank)
 
         super().__init__(parent, Qt.WindowType.Dialog)
@@ -96,9 +95,9 @@ class InfoWindow(Window):
     @property
     def camera(self) -> Camera:
         return self._camera
-    
+
     @camera.setter
-    def camera(self, device:Camera):
+    def camera(self, device: Camera):
         self._camera = device
 
     @property
@@ -106,7 +105,7 @@ class InfoWindow(Window):
         return self._sample
 
     @sample.setter
-    def sample(self, value:SourceSample):
+    def sample(self, value: SourceSample):
         self._sample = value
 
     @Slot(SourceSample)
@@ -196,9 +195,9 @@ class InfoWindow(Window):
         self.info_roi_value_label = QLabel(f"[({self.camera.roi['br'][0]}, {self.camera.roi['br'][1]})," f"({self.camera.roi['tl'][0]}, {self.camera.roi['tl'][1]})]", self)  # pylint: disable=W1405:inconsistent-quotes
         self.info_roi_value_label.setToolTip("Region of interest [(x1,y1),(x2,y2)]")
 
-        self.info_hist_figure_widget = SourceHistFigureWidget(self.camera.blank, self.camera.pxmax, parent=self)
-        if self.info_hist_figure_widget.toolbar is not None:
-            self.info_hist_figure_widget.toolbar.settingsClicked.connect(self.on_info_hist_settings_clicked)
+        self.hist_figure_widget = SourceHistFigureWidget(self.camera.blank, self.camera.pxmax, parent=self)
+        if self.hist_figure_widget.toolbar is not None:
+            self.hist_figure_widget.toolbar.settingsClicked.connect(self.on_histogram_settings_clicked)
 
         row = 0
         col = 0
@@ -280,7 +279,7 @@ class InfoWindow(Window):
 
         row += 1
         col = 0
-        layout.addWidget(self.info_hist_figure_widget, row, col, 1, 2)
+        layout.addWidget(self.hist_figure_widget, row, col, 1, 2)
 
         row += 1
         layout.setRowStretch(row, row)
@@ -293,47 +292,47 @@ class InfoWindow(Window):
         return widget
 
     @Slot()
-    def on_info_hist_settings_clicked(self):
-        self.info_hist_settings_window = SourceHistSettingsWindow(self.info_hist_figure_widget.cmap_name, self.info_hist_figure_widget.cmap_norm, parent=self)
-        self.info_hist_settings_window.show()
-        self.info_hist_settings_window.raise_()
-        self.info_hist_settings_window.activateWindow()
-        self.info_hist_settings_window.log_checkbox.checkStateChanged.connect(self.on_cmap_norm_changed)
-        self.info_hist_settings_window.cmap_combobox.currentTextChanged.connect(self.on_cmap_name_changed)
+    def on_histogram_settings_clicked(self):
+        self.histogram_settings_window = HistogramSettingsWindow(self.hist_figure_widget.cmap_name, self.hist_figure_widget.cmap_norm, parent=self)
+        self.histogram_settings_window.show()
+        self.histogram_settings_window.raise_()
+        self.histogram_settings_window.activateWindow()
+        self.histogram_settings_window.log_checkbox.checkStateChanged.connect(self.on_cmap_norm_changed)
+        self.histogram_settings_window.cmap_combobox.currentTextChanged.connect(self.on_cmap_name_changed)
 
     @Slot(str)
     def on_cmap_name_changed(self, colormap: str):
-        self.info_hist_figure_widget.cmap_name = colormap
+        self.hist_figure_widget.cmap_name = colormap
 
     @Slot(bool)
     def on_cmap_norm_changed(self, checked: bool):
         if checked == Qt.CheckState.Checked:
-            self.info_hist_settings_window.clim_label.setText("Limits (Log10)")
+            self.histogram_settings_window.clim_label.setText("Limits (Log10)")
             log_clim = np.floor(np.log10(1)), np.ceil(np.log10(self.camera.pxmax))
             log_Δclim = log_clim[1] - log_clim[0]
             log_crange = np.floor(log_clim[0] - log_Δclim * 0.2), np.ceil(log_clim[1] + log_Δclim * 0.2)
-            self.info_hist_settings_window.clim_spinboxes[0].setRange(log_crange[0], log_crange[1])
-            self.info_hist_settings_window.clim_spinboxes[0].setValue(log_clim[0])
-            self.info_hist_settings_window.clim_spinboxes[1].setRange(log_crange[0], log_crange[1])
-            self.info_hist_settings_window.clim_spinboxes[1].setValue(log_clim[1])
-            self.info_hist_figure_widget.cmap_norm = LogNorm(10 ** log_clim[0], 10 ** log_clim[1])
+            self.histogram_settings_window.clim_spinboxes[0].setRange(log_crange[0], log_crange[1])
+            self.histogram_settings_window.clim_spinboxes[0].setValue(log_clim[0])
+            self.histogram_settings_window.clim_spinboxes[1].setRange(log_crange[0], log_crange[1])
+            self.histogram_settings_window.clim_spinboxes[1].setValue(log_clim[1])
+            self.hist_figure_widget.cmap_norm = LogNorm(10 ** log_clim[0], 10 ** log_clim[1])
         else:
-            self.info_hist_settings_window.clim_label.setText("Limits")
+            self.histogram_settings_window.clim_label.setText("Limits")
             lin_clim = 0, self.camera.pxmax
             lin_Δclim = lin_clim[1] - lin_clim[0]
             lin_crange = lin_clim[0] - lin_Δclim * 0.2, lin_clim[1] + lin_Δclim * 0.2
-            self.info_hist_settings_window.clim_spinboxes[0].setRange(lin_crange[0], lin_crange[1])
-            self.info_hist_settings_window.clim_spinboxes[0].setValue(lin_clim[0])
-            self.info_hist_settings_window.clim_spinboxes[1].setRange(lin_crange[0], lin_crange[1])
-            self.info_hist_settings_window.clim_spinboxes[1].setValue(lin_clim[1])
-            self.info_hist_figure_widget.cmap_norm = Normalize(lin_clim[0], lin_clim[1])
+            self.histogram_settings_window.clim_spinboxes[0].setRange(lin_crange[0], lin_crange[1])
+            self.histogram_settings_window.clim_spinboxes[0].setValue(lin_clim[0])
+            self.histogram_settings_window.clim_spinboxes[1].setRange(lin_crange[0], lin_crange[1])
+            self.histogram_settings_window.clim_spinboxes[1].setValue(lin_clim[1])
+            self.hist_figure_widget.cmap_norm = Normalize(lin_clim[0], lin_clim[1])
 
     @Slot(tuple)
     def on_clim_changed(self, clim):
-        if self.info_hist_settings_window.log_checkbox.checkState() == Qt.CheckState.Checked:
-            self.info_hist_figure_widget.cmap_norm = LogNorm(10 ** clim[0], 10 ** clim[1])
+        if self.histogram_settings_window.log_checkbox.checkState() == Qt.CheckState.Checked:
+            self.hist_figure_widget.cmap_norm = LogNorm(10 ** clim[0], 10 ** clim[1])
         else:
-            self.info_hist_figure_widget.cmap_norm = Normalize(clim[0], clim[1])
+            self.hist_figure_widget.cmap_norm = Normalize(clim[0], clim[1])
 
     @Slot()
     def on_update_timer_tick(self):
@@ -343,8 +342,8 @@ class InfoWindow(Window):
         self.info_frame_rate_value_label.setText(f"{self.sample.frame_rate_fps:.2f}")
         self.info_temperature_value_label.setText(f"{self.sample.temperature_c}")
         self.info_roi_value_label.setText(f"[({self.sample.roi['br'][0]}, {self.sample.roi['br'][1]})," f"({self.sample.roi['tl'][0]}, {self.sample.roi['tl'][1]})]")  # pylint: disable=W1405:inconsistent-quotes
-        self.info_hist_figure_widget.figure.set_data(self.sample.capture)
-        self.info_hist_figure_widget.figure.canvas.draw_idle()
+        self.hist_figure_widget.figure.set_data(self.sample.capture)
+        self.hist_figure_widget.figure.canvas.draw_idle()
 
     def closeEvent(self, event):
         if self.update_timer.isActive():
@@ -356,12 +355,12 @@ class InfoWindow(Window):
 # ==== SettingsWindow =================================================================================================
 class SettingsWindow(Window):
     """
-    Camera settings window
+    Camera settings window.
     """
 
     def __init__(self, camera: Camera, parent: QWidget | None = None):
         self.camera = camera
-        self.camera.sync_settings()
+        # self.camera.sync_settings()
         self.sample = SourceSample(self.camera.last_access_time, self.camera.exposure_time_s, self.camera.gain, self.camera.frame_rate_fps, self.camera.temperature_c, self.camera.roi, self.camera.blank)
 
         super().__init__(parent, Qt.WindowType.Dialog)
@@ -376,9 +375,9 @@ class SettingsWindow(Window):
     @property
     def camera(self) -> Camera:
         return self._camera
-    
+
     @camera.setter
-    def camera(self, device:Camera):
+    def camera(self, device: Camera):
         self._camera = device
 
     @property
@@ -386,7 +385,7 @@ class SettingsWindow(Window):
         return self._sample
 
     @sample.setter
-    def sample(self, value:SourceSample):
+    def sample(self, value: SourceSample):
         self._sample = value
 
     @Slot(SourceSample)
@@ -525,16 +524,17 @@ class SettingsWindow(Window):
         event.accept()
 
 
-# ==== SimplePreviewSettingsWindow ====================================================================================
-class SimplePreviewSettingsWindow(Window):
+# ==== PreviewSettingsWindow ====================================================================================
+class PreviewSettingsWindow(Window):
     """
     Settings for the simple preview window.
     """
 
-    def __init__(self, cmap_name: str, cmap_norm: Normalize, parent=None):
+    def __init__(self, cmap_name: str, cmap_norm: Normalize, rotation: Rotation, flip: Flip, parent: QWidget | None = None):
         self.cmap_name: str = cmap_name
         self.cmap_norm: Normalize = cmap_norm
-
+        self.rotation: Rotation = rotation
+        self.flip: Flip = flip
         super().__init__(parent, Qt.WindowType.Dialog)
 
         self.setWindowModality(Qt.WindowModality.WindowModal)
@@ -548,10 +548,6 @@ class SimplePreviewSettingsWindow(Window):
         widget = QWidget(self)
         layout = QGridLayout(widget)
         widget.setLayout(layout)
-
-        axes_label = QLabel("Axes", self)
-        self.log_checkbox = QCheckBox("Log", self)
-        self.log_checkbox.setToolTip("Log Scale")
 
         scale_label = QLabel("Scale", self)
         self.log_checkbox = QCheckBox("Log", self)
@@ -585,6 +581,15 @@ class SimplePreviewSettingsWindow(Window):
         self.cmap_combobox.addItems(list(colormaps))
         self.cmap_combobox.setCurrentIndex(list(colormaps).index(self.cmap_name))
 
+        orientation_label = QLabel("Orientation", self)
+        orientation_label.setFixedWidth(100)
+        self.orientation_widget = OrientationWidget(self.rotation, self.flip, self)
+
+        dark_hole_mask_label = QLabel("Dark Hole Mask", self)
+        self.mask_checkbox = QCheckBox("Show", self)
+        self.mask_checkbox.setToolTip("Show dark hole mask")
+        self.mask_checkbox.setChecked(True)
+
         row = 0
         col = 0
         layout.addWidget(scale_label, row, col)
@@ -603,18 +608,30 @@ class SimplePreviewSettingsWindow(Window):
         col += 1
         layout.addWidget(self.cmap_combobox, row, col)
 
+        row += 1
+        col = 0
+        layout.addWidget(orientation_label, row, col)
+        col += 1
+        layout.addWidget(self.orientation_widget, row, col)
+
+        row += 1
+        col = 0
+        layout.addWidget(dark_hole_mask_label, row, col)
+        col += 1
+        layout.addWidget(self.mask_checkbox, row, col)
+
         return widget
 
 
-# ==== SimplePreviewWindow ============================================================================================
-class SimplePreviewWindow(Window):
+# ==== PreviewWindow ==================================================================================================
+class PreviewWindow(Window):
     """
-    Simple preview window.
+    Alternate preview window (with orientation control).
     """
 
     def __init__(self, camera: Camera, parent: QWidget | None = None):
         self.camera = camera
-        self.camera.sync_settings()
+        # self.camera.sync_settings()
         self.sample = self.camera.sample
 
         super().__init__(parent, Qt.WindowType.Dialog)
@@ -633,9 +650,9 @@ class SimplePreviewWindow(Window):
     @property
     def camera(self) -> Camera:
         return self._camera
-    
+
     @camera.setter
-    def camera(self, device:Camera):
+    def camera(self, device: Camera):
         self._camera = device
 
     @property
@@ -643,12 +660,8 @@ class SimplePreviewWindow(Window):
         return self._sample
 
     @sample.setter
-    def sample(self, value:SourceSample):
+    def sample(self, value: SourceSample):
         self._sample = value
-
-    @Slot(SourceSample)
-    def on_sampled(self, sample: SourceSample):
-        self._sample = sample
 
     def setup_preview_widget(self) -> QWidget:
         widget = QWidget(self)
@@ -665,15 +678,21 @@ class SimplePreviewWindow(Window):
 
         return widget
 
+    @Slot(SourceSample)
+    def on_sampled(self, sample: SourceSample):
+        self._sample = sample
+
     @Slot()
     def on_preview_settings_clicked(self):
-        self.preview_settings_window = SimplePreviewSettingsWindow(self.preview_figure_widget.cmap_name, self.preview_figure_widget.cmap_norm, parent=self)
+        self.preview_settings_window = PreviewSettingsWindow(self.preview_figure_widget.cmap_name, self.preview_figure_widget.cmap_norm, self.preview_figure_widget.rotation, self.preview_figure_widget.flip, parent=self)
         self.preview_settings_window.show()
         self.preview_settings_window.raise_()
         self.preview_settings_window.activateWindow()
         self.preview_settings_window.log_checkbox.checkStateChanged.connect(self.on_cmap_norm_changed)
         self.preview_settings_window.clim_spinboxes.valueChanged.connect(self.on_clim_changed)
         self.preview_settings_window.cmap_combobox.currentTextChanged.connect(self.on_cmap_name_changed)
+        self.preview_settings_window.orientation_widget.rotationChanged.connect(self.on_rotation_changed)
+        self.preview_settings_window.orientation_widget.flipChanged.connect(self.on_flip_changed)
 
     @Slot(str)
     def on_cmap_name_changed(self, colormap: str):
@@ -709,118 +728,6 @@ class SimplePreviewWindow(Window):
         else:
             self.preview_figure_widget.cmap_norm = Normalize(clim[0], clim[1])
 
-    @Slot()
-    def on_update_timer_tick(self):
-        self.preview_figure_widget.figure.get_image().set_data(self.sample.capture)
-        self.preview_figure_widget.figure.canvas.draw_idle()
-
-    def closeEvent(self, event):
-        if self.update_timer.isActive():
-            self.update_timer.stop()
-        self.deleteLater()
-        event.accept()
-
-
-# ==== AltPreviewSettingsWindow =======================================================================================
-class AltPreviewSettingsWindow(SimplePreviewSettingsWindow):
-    """
-    Settings for the alternate preview window (with orientation control).
-    """
-
-    def __init__(self, cmap_name: str, cmap_norm: Normalize, rotation: Rotation, flip: Flip, parent=None):
-        self.rotation: Rotation = rotation
-        self.flip: Flip = flip
-        super().__init__(cmap_name, cmap_norm, parent=parent)
-
-    def setup_preview_settings_widget(self) -> QWidget:
-        widget = QWidget(self)
-        layout = QGridLayout(widget)
-        widget.setLayout(layout)
-
-        scale_label = QLabel("Scale", self)
-        self.log_checkbox = QCheckBox("Log", self)
-        self.log_checkbox.setToolTip("Log Scale")
-
-        self.clim_label = QLabel("", self)
-        self.clim_spinboxes = NDoubleSpinBoxesWidget(parent=self)
-        if isinstance(self.cmap_norm, LogNorm):
-            self.log_checkbox.setChecked(True)
-            log_clim = np.floor(np.log10(self.cmap_norm.vmin)), np.ceil(np.log10(self.cmap_norm.vmax))
-            log_Δclim = log_clim[1] - log_clim[0]
-            log_crange = np.floor(log_clim[0] - log_Δclim * 0.2), np.ceil(log_clim[1] + log_Δclim * 0.2)
-            self.clim_label.setText("Limits (Log10)")
-            self.clim_spinboxes[0].setRange(log_crange[0], log_crange[1])
-            self.clim_spinboxes[0].setValue(log_clim[0])
-            self.clim_spinboxes[1].setRange(log_crange[0], log_crange[1])
-            self.clim_spinboxes[1].setValue(log_clim[1])
-        else:
-            self.log_checkbox.setChecked(False)
-            lin_clim = self.cmap_norm.vmin, self.cmap_norm.vmax
-            lin_Δclim = lin_clim[1] - lin_clim[0]
-            lin_crange = lin_clim[0] - lin_Δclim * 0.2, lin_clim[1] + lin_Δclim * 0.2
-            self.clim_label.setText("Limits")
-            self.clim_spinboxes[0].setRange(lin_crange[0], lin_crange[1])
-            self.clim_spinboxes[0].setValue(lin_clim[0])
-            self.clim_spinboxes[1].setRange(lin_crange[0], lin_crange[1])
-            self.clim_spinboxes[1].setValue(lin_clim[1])
-
-        cmap_label = QLabel("Colormap", self)
-        self.cmap_combobox = QComboBox(self)
-        self.cmap_combobox.addItems(list(colormaps))
-        self.cmap_combobox.setCurrentIndex(list(colormaps).index(self.cmap_name))
-
-        orientation_label = QLabel("Orientation", self)
-        orientation_label.setFixedWidth(100)
-        self.orientation_widget = OrientationWidget(self.rotation, self.flip, self)
-
-        row = 0
-        col = 0
-        layout.addWidget(scale_label, row, col)
-        col += 1
-        layout.addWidget(self.log_checkbox, row, col)
-
-        row += 1
-        col = 0
-        layout.addWidget(self.clim_label, row, col)
-        col += 1
-        layout.addWidget(self.clim_spinboxes, row, col)
-
-        row += 1
-        col = 0
-        layout.addWidget(cmap_label, row, col)
-        col += 1
-        layout.addWidget(self.cmap_combobox, row, col)
-
-        row += 1
-        col = 0
-        layout.addWidget(orientation_label, row, col)
-        col += 1
-        layout.addWidget(self.orientation_widget, row, col)
-
-        return widget
-
-
-# ==== AltPreviewWindow ===============================================================================================
-class AltPreviewWindow(SimplePreviewWindow):
-    """
-    Alternate preview window (with orientation control).
-    """
-
-    def __init__(self, camera: Camera, parent: QWidget | None = None):
-        super().__init__(camera, parent=parent)
-
-    @Slot()
-    def on_preview_settings_clicked(self):
-        self.preview_settings_window = AltPreviewSettingsWindow(self.preview_figure_widget.cmap_name, self.preview_figure_widget.cmap_norm, self.preview_figure_widget.rotation, self.preview_figure_widget.flip, parent=self)
-        self.preview_settings_window.show()
-        self.preview_settings_window.raise_()
-        self.preview_settings_window.activateWindow()
-        self.preview_settings_window.log_checkbox.checkStateChanged.connect(self.on_cmap_norm_changed)
-        self.preview_settings_window.clim_spinboxes.valueChanged.connect(self.on_clim_changed)
-        self.preview_settings_window.cmap_combobox.currentTextChanged.connect(self.on_cmap_name_changed)
-        self.preview_settings_window.orientation_widget.rotationChanged.connect(self.on_rotation_changed)
-        self.preview_settings_window.orientation_widget.flipChanged.connect(self.on_flip_changed)
-
     @Slot(str)
     def on_rotation_changed(self, rotation: Rotation):
         self.preview_figure_widget.rotation = rotation
@@ -831,213 +738,11 @@ class AltPreviewWindow(SimplePreviewWindow):
 
     @Slot()
     def on_update_timer_tick(self):
-        self.preview_figure_widget.figure.get_image().set_data(flip_rotate(self.sample.capture, self.preview_figure_widget.flip, self.preview_figure_widget.rotation))
+        self.preview_figure_widget.figure.get_image().set_data(flip_rotate_frame(self.sample.capture, self.preview_figure_widget.flip, self.preview_figure_widget.rotation))
         self.preview_figure_widget.figure.canvas.draw_idle()
 
-
-# ==== AdvancePreviewSettingsWindow ===================================================================================
-class AdvancePreviewSettingsWindow(SimplePreviewSettingsWindow):
-    """
-    Settings for the advance preview window (with alpha mask and a single speckle).
-    """
-
-    def __init__(self, cmap_name: str, cmap_norm: Normalize, alpha_mask_show: bool, parent=None):
-        self.cmap_name: str = cmap_name
-        self.cmap_norm: Normalize = cmap_norm
-        self.alpha_mask_show: bool = alpha_mask_show
-        super().__init__(cmap_name, cmap_norm, parent=parent)
-
-    def setup_preview_settings_widget(self) -> QWidget:
-        widget = QWidget(self)
-        layout = QGridLayout(widget)
-        widget.setLayout(layout)
-
-        scale_label = QLabel("Scale", self)
-        self.log_checkbox = QCheckBox("Log", self)
-        self.log_checkbox.setToolTip("Log Scale")
-
-        self.clim_label = QLabel("", self)
-        self.clim_spinboxes = NDoubleSpinBoxesWidget(parent=self)
-        if isinstance(self.cmap_norm, LogNorm):
-            self.log_checkbox.setChecked(True)
-            self.clim_label.setText("Limits (Log10)")
-            log_clim = np.floor(np.log10(self.cmap_norm.vmin)), np.ceil(np.log10(self.cmap_norm.vmax))
-            log_Δclim = log_clim[1] - log_clim[0]
-            log_crange = np.floor(log_clim[0] - log_Δclim * 0.2), np.ceil(log_clim[1] + log_Δclim * 0.2)
-            self.clim_spinboxes[0].setRange(log_crange[0], log_crange[1])
-            self.clim_spinboxes[0].setValue(log_clim[0])
-            self.clim_spinboxes[1].setRange(log_crange[0], log_crange[1])
-            self.clim_spinboxes[1].setValue(log_clim[1])
-        else:
-            self.log_checkbox.setChecked(False)
-            self.clim_label.setText("Limits")
-            lin_clim = self.cmap_norm.vmin, self.cmap_norm.vmax
-            lin_Δclim = lin_clim[1] - lin_clim[0]
-            lin_crange = lin_clim[0] - lin_Δclim * 0.2, lin_clim[1] + lin_Δclim * 0.2
-            self.clim_spinboxes[0].setRange(lin_crange[0], lin_crange[1])
-            self.clim_spinboxes[0].setValue(lin_clim[0])
-            self.clim_spinboxes[1].setRange(lin_crange[0], lin_crange[1])
-            self.clim_spinboxes[1].setValue(lin_clim[1])
-
-        cmap_label = QLabel("Colormap", self)
-        self.cmap_combobox = QComboBox(self)
-        self.cmap_combobox.addItems(list(colormaps))
-        self.cmap_combobox.setCurrentIndex(list(colormaps).index(self.cmap_name))
-
-        dark_hole_mask_label = QLabel("Dark Hole Mask", self)
-        self.mask_checkbox = QCheckBox("Show", self)
-        self.mask_checkbox.setToolTip("Show dark hole mask")
-        self.mask_checkbox.setChecked(True)
-
-        row = 0
-        col = 0
-        layout.addWidget(scale_label, row, col)
-        col += 1
-        layout.addWidget(self.log_checkbox, row, col)
-
-        row += 1
-        col = 0
-        layout.addWidget(self.clim_label, row, col)
-        col += 1
-        layout.addWidget(self.clim_spinboxes, row, col)
-
-        row += 1
-        col = 0
-        layout.addWidget(cmap_label, row, col)
-        col += 1
-        layout.addWidget(self.cmap_combobox, row, col)
-
-        row += 1
-        col = 0
-        layout.addWidget(dark_hole_mask_label, row, col)
-        col += 1
-        layout.addWidget(self.mask_checkbox, row, col)
-
-        return widget
-
-
-# ==== AdvancePreviewWindow ===========================================================================================
-class AdvancePreviewWindow(SimplePreviewWindow):
-    """
-    Advance preview window (with alpha mask and a single speckle).
-    """
-
-    def __init__(self, camera: Camera, alpha_mask: NDArray[np.bool], parent: QWidget | None = None):
-        self._alpha_mask = alpha_mask
-        self._speckle = [np.nan, np.nan]
-        super().__init__(camera, parent=parent)
-
-    @property
-    def alpha_mask(self) -> NDArray[np.bool]:
-        return self._alpha_mask
-
-    @property
-    def speckle(self) -> list[float]:
-        return self._speckle
-
-    def setup_preview_widget(self) -> QWidget:
-        widget = QWidget(self)
-        layout = QVBoxLayout(widget)
-        layout.setContentsMargins(2, 2, 2, 2)
-        widget.setLayout(layout)
-
-        self._sample = self.camera.sample
-        self.preview_figure_widget = SourceFigureWidget(self.camera.blank, self.camera.pxmax, alpha_mask=self.alpha_mask, parent=self)
-        # self.speckle_axlines = (self.preview_figure_widget.figure.get_imshow_axes().axvline(np.nan, alpha=0.5, linewidth=0.5, color="red"), self.preview_figure_widget.figure.get_imshow_axes().axhline(np.nan, alpha=0.5, linewidth=0.5, color="red"))
-        (self.speckle_plot,) = self.preview_figure_widget.figure.get_imshow_axes().plot([], [], color="red", marker="o", markersize=10, markerfacecolor="none", linestyle="none")
-        if self.preview_figure_widget.toolbar is not None:
-            self.preview_figure_widget.toolbar.settingsClicked.connect(self.on_preview_settings_clicked)
-
-        layout.addWidget(self.preview_figure_widget)
-
-        return widget
-
-    @Slot(float, float, float, float)
-    def on_speckle_located(self, x: float, y: float, frequency: float, angle: float):
-        self._speckle[0], self._speckle[1] = x, y
-        # self.speckle_frequency = frequency
-        # self.speckle_angle = angle
-
-    @Slot()
-    def on_preview_settings_clicked(self):
-        self.preview_settings_window = AdvancePreviewSettingsWindow(self.preview_figure_widget.cmap_name, self.preview_figure_widget.cmap_norm, self.preview_figure_widget.alpha_mask_show, parent=self)
-        self.preview_settings_window.show()
-        self.preview_settings_window.raise_()
-        self.preview_settings_window.activateWindow()
-        self.preview_settings_window.log_checkbox.checkStateChanged.connect(self.on_cmap_norm_changed)
-        self.preview_settings_window.clim_spinboxes.valueChanged.connect(self.on_clim_changed)
-        self.preview_settings_window.cmap_combobox.currentTextChanged.connect(self.on_cmap_name_changed)
-        self.preview_settings_window.mask_checkbox.checkStateChanged.connect(self.on_mask_show_changed)
-
-    @Slot(bool)
-    def on_mask_show_changed(self, checked: Qt.CheckState):
-        self.preview_figure_widget.alpha_mask_show = checked == Qt.CheckState.Checked
-
-    @Slot()
-    def on_update_timer_tick(self):
-        self.preview_figure_widget.figure.get_image().set_data(self.sample.capture)
-        # self.speckle_axlines[0].set_xdata([self.speckle[0], self.speckle[0]])
-        # self.speckle_axlines[1].set_ydata([self.speckle[1], self.speckle[1]])
-        self.speckle_plot.set_xdata([self.speckle[0]])
-        self.speckle_plot.set_ydata([self.speckle[1]])
-        self.preview_figure_widget.figure.canvas.draw_idle()
-
-
-# ==== RecenterPreviewWindow ==========================================================================================
-class RecenterPreviewWindow(SimplePreviewWindow):
-    """
-    Simple preview window (with two speckles).
-    """
-
-    def __init__(self, camera: Camera, center: list[float] | None, parent: QWidget | None = None):
-        self._speckles = [[np.nan, np.nan], [np.nan, np.nan]]
-        if center is None:
-            self._center = [camera.shape[0] / 2, camera.shape[1] / 2]
-        else:
-            self._center = center
-        super().__init__(camera, parent=parent)
-
-    @property
-    def speckles(self) -> list[list[float]]:
-        return self._speckles
-
-    @property
-    def center(self) -> list[float]:
-        return self._center
-
-    def setup_preview_widget(self) -> QWidget:
-        widget = QWidget(self)
-        layout = QVBoxLayout(widget)
-        layout.setContentsMargins(2, 2, 2, 2)
-        widget.setLayout(layout)
-
-        self._sample = self.camera.sample
-        self.preview_figure_widget = SourceFigureWidget(self.camera.blank, self.camera.pxmax, parent=self)
-        (self.speckles_plot,) = self.preview_figure_widget.figure.get_imshow_axes().plot([], [], color="red", marker="o", markersize=10, markerfacecolor="none", linestyle="none")
-        (self.center_plot,) = self.preview_figure_widget.figure.get_imshow_axes().plot([], [], color="blue", marker="o", markersize=10, markerfacecolor="none", linestyle="none")
-
-        if self.preview_figure_widget.toolbar is not None:
-            self.preview_figure_widget.toolbar.settingsClicked.connect(self.on_preview_settings_clicked)
-
-        layout.addWidget(self.preview_figure_widget)
-
-        return widget
-
-    @Slot(float, float, float, float)
-    def on_speckles_located(self, x0: float, y0: float, x1: float, y1: float):
-        # self._center = [np.nan, np.nan]
-        self._speckles = [[x0, y0], [x1, y1]]
-
-    @Slot(float, float)
-    def on_center_located(self, xc: float, yc: float):
-        self._center = [xc, yc]
-        # self._speckles = [[np.nan, np.nan], [np.nan, np.nan]]
-
-    @Slot()
-    def on_update_timer_tick(self):
-        self.preview_figure_widget.figure.get_image().set_data(self.sample.capture)
-        self.speckles_plot.set_xdata([self.speckles[0][0], self.speckles[1][0]])
-        self.speckles_plot.set_ydata([self.speckles[0][1], self.speckles[1][1]])
-        self.center_plot.set_xdata([self.center[0]])
-        self.center_plot.set_ydata([self.center[1]])
-        self.preview_figure_widget.figure.canvas.draw_idle()
+    def closeEvent(self, event):
+        if self.update_timer.isActive():
+            self.update_timer.stop()
+        self.deleteLater()
+        event.accept()

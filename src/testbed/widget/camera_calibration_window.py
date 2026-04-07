@@ -10,9 +10,8 @@ import testbed
 from ..device.camera import Camera
 from ..worker.camera_calibration_worker import ProcessWorker
 from ..worker.storage_worker import SourceStorageWorker
-from .camera_window import InfoWindow as CameraInfoWindow
-from .camera_window import AltPreviewWindow as CameraPreviewWindow
-from .camera_window import SettingsWindow as CameraSettingsWindow
+from ..widget.camera_window import PreviewWindow as CameraPreviewWindow
+from ..worker.camera_worker import ProcessWorker as CameraSamplingWorker
 from .dialog import MessageDialog
 from .resource import ICON_PAUSE, ICON_RUN
 
@@ -20,7 +19,6 @@ from . import DevicesSetupWidget, TaskControlsWidget, ExposureTimeArrayWidget, W
 
 _PROCESS_ = testbed.CAMERA_CALIBRATION
 process_worker_id = f"{_PROCESS_}_worker"
-source_storage_worker_id = f"{_PROCESS_}_source_storage_worker"
 
 logger = setup_logger(f"{_PROCESS_}_window", terminator="\n")
 
@@ -51,7 +49,7 @@ class ProcessWindow(Window):
 
     def __init__(self, parent=None):
         super().__init__(parent, Qt.WindowType.Dialog)
-        self.setWindowModality(Qt.WindowModality.WindowModal)
+        # self.setWindowModality(Qt.WindowModality.WindowModal)
         self.setWindowTitle("Camera Calibration")
         self.source = None
 
@@ -68,89 +66,12 @@ class ProcessWindow(Window):
     def source(self, device: Camera | None):
         self._source = device
 
+    @Slot(Camera)
     def on_source_changed(self, device: Camera):
-        self.device_widget.source_info_button.setEnabled(True)
-        self.device_widget.source_settings_button.setEnabled(True)
-        self.device_widget.source_preview_button.setEnabled(True)
         self.source = device
-        device_preview_window_id = f"{device.name}_preview_window"
-        if device_preview_window_id in testbed.data.windows:
-            testbed.data.windows.pop(device_preview_window_id).close()
-        device_info_window_id = f"{device.name}_info_window"
-        if device_info_window_id in testbed.data.windows:
-            testbed.data.windows.pop(device_info_window_id).close()
-        device_settings_window_id = f"{device.name}_settings_window"
-        if device_settings_window_id in testbed.data.windows:
-            testbed.data.windows.pop(device_settings_window_id).close()
-        self.device_widget.source_info_button.clicked.connect(lambda _, _device=device: self.open_device_info_window(_device))
-        self.device_widget.source_settings_button.clicked.connect(lambda _, _device=device: self.open_device_settings_window(_device))
-        self.device_widget.source_preview_button.clicked.connect(lambda _, _device=device: self.open_device_preview_window(_device))
-        self.controls_widget.preview_button.setEnabled(False)
         self.controls_widget.play_pause_button.setEnabled(False)
         if self.source is not None:
-            self.controls_widget.preview_button.setEnabled(True)
             self.controls_widget.play_pause_button.setEnabled(True)
-
-    def open_device_info_window(self, device: Camera):
-        device_info_window_id = f"{device.name}_info_window"
-
-        @Slot()
-        def on_window_closed():
-            testbed.data.windows.pop(device_info_window_id, None)
-
-        if device_info_window_id not in testbed.data.windows:
-            info_window: CameraInfoWindow | None = None
-            if isinstance(device, Camera):
-                info_window = CameraInfoWindow(device, self)
-                if process_worker_id in testbed.data.workers:  # an update worker is in progress
-                    testbed.data.workers[process_worker_id].signals.srcSampled.connect(info_window.on_sampled)
-            else:
-                raise ValueError("Invalid device")
-            info_window.destroyed.connect(on_window_closed)
-            info_window.show()
-            info_window.raise_()
-            info_window.activateWindow()
-            testbed.data.windows[device_info_window_id] = info_window
-
-    def open_device_settings_window(self, device: Camera):
-        device_settings_window_id = f"{device.name}_settings_window"
-
-        @Slot()
-        def on_window_closed():
-            testbed.data.windows.pop(device_settings_window_id, None)
-
-        if device_settings_window_id not in testbed.data.windows:
-            settings_window: CameraSettingsWindow | None = None
-            if isinstance(device, Camera):
-                settings_window = CameraSettingsWindow(device, self)
-            else:
-                raise ValueError("Invalid device")
-            settings_window.destroyed.connect(on_window_closed)
-            settings_window.show()
-            settings_window.raise_()
-            settings_window.activateWindow()
-            testbed.data.windows[device_settings_window_id] = settings_window
-
-    def open_device_preview_window(self, device: Camera):
-        device_preview_window_id = f"{device.name}_preview_window"
-
-        @Slot()
-        def on_window_closed():
-            testbed.data.windows.pop(device_preview_window_id, None)
-
-        if device_preview_window_id not in testbed.data.windows:
-            preview_window: CameraPreviewWindow | None = None
-            if isinstance(device, Camera):
-                preview_window = CameraPreviewWindow(device, self)
-                if process_worker_id in testbed.data.workers:  # an update worker is in progress
-                    testbed.data.workers[process_worker_id].signals.srcSampled.connect(preview_window.on_sampled)
-            else:
-                raise ValueError("Invalid device")
-            preview_window.destroyed.connect(on_window_closed)
-            preview_window.show()
-            preview_window.raise_()
-            preview_window.activateWindow()
-            testbed.data.windows[device_preview_window_id] = preview_window
 
     @Slot(int, float)  # step, elapsed_time
     def on_progress_tick(self, step: int, t_elapsed: float):
@@ -159,18 +80,29 @@ class ProcessWindow(Window):
         self.controls_widget.progressbar.updateProgress()
 
     @Slot()
-    def on_finished(self):
+    def on_process_finished(self):
         self.controls_widget.progressbar.reset()
         self.controls_widget.progressbar.updateProgress()
         if process_worker_id in testbed.data.workers:  # an update worker is in progress
-            current_worker = testbed.data.workers.pop(process_worker_id)
-            current_worker.stop()
-            self.controls_widget.play_pause_button.setIcon(QIcon(ICON_RUN))
+            process_worker: ProcessWorker = testbed.data.workers[process_worker_id]
+            process_worker.stop()
+            self.controls_widget.play_pause_button.setIconHint(QIcon(ICON_RUN), "Run")
+            testbed.data.workers.pop(process_worker_id)
+
+        assert self.source is not None
+        source_preview_window_id = f"{self.source.name}_preview_window"
+        if source_preview_window_id in testbed.data.windows:
+            source_preview_window: CameraPreviewWindow = testbed.data.windows[source_preview_window_id]
+            source_preview_window.update_timer.stop()
+            source_preview_window.update_timer.timeout.disconnect()
+            source_preview_window.update_timer.timeout.connect(source_preview_window.on_update_timer_tick)
 
     @Slot()
     def on_source_storage_finished(self):
+        assert self.source is not None
+        source_storage_worker_id = f"{self.source.name}_storage_worker"
         if source_storage_worker_id in testbed.data.workers:
-            source_storage_worker = testbed.data.workers.pop(source_storage_worker_id)
+            source_storage_worker: SourceStorageWorker = testbed.data.workers[source_storage_worker_id]
             source_storage_worker.stop()
 
     @Slot()
@@ -179,44 +111,54 @@ class ProcessWindow(Window):
             message_dialog = MessageDialog("Devices not selected", "Source device not selected.", icon=QMessageBox.Icon.Information, buttons=QMessageBox.StandardButton.Ok)
             message_dialog.exec()
         else:
-            source_preview_window_id = f"{self.source.name}_preview_window"
+            source_sampling_worker_id = f"{self.source.name}_sampling_worker"
+            if source_sampling_worker_id in testbed.data.workers:
+                source_sampling_worker: CameraSamplingWorker = testbed.data.workers[source_sampling_worker_id]
+                source_sampling_worker.stop()
+                testbed.data.workers.pop(source_sampling_worker_id)
+
+            source_storage_worker_id = f"{self.source.name}_storage_worker"
+            if source_storage_worker_id in testbed.data.workers:
+                source_storage_worker: SourceStorageWorker = testbed.data.workers[source_storage_worker_id]
+                source_storage_worker.stop()
+                testbed.data.workers.pop(source_storage_worker_id)
 
             if process_worker_id in testbed.data.workers:  # an update worker is in progress
-                logger.info("stopping running process")
-                current_worker = testbed.data.workers.pop(process_worker_id)
-                current_worker.stop()
-                self.controls_widget.play_pause_button.setIcon(QIcon(ICON_RUN))
-                self.device_widget.source_settings_button.setEnabled(True)
+                process_worker: ProcessWorker = testbed.data.workers[process_worker_id]
+                process_worker.stop()
+                testbed.data.workers.pop(process_worker_id)
+
+                self.controls_widget.play_pause_button.setIconHint(QIcon(ICON_RUN), "Run")
                 self.controls_widget.progressbar.setMaximum(100)
                 self.controls_widget.progressbar.reset()
                 self.controls_widget.progressbar.updateProgress()
-                if source_storage_worker_id in testbed.data.workers:
-                    current_source_storage_worker = testbed.data.workers.pop(source_storage_worker_id)
-                    current_source_storage_worker.stop()
+
                 return
 
             self.controls_widget.progressbar.setMaximum(self.settings_widget.exposure_times_array.size)
 
-            worker = ProcessWorker(self.source, self.settings_widget.exposure_times_array)
-            worker.signals.progressTicked.connect(self.on_progress_tick)
-            worker.signals.finished.connect(self.on_finished)
+            process_worker = ProcessWorker(self.source, self.settings_widget.exposure_times_array)
+            process_worker.signals.progressTicked.connect(self.on_progress_tick)
+            process_worker.signals.finished.connect(self.on_process_finished)
+
+            self.controls_widget.play_pause_button.setIconHint(QIcon(ICON_PAUSE), "Pause")
 
             timestamp = timestamp_string(frmt="%Y%m%d.%H%M%S", ms=None)
+            source_storage_worker = SourceStorageWorker(f"data/output/{timestamp}_{_PROCESS_}_{self.source.name}.raw", self.settings_widget.exposure_times_array.size)
+            process_worker.signals.srcSampled.connect(source_storage_worker.on_sampled)
 
-            source_storage_worker = SourceStorageWorker(f"data/output/{timestamp}_{_PROCESS_}_source.raw", self.settings_widget.exposure_times_array.size)
-            worker.signals.srcSampled.connect(source_storage_worker.on_sampled)
             source_storage_worker.signals.finished.connect(self.on_source_storage_finished)
+
+            source_preview_window_id = f"{self.source.name}_preview_window"
+            if source_preview_window_id in testbed.data.windows:
+                source_preview_window: CameraPreviewWindow = testbed.data.windows[source_preview_window_id]
+                process_worker.signals.srcSampled.connect(source_preview_window.on_sampled)
+
             testbed.data.workers[source_storage_worker_id] = source_storage_worker
             testbed.data.threadpool.start(source_storage_worker)
 
-            self.controls_widget.play_pause_button.setIcon(QIcon(ICON_PAUSE))
-            self.device_widget.source_settings_button.setEnabled(False)
-
-            if source_preview_window_id in testbed.data.windows:
-                worker.signals.srcSampled.connect(testbed.data.windows[source_preview_window_id].on_sampled)
-
-            testbed.data.workers[process_worker_id] = worker
-            testbed.data.threadpool.start(worker)
+            testbed.data.workers[process_worker_id] = process_worker
+            testbed.data.threadpool.start(process_worker)
 
     def setup_main_widget(self) -> QWidget:
         widget = QWidget(self)

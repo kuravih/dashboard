@@ -94,27 +94,6 @@ class DevicesSetupWidget(QWidget):
 
         sink_device_combobox.currentTextChanged.connect(on_sink_device_select)
 
-        self.sink_info_button = IconButton(QIcon(ICON_INFO), parent=self)
-        self.sink_info_button.setEnabled(False)
-        self.sink_info_button.setFixedWidth(sink_device_combobox.sizeHint().height())
-        self.sink_info_button.setFixedHeight(sink_device_combobox.sizeHint().height())
-        self.sink_info_button.setToolTip("Information")
-        self.sink_info_button.hide()
-
-        self.sink_settings_button = IconButton(QIcon(ICON_GEAR), parent=self)
-        self.sink_settings_button.setEnabled(False)
-        self.sink_settings_button.setFixedWidth(sink_device_combobox.sizeHint().height())
-        self.sink_settings_button.setFixedHeight(sink_device_combobox.sizeHint().height())
-        self.sink_settings_button.setToolTip("Settings")
-        self.sink_settings_button.hide()
-
-        self.sink_preview_button = IconButton(QIcon(ICON_EYE), parent=self)
-        self.sink_preview_button.setEnabled(False)
-        self.sink_preview_button.setFixedWidth(sink_device_combobox.sizeHint().height())
-        self.sink_preview_button.setFixedHeight(sink_device_combobox.sizeHint().height())
-        self.sink_preview_button.setToolTip("Sink Preview")
-        self.sink_preview_button.hide()
-
         source_device_label = QLabel("Source")
         source_device_label.setFixedWidth(100)
         source_device_label.hide()
@@ -129,27 +108,6 @@ class DevicesSetupWidget(QWidget):
 
         source_device_combobox.currentTextChanged.connect(on_source_device_select)
 
-        self.source_info_button = IconButton(QIcon(ICON_INFO), parent=self)
-        self.source_info_button.setEnabled(False)
-        self.source_info_button.setFixedWidth(source_device_combobox.sizeHint().height())
-        self.source_info_button.setFixedHeight(source_device_combobox.sizeHint().height())
-        self.source_info_button.setToolTip("Information")
-        self.source_info_button.hide()
-
-        self.source_settings_button = IconButton(QIcon(ICON_GEAR), parent=self)
-        self.source_settings_button.setEnabled(False)
-        self.source_settings_button.setFixedWidth(source_device_combobox.sizeHint().height())
-        self.source_settings_button.setFixedHeight(source_device_combobox.sizeHint().height())
-        self.source_settings_button.setToolTip("Settings")
-        self.source_settings_button.hide()
-
-        self.source_preview_button = IconButton(QIcon(ICON_EYE), parent=self)
-        self.source_preview_button.setEnabled(False)
-        self.source_preview_button.setFixedWidth(source_device_combobox.sizeHint().height())
-        self.source_preview_button.setFixedHeight(source_device_combobox.sizeHint().height())
-        self.source_preview_button.setToolTip("Source Preview")
-        self.source_preview_button.hide()
-
         layout = QGridLayout()
 
         row = 0
@@ -161,15 +119,6 @@ class DevicesSetupWidget(QWidget):
             col += 1
             sink_device_combobox.show()
             layout.addWidget(sink_device_combobox, row, col)
-            col += 1
-            self.sink_info_button.show()
-            layout.addWidget(self.sink_info_button, row, col)
-            col += 1
-            self.sink_settings_button.show()
-            layout.addWidget(self.sink_settings_button, row, col)
-            col += 1
-            self.sink_preview_button.show()
-            layout.addWidget(self.sink_preview_button, row, col)
 
         if self.setup_source:
             row += 1
@@ -179,15 +128,6 @@ class DevicesSetupWidget(QWidget):
             col += 1
             source_device_combobox.show()
             layout.addWidget(source_device_combobox, row, col)
-            col += 1
-            self.source_info_button.show()
-            layout.addWidget(self.source_info_button, row, col)
-            col += 1
-            self.source_settings_button.show()
-            layout.addWidget(self.source_settings_button, row, col)
-            col += 1
-            self.source_preview_button.show()
-            layout.addWidget(self.source_preview_button, row, col)
 
         self.setLayout(layout)
 

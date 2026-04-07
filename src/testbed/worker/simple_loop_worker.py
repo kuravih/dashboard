@@ -70,7 +70,7 @@ class ProcessWorker(Worker):
         self.signals.progressTicked.emit(i_step, time.time() - t_start)
         # ---- blank --------------------------------------------------------------------------------------------------
 
-        logger.info("%s and %s ProcessWorker.run : step %i of %i", self.source.name, self.sink.name, i_step, self.n_steps)
+        logger.info("%s and %s ProcessWorker.run : step %i of %.0f", self.source.name, self.sink.name, i_step, self.n_steps if self.n_steps else np.inf)
 
         while ((self.n_steps is None) or (self.n_steps > i_step)) and self._running:
 
@@ -89,6 +89,6 @@ class ProcessWorker(Worker):
             i_step = i_step + 1
             self.signals.progressTicked.emit(i_step, time.time() - t_start)
 
-            logger.info("%s and %s ProcessWorker.run : step %i of %i", self.source.name, self.sink.name, i_step, self.n_steps)
+            logger.info("%s and %s ProcessWorker.run : step %i of %.0f", self.source.name, self.sink.name, i_step, self.n_steps if self.n_steps else np.inf)
 
         self.signals.finished.emit()

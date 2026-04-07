@@ -8,11 +8,11 @@ import testbed
 from testbed.device import Stream
 
 from testbed.device.camera import Camera
-from testbed.widget.camera_window import AltPreviewWindow as CameraPreviewWindow, InfoWindow as CameraInfoWindow, SettingsWindow as CameraSettingsWindow
+from testbed.widget.camera_window import PreviewWindow as CameraPreviewWindow, InfoWindow as CameraInfoWindow, SettingsWindow as CameraSettingsWindow
 from testbed.worker.camera_worker import ProcessWorker as CameraSamplingWorker
 
 from testbed.device.modulator import Modulator
-from testbed.widget.modulator_window import AltPreviewWindow as ModulatorPreviewWindow, InfoWindow as ModulatorInfoWindow, SettingsWindow as ModulatorSettingsWindow
+from testbed.widget.modulator_window import PreviewWindow as ModulatorPreviewWindow, InfoWindow as ModulatorInfoWindow, SettingsWindow as ModulatorSettingsWindow
 from testbed.worker.modulator_worker import ProcessWorker as ModulatorSamplingWorker
 
 from testbed.widget.simple_loop_window import ProcessWindow as SimpleLoopWindow
@@ -93,9 +93,9 @@ class MainWindow(QMainWindow):
         layout.addWidget(pairwise_fpwfs_button)
         self.setCentralWidget(container)
 
-    def open_device_preview_window(self, _device: Camera | Modulator):
-        device_preview_window_id = f"{_device.name}_preview_window"
-        device_sampling_worker_id = f"{_device.name}_sampling_worker"
+    def open_device_preview_window(self, device: Camera | Modulator):
+        device_preview_window_id = f"{device.name}_preview_window"
+        device_sampling_worker_id = f"{device.name}_sampling_worker"
 
         @Slot()
         def on_window_closed():
@@ -103,10 +103,10 @@ class MainWindow(QMainWindow):
 
         if device_preview_window_id not in testbed.data.windows:
             preview_window: CameraPreviewWindow | ModulatorPreviewWindow | None = None
-            if isinstance(_device, Camera):
-                preview_window = CameraPreviewWindow(_device, parent=self)
-            elif isinstance(_device, Modulator):
-                preview_window = ModulatorPreviewWindow(_device, parent=self)
+            if isinstance(device, Camera):
+                preview_window = CameraPreviewWindow(device, parent=self)
+            elif isinstance(device, Modulator):
+                preview_window = ModulatorPreviewWindow(device, parent=self)
             else:
                 raise ValueError("Invalid device")
 
@@ -119,10 +119,10 @@ class MainWindow(QMainWindow):
             if device_sampling_worker_id in testbed.data.workers:
                 testbed.data.workers[device_sampling_worker_id].signals.sampled.connect(testbed.data.windows[device_preview_window_id].on_sampled)
 
-    def open_device_info_window(self, _device: Camera | Modulator):
+    def open_device_info_window(self, device: Camera | Modulator):
 
-        device_info_window_id = f"{_device.name}_info_window"
-        device_sampling_worker_id = f"{_device.name}_sampling_worker"
+        device_info_window_id = f"{device.name}_info_window"
+        device_sampling_worker_id = f"{device.name}_sampling_worker"
 
         @Slot()
         def on_window_closed():
@@ -130,10 +130,10 @@ class MainWindow(QMainWindow):
 
         if device_info_window_id not in testbed.data.windows:
             info_window: CameraInfoWindow | ModulatorInfoWindow | None = None
-            if isinstance(_device, Camera):
-                info_window = CameraInfoWindow(_device, parent=self)
-            elif isinstance(_device, Modulator):
-                info_window = ModulatorInfoWindow(_device, parent=self)
+            if isinstance(device, Camera):
+                info_window = CameraInfoWindow(device, parent=self)
+            elif isinstance(device, Modulator):
+                info_window = ModulatorInfoWindow(device, parent=self)
             else:
                 raise ValueError("Invalid device")
             info_window.destroyed.connect(on_window_closed)
@@ -145,10 +145,10 @@ class MainWindow(QMainWindow):
             if device_sampling_worker_id in testbed.data.workers:
                 testbed.data.workers[device_sampling_worker_id].signals.sampled.connect(testbed.data.windows[device_info_window_id].on_sampled)
 
-    def open_device_settings_window(self, _device: Camera | Modulator):
+    def open_device_settings_window(self, device: Camera | Modulator):
 
-        device_settings_window_id = f"{_device.name}_settings_window"
-        device_sampling_worker_id = f"{_device.name}_sampling_worker"
+        device_settings_window_id = f"{device.name}_settings_window"
+        device_sampling_worker_id = f"{device.name}_sampling_worker"
 
         @Slot()
         def on_window_closed():
@@ -156,10 +156,10 @@ class MainWindow(QMainWindow):
 
         if device_settings_window_id not in testbed.data.windows:
             settings_window: CameraSettingsWindow | ModulatorSettingsWindow | None = None
-            if isinstance(_device, Camera):
-                settings_window = CameraSettingsWindow(_device, parent=self)
-            elif isinstance(_device, Modulator):
-                settings_window = ModulatorSettingsWindow(_device, parent=self)
+            if isinstance(device, Camera):
+                settings_window = CameraSettingsWindow(device, parent=self)
+            elif isinstance(device, Modulator):
+                settings_window = ModulatorSettingsWindow(device, parent=self)
             else:
                 raise ValueError("Invalid device")
             settings_window.destroyed.connect(on_window_closed)
@@ -171,27 +171,25 @@ class MainWindow(QMainWindow):
             if device_sampling_worker_id in testbed.data.workers:
                 testbed.data.workers[device_sampling_worker_id].signals.sampled.connect(testbed.data.windows[device_settings_window_id].on_sampled)
 
-    def on_start_stop(self, _device: Camera | Modulator, _button: IconButton):
+    def on_start_stop(self, device: Camera | Modulator, button: IconButton):
 
-        device_preview_window_id = f"{_device.name}_preview_window"
-        device_info_window_id = f"{_device.name}_info_window"
-        device_settings_window_id = f"{_device.name}_settings_window"
-        device_sampling_worker_id = f"{_device.name}_sampling_worker"
+        device_preview_window_id = f"{device.name}_preview_window"
+        device_info_window_id = f"{device.name}_info_window"
+        device_settings_window_id = f"{device.name}_settings_window"
+        device_sampling_worker_id = f"{device.name}_sampling_worker"
 
         if device_sampling_worker_id in testbed.data.workers:  # an update worker is in progress
-            current_device_sampling_worker = testbed.data.workers.pop(device_sampling_worker_id)
-            current_device_sampling_worker.stop()
-            _button.setIconHint(QIcon(ICON_PLAY), "Stop")
+            testbed.data.workers[device_sampling_worker_id].stop()
             return
 
         device_sampling_worker: CameraSamplingWorker | ModulatorSamplingWorker | None = None
-        if isinstance(_device, Camera):
-            device_sampling_worker = CameraSamplingWorker(_device)
-        elif isinstance(_device, Modulator):
-            device_sampling_worker = ModulatorSamplingWorker(_device)
+        if isinstance(device, Camera):
+            device_sampling_worker = CameraSamplingWorker(device)
+        elif isinstance(device, Modulator):
+            device_sampling_worker = ModulatorSamplingWorker(device)
         else:
             raise ValueError("Invalid device")
-
+        
         if device_preview_window_id in testbed.data.windows:
             device_sampling_worker.signals.sampled.connect(testbed.data.windows[device_preview_window_id].on_sampled)
         if device_info_window_id in testbed.data.windows:
@@ -199,10 +197,18 @@ class MainWindow(QMainWindow):
         if device_settings_window_id in testbed.data.windows:
             device_sampling_worker.signals.sampled.connect(testbed.data.windows[device_settings_window_id].on_sampled)
 
+        device_sampling_worker.signals.finished.connect(lambda d=device, b=button: self.on_sampling_worker_finished(d, b))
+
         testbed.data.workers[device_sampling_worker_id] = device_sampling_worker
 
         testbed.data.threadpool.start(device_sampling_worker)
-        _button.setIconHint(QIcon(ICON_PAUSE), "Start")
+        button.setIconHint(QIcon(ICON_PAUSE), "Stop")
+
+    def on_sampling_worker_finished(self, device: Camera | Modulator, button: IconButton):
+        device_sampling_worker_id = f"{device.name}_sampling_worker"
+        if device_sampling_worker_id in testbed.data.workers:  # an update worker is in progress
+            testbed.data.workers.pop(device_sampling_worker_id, None)
+            button.setIconHint(QIcon(ICON_PLAY), "Start")
 
     @Slot()
     def on_add_device_clicked(self):
@@ -241,10 +247,10 @@ class MainWindow(QMainWindow):
                     camera = Camera(stream)
                     self.table.setItem(row, 2, QTableWidgetItem(str(camera.shape)))
                     self.table.setItem(row, 3, QTableWidgetItem(str(stream.dtype)))
-                    preview_button.clicked.connect(lambda _, _camera=camera: self.open_device_preview_window(_camera))
-                    info_button.clicked.connect(lambda _, _camera=camera: self.open_device_info_window(_camera))
-                    settings_button.clicked.connect(lambda _, _camera=camera: self.open_device_settings_window(_camera))
-                    play_pause_button.clicked.connect(lambda _, _button=play_pause_button, _camera=camera: self.on_start_stop(_camera, _button))
+                    preview_button.clicked.connect(lambda _, c=camera: self.open_device_preview_window(c))
+                    info_button.clicked.connect(lambda _, c=camera: self.open_device_info_window(c))
+                    settings_button.clicked.connect(lambda _, c=camera: self.open_device_settings_window(c))
+                    play_pause_button.clicked.connect(lambda _, b=play_pause_button, c=camera: self.on_start_stop(c, b))
                     testbed.data.devices[stream_id] = camera
                     # self.on_start_stop(camera, play_pause_button) # TODO: uncomment
                     # self.open_device_preview_window(camera) # TODO: uncomment
@@ -252,10 +258,10 @@ class MainWindow(QMainWindow):
                     modulator = Modulator(stream)
                     self.table.setItem(row, 2, QTableWidgetItem(str(modulator.shape)))
                     self.table.setItem(row, 3, QTableWidgetItem(str(stream.dtype)))
-                    preview_button.clicked.connect(lambda _, _modulator=modulator: self.open_device_preview_window(_modulator))
-                    info_button.clicked.connect(lambda _, _modulator=modulator: self.open_device_info_window(_modulator))
-                    settings_button.clicked.connect(lambda _, _modulator=modulator: self.open_device_settings_window(_modulator))
-                    play_pause_button.clicked.connect(lambda _, _button=play_pause_button, _modulator=modulator: self.on_start_stop(_modulator, _button))
+                    preview_button.clicked.connect(lambda _, m=modulator: self.open_device_preview_window(m))
+                    info_button.clicked.connect(lambda _, m=modulator: self.open_device_info_window(m))
+                    settings_button.clicked.connect(lambda _, m=modulator: self.open_device_settings_window(m))
+                    play_pause_button.clicked.connect(lambda _, b=play_pause_button, m=modulator: self.on_start_stop(m, b))
                     testbed.data.devices[stream_id] = modulator
                     # self.on_start_stop(modulator, play_pause_button) # TODO: uncomment
                     # self.open_device_preview_window(modulator) # TODO: uncomment

@@ -52,23 +52,45 @@ class Flip(Enum):
 
 class Rotation(Enum):
     UP = auto()
-    RIGHT = auto()
-    DOWN = auto()
     LEFT = auto()
+    DOWN = auto()
+    RIGHT = auto()
 
     @classmethod
     def from_int(cls, i: int) -> "Rotation":
-        return {0: cls.UP, 1: cls.RIGHT, 2: cls.DOWN, 3: cls.LEFT}[i]
+        return {0: cls.UP, 1: cls.LEFT, 2: cls.DOWN, 3: cls.RIGHT}[i]
 
     def to_int(self):
-        return {Rotation.UP: 0, Rotation.RIGHT: 1, Rotation.DOWN: 2, Rotation.LEFT: 3}[self]
+        return {Rotation.UP: 0, Rotation.LEFT: 1, Rotation.DOWN: 2, Rotation.RIGHT: 3}[self]
 
 
-def flip_rotate(frame: np.ndarray, flip: Flip, rotation: Rotation) -> np.ndarray:
+def flip_rotate_frame(frame: np.ndarray, flip: Flip, rotation: Rotation) -> np.ndarray:
     frame = np.rot90(frame, rotation.to_int())
     if flip == Flip.NEG:
         frame = np.fliplr(frame)
     return frame
+
+
+def flip_rotate_points(xs: np.ndarray, ys: np.ndarray, image_shape: tuple[int, int], flip: Flip, rotation: Rotation) -> np.ndarray:
+    height, width = image_shape
+
+    if rotation == Rotation.UP: # UP
+        xs_new, ys_new = xs, ys
+        height_new, width_new = height, width
+    elif rotation == Rotation.LEFT: # LEFT (90° CCW)
+        xs_new, ys_new = width - 1 - ys, xs
+        height_new, width_new = width, height
+    elif rotation == Rotation.DOWN: # DOWN (180°)
+        xs_new, ys_new = height - 1 - xs, width - 1 - ys
+        height_new, width_new = height, width
+    elif rotation == Rotation.RIGHT: # RIGHT (270° CCW)
+        xs_new, ys_new = ys, height - 1 - xs
+        height_new, width_new = width, height
+
+    if flip == Flip.NEG:
+        ys_new = width_new - 1 - ys_new
+
+    return xs_new, ys_new
 
 
 def write_source_sample_header(fileio: FileIO, sample: SourceSample):

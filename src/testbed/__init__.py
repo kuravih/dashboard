@@ -2,8 +2,8 @@ from PySide6.QtCore import QThreadPool
 
 from .device.camera import Camera
 from .device.modulator import Modulator
-from .widget.camera_window import AltPreviewWindow as CameraPreviewWindow, InfoWindow as CameraInfoWindow, SettingsWindow as CameraSettingsWindow
-from .widget.modulator_window import AltPreviewWindow as ModulatorPreviewWindow, InfoWindow as ModulatorInfoWindow, SettingsWindow as ModulatorSettingsWindow
+from .widget.camera_window import PreviewWindow as CameraPreviewWindow, InfoWindow as CameraInfoWindow, SettingsWindow as CameraSettingsWindow
+from .widget.modulator_window import PreviewWindow as ModulatorPreviewWindow, InfoWindow as ModulatorInfoWindow, SettingsWindow as ModulatorSettingsWindow
 
 SIMPLE_LOOP = "simple_loop"
 from .widget.simple_loop_window import ProcessWindow as SimpleLoopWindow
