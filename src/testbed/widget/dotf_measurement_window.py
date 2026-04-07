@@ -301,24 +301,6 @@ class ProcessWindow(Window):
             sink_preview_window.update_timer.timeout.connect(sink_preview_window.on_update_timer_tick)
 
     @Slot()
-    def on_source_storage_finished(self):
-        assert self.source is not None
-        source_storage_worker_id = f"{self.source.name}_storage_worker"
-        if source_storage_worker_id in testbed.data.workers:
-            source_storage_worker: SourceStorageWorker = testbed.data.workers[source_storage_worker_id]
-            source_storage_worker.stop()
-            testbed.data.workers.pop(source_storage_worker_id)
-
-    @Slot()
-    def on_sink_storage_finished(self):
-        assert self.sink is not None
-        sink_storage_worker_id = f"{self.sink.name}_storage_worker"
-        if sink_storage_worker_id in testbed.data.workers:
-            sink_storage_worker: SinkStorageWorker = testbed.data.workers[sink_storage_worker_id]
-            sink_storage_worker.stop()
-            testbed.data.workers.pop(sink_storage_worker_id)
-
-    @Slot()
     def on_start_stop_clicked(self):
         if self.source is None or self.sink is None:
             message_dialog = MessageDialog("Devices not selected", "Source and sink devices not selected.", icon=QMessageBox.Icon.Information, buttons=QMessageBox.StandardButton.Ok)
