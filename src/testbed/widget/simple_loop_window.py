@@ -297,14 +297,14 @@ class ProcessWindow(Window):
             timestamp = timestamp_string(frmt="%Y%m%d.%H%M%S", ms=None)
 
             if self.settings_widget.record_source:
-                source_storage_worker = SourceStorageWorker(f"data/output/{timestamp}_{_PROCESS_}_source.raw", self.settings_widget.n_steps)
+                source_storage_worker = SourceStorageWorker(f"data/output/{timestamp}_{_PROCESS_}_{self.source.name}.raw", self.settings_widget.n_steps)
                 process_worker.signals.srcSampled.connect(source_storage_worker.on_sampled)
                 source_storage_worker.signals.finished.connect(self.on_source_storage_finished)
                 testbed.data.workers[source_storage_worker_id] = source_storage_worker
                 testbed.data.threadpool.start(source_storage_worker)
 
             if self.settings_widget.record_sink:
-                sink_storage_worker = SinkStorageWorker(f"data/output/{timestamp}_{_PROCESS_}_sink.raw", self.settings_widget.n_steps)
+                sink_storage_worker = SinkStorageWorker(f"data/output/{timestamp}_{_PROCESS_}_{self.sink.name}.raw", self.settings_widget.n_steps)
                 process_worker.signals.snkSampled.connect(sink_storage_worker.on_sampled)
                 sink_storage_worker.signals.finished.connect(self.on_sink_storage_finished)
                 testbed.data.workers[sink_storage_worker_id] = sink_storage_worker
