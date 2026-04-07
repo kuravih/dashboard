@@ -1,7 +1,7 @@
 import numpy as np
 from numpy.typing import NDArray
 
-from pykato.function import chord, timestamp_string
+from pykato.function import chord
 from pykato.log import setup_logger
 
 from PySide6.QtCore import Qt, QTimer, Slot
@@ -16,13 +16,11 @@ from ..device.camera import Camera
 from ..device.modulator import Modulator, FULL_STROKE_NM
 from ..function import is_speckle_calibration_file_valid, read_speckle_calibration_file, constrained_sin_fit_fn, quadratic_fit_fn
 from ..worker.speckle_nulling_worker import ProcessWorker
+from ..worker.camera_worker import ProcessWorker as CameraSamplingWorker
+from ..worker.modulator_worker import ProcessWorker as ModulatorSamplingWorker
 from ..worker.storage_worker import SinkStorageWorker, SourceStorageWorker
 from .camera_window import PreviewWindow as CameraPreviewWindow
-from .camera_window import InfoWindow as CameraInfoWindow
-from .camera_window import SettingsWindow as CameraSettingsWindow
-from .modulator_window import InfoWindow as ModulatorInfoWindow
 from .modulator_window import PreviewWindow as ModulatorPreviewWindow
-from .modulator_window import SettingsWindow as ModulatorSettingsWindow
 from .dialog import MessageDialog
 from .figure_widget import ContrastFigureWidget, SpeckleNullingFigureWidget
 from .resource import ICON_PAUSE, ICON_RUN
@@ -689,7 +687,7 @@ class ProcessWindow(Window):
             testbed.data.windows[process_info_window_id] = process_info_window
 
             if process_worker_id in testbed.data.workers:
-                process_worker = testbed.data.workers[process_worker_id]
+                process_worker: ProcessWorker = testbed.data.workers[process_worker_id]
                 process_worker.signals.phsSwept.connect(process_info_window.on_phs_swept)
                 process_worker.signals.phsFitted.connect(process_info_window.on_phs_fitted)
                 process_worker.signals.phsSolved.connect(process_info_window.on_phs_solved)
