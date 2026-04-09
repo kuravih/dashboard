@@ -367,7 +367,7 @@ class SettingsWindow(Window):
 
         modulator_calibration_label = QLabel("Calibration", self)
         modulator_calibration_label.setFixedWidth(100)
-        self.calibration_widget = FileLoadWidget(caption="Open Calibration File", directory="./data/output", file_filter="Fits file (*.fits)", validator=lambda _filename: is_modulator_calibration_file_valid(_filename, self.modulator.full_shape), parent=self)
+        self.calibration_widget = FileLoadWidget(caption="Open Calibration File", directory="./data/output", file_filter="Fits file (*.fits)", validator=lambda _filename: is_modulator_calibration_file_valid(_filename, self.modulator.shape), parent=self)
         self.calibration_widget.setFilepath(self.modulator.calibration_file)
 
         @Slot()
