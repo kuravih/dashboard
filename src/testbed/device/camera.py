@@ -2,7 +2,7 @@ import numpy as np
 from datetime import datetime
 
 from . import Device, Stream, ZMQLink, SourceSample
-from ..function import read_camera_calibration_file, capture_to_countrate
+from ..function import read_camera_calibration_file, capture_to_countrate, countrate_limits
 
 from pykato.log import setup_logger
 
@@ -43,6 +43,15 @@ class Camera(Device):
     @property
     def pxmax(self) -> float | int:
         return self._stream.pxmax
+    
+    @property
+    def clim(self) -> tuple[float, float]:
+        limits = (0.0, self.pxmax)
+        if self.calibration is not None:
+            limits = countrate_limits(limits, self.exposure_time_s, self.calibration["dark_rate"], self.calibration["bias"])
+        return limits
+    
+    
 
     @property
     def full_shape(self) -> tuple[int, int]:

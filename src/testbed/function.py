@@ -74,16 +74,16 @@ def flip_rotate_frame(frame: np.ndarray, flip: Flip, rotation: Rotation) -> np.n
 def flip_rotate_points(xs: np.ndarray, ys: np.ndarray, image_shape: tuple[int, int], flip: Flip, rotation: Rotation) -> np.ndarray:
     height, width = image_shape
 
-    if rotation == Rotation.UP: # UP
+    if rotation == Rotation.UP:  # UP
         xs_new, ys_new = xs, ys
         height_new, width_new = height, width
-    elif rotation == Rotation.LEFT: # LEFT (90° CCW)
+    elif rotation == Rotation.LEFT:  # LEFT (90° CCW)
         xs_new, ys_new = width - 1 - ys, xs
         height_new, width_new = width, height
-    elif rotation == Rotation.DOWN: # DOWN (180°)
+    elif rotation == Rotation.DOWN:  # DOWN (180°)
         xs_new, ys_new = height - 1 - xs, width - 1 - ys
         height_new, width_new = height, width
-    elif rotation == Rotation.RIGHT: # RIGHT (270° CCW)
+    elif rotation == Rotation.RIGHT:  # RIGHT (270° CCW)
         xs_new, ys_new = ys, height - 1 - xs
         height_new, width_new = width, height
 
@@ -362,6 +362,24 @@ def capture_to_countrate(capture: np.ndarray, exp_time_s: float, dark_rate: np.n
         Image of count rate
     """
     return ((capture - bias) - dark_rate * exp_time_s) / exp_time_s
+
+
+def countrate_limits(limits: tuple[float, float | int], exp_time_s: float, dark_rate: np.ndarray, bias: np.ndarray) -> tuple[float, float]:
+    """
+    Parameters:
+        limits: tuple[float, float]
+            min max limits
+        exp_time_s: float
+            Exposure time in seconds
+        dark_rate: np.ndarray
+            dark rate
+        bias: np.ndarray
+            bias
+
+    Returns: tuple[float, float]
+        min max limits
+    """
+    return np.min((limits[0] - bias - dark_rate * exp_time_s) / exp_time_s), np.max((limits[1] - bias - dark_rate * exp_time_s) / exp_time_s)
 
 
 def deflection_to_command(command: np.ndarray, slope: np.ndarray, flat: np.ndarray) -> np.ndarray:

@@ -7,9 +7,11 @@ from matplotlib.colors import LogNorm, Normalize
 
 from pykato.log import setup_logger
 
+import testbed
+
 from ..device.camera import Camera, SourceSample
 from ..function import Flip, Rotation, flip_rotate_frame, is_camera_calibration_file_valid
-from ..widget import Window, OrientationWidget, ROIWidget, DoubleValueSetWidget, FileLoadWidget, NDoubleSpinBoxesWidget
+from ..widget import Window, OrientationWidget, ROIWidget, DoubleValueSetWidget, FileLoadWidget
 from ..widget.figure_widget import SourceFigureWidget, SourceHistFigureWidget
 
 logger = setup_logger("camera_window", terminator="\n")
@@ -77,7 +79,7 @@ class InfoWindow(Window):
     def __init__(self, camera: Camera, parent=None):
         self.camera = camera
         # self.camera.sync_settings()
-        self.sample = SourceSample(self.camera.last_access_time, self.camera.exposure_time_s, self.camera.gain, self.camera.frame_rate_fps, self.camera.temperature_c, self.camera.roi, self.camera.blank)
+        self.sample = self.camera.sample
 
         super().__init__(parent, Qt.WindowType.Dialog)
 
@@ -307,32 +309,11 @@ class InfoWindow(Window):
     @Slot(bool)
     def on_cmap_norm_changed(self, checked: bool):
         if checked == Qt.CheckState.Checked:
-            self.histogram_settings_window.clim_label.setText("Limits (Log10)")
-            log_clim = np.floor(np.log10(1)), np.ceil(np.log10(self.camera.pxmax))
-            log_Δclim = log_clim[1] - log_clim[0]
-            log_crange = np.floor(log_clim[0] - log_Δclim * 0.2), np.ceil(log_clim[1] + log_Δclim * 0.2)
-            self.histogram_settings_window.clim_spinboxes[0].setRange(log_crange[0], log_crange[1])
-            self.histogram_settings_window.clim_spinboxes[0].setValue(log_clim[0])
-            self.histogram_settings_window.clim_spinboxes[1].setRange(log_crange[0], log_crange[1])
-            self.histogram_settings_window.clim_spinboxes[1].setValue(log_clim[1])
+            log_clim = np.floor(np.log10(1)), np.ceil(np.log10(self.camera.clim[1]))
             self.hist_figure_widget.cmap_norm = LogNorm(10 ** log_clim[0], 10 ** log_clim[1])
         else:
-            self.histogram_settings_window.clim_label.setText("Limits")
-            lin_clim = 0, self.camera.pxmax
-            lin_Δclim = lin_clim[1] - lin_clim[0]
-            lin_crange = lin_clim[0] - lin_Δclim * 0.2, lin_clim[1] + lin_Δclim * 0.2
-            self.histogram_settings_window.clim_spinboxes[0].setRange(lin_crange[0], lin_crange[1])
-            self.histogram_settings_window.clim_spinboxes[0].setValue(lin_clim[0])
-            self.histogram_settings_window.clim_spinboxes[1].setRange(lin_crange[0], lin_crange[1])
-            self.histogram_settings_window.clim_spinboxes[1].setValue(lin_clim[1])
+            lin_clim = self.camera.clim
             self.hist_figure_widget.cmap_norm = Normalize(lin_clim[0], lin_clim[1])
-
-    @Slot(tuple)
-    def on_clim_changed(self, clim):
-        if self.histogram_settings_window.log_checkbox.checkState() == Qt.CheckState.Checked:
-            self.hist_figure_widget.cmap_norm = LogNorm(10 ** clim[0], 10 ** clim[1])
-        else:
-            self.hist_figure_widget.cmap_norm = Normalize(clim[0], clim[1])
 
     @Slot()
     def on_update_timer_tick(self):
@@ -361,7 +342,6 @@ class SettingsWindow(Window):
     def __init__(self, camera: Camera, parent: QWidget | None = None):
         self.camera = camera
         # self.camera.sync_settings()
-        self.sample = SourceSample(self.camera.last_access_time, self.camera.exposure_time_s, self.camera.gain, self.camera.frame_rate_fps, self.camera.temperature_c, self.camera.roi, self.camera.blank)
 
         super().__init__(parent, Qt.WindowType.Dialog)
 
@@ -379,18 +359,6 @@ class SettingsWindow(Window):
     @camera.setter
     def camera(self, device: Camera):
         self._camera = device
-
-    @property
-    def sample(self) -> SourceSample:
-        return self._sample
-
-    @sample.setter
-    def sample(self, value: SourceSample):
-        self._sample = value
-
-    @Slot(SourceSample)
-    def on_sampled(self, sample: SourceSample):
-        self._sample = sample
 
     def setup_settings_widget(self):
         widget = QWidget(self)
@@ -505,6 +473,11 @@ class SettingsWindow(Window):
         @Slot()
         def on_calibration_change():
             self.camera.set_calibration(self.calibration_widget.filepath)
+            camera_preview_window_id = f"{self.camera.name}_preview_window"
+            if camera_preview_window_id in testbed.data.windows:
+                camera_preview_window: PreviewWindow = testbed.data.windows[camera_preview_window_id]
+                camera_preview_window.preview_figure_widget.cmap_norm = Normalize(*self.camera.clim)
+                camera_preview_window.preview_figure_widget.figure.get_cbar_axes().set_title("count rate" if self.camera.calibration else "adu", size=10)
 
         self.calibration_widget.fileChanged.connect(on_calibration_change)
 
@@ -553,29 +526,6 @@ class PreviewSettingsWindow(Window):
         self.log_checkbox = QCheckBox("Log", self)
         self.log_checkbox.setToolTip("Log Scale")
 
-        self.clim_label = QLabel("", self)
-        self.clim_spinboxes = NDoubleSpinBoxesWidget(parent=self)
-        if isinstance(self.cmap_norm, LogNorm):
-            self.log_checkbox.setChecked(True)
-            self.clim_label.setText("Limits (Log10)")
-            log_clim = np.floor(np.log10(self.cmap_norm.vmin)), np.ceil(np.log10(self.cmap_norm.vmax))
-            log_Δclim = log_clim[1] - log_clim[0]
-            log_crange = np.floor(log_clim[0] - log_Δclim * 0.2), np.ceil(log_clim[1] + log_Δclim * 0.2)
-            self.clim_spinboxes[0].setRange(log_crange[0], log_crange[1])
-            self.clim_spinboxes[0].setValue(log_clim[0])
-            self.clim_spinboxes[1].setRange(log_crange[0], log_crange[1])
-            self.clim_spinboxes[1].setValue(log_clim[1])
-        else:
-            self.log_checkbox.setChecked(False)
-            self.clim_label.setText("Limits")
-            lin_clim = self.cmap_norm.vmin, self.cmap_norm.vmax
-            lin_Δclim = lin_clim[1] - lin_clim[0]
-            lin_crange = lin_clim[0] - lin_Δclim * 0.2, lin_clim[1] + lin_Δclim * 0.2
-            self.clim_spinboxes[0].setRange(lin_crange[0], lin_crange[1])
-            self.clim_spinboxes[0].setValue(lin_clim[0])
-            self.clim_spinboxes[1].setRange(lin_crange[0], lin_crange[1])
-            self.clim_spinboxes[1].setValue(lin_clim[1])
-
         cmap_label = QLabel("Colormap", self)
         self.cmap_combobox = QComboBox(self)
         self.cmap_combobox.addItems(list(colormaps))
@@ -595,12 +545,6 @@ class PreviewSettingsWindow(Window):
         layout.addWidget(scale_label, row, col)
         col += 1
         layout.addWidget(self.log_checkbox, row, col)
-
-        row += 1
-        col = 0
-        layout.addWidget(self.clim_label, row, col)
-        col += 1
-        layout.addWidget(self.clim_spinboxes, row, col)
 
         row += 1
         col = 0
@@ -670,7 +614,7 @@ class PreviewWindow(Window):
         widget.setLayout(layout)
 
         self._sample = self.camera.sample
-        self.preview_figure_widget = SourceFigureWidget(self.camera.blank, self.camera.pxmax, parent=self)
+        self.preview_figure_widget = SourceFigureWidget(self.camera.blank, self.camera.clim, parent=self)
         if self.preview_figure_widget.toolbar is not None:
             self.preview_figure_widget.toolbar.settingsClicked.connect(self.on_preview_settings_clicked)
 
@@ -689,7 +633,6 @@ class PreviewWindow(Window):
         self.preview_settings_window.raise_()
         self.preview_settings_window.activateWindow()
         self.preview_settings_window.log_checkbox.checkStateChanged.connect(self.on_cmap_norm_changed)
-        self.preview_settings_window.clim_spinboxes.valueChanged.connect(self.on_clim_changed)
         self.preview_settings_window.cmap_combobox.currentTextChanged.connect(self.on_cmap_name_changed)
         self.preview_settings_window.orientation_widget.rotationChanged.connect(self.on_rotation_changed)
         self.preview_settings_window.orientation_widget.flipChanged.connect(self.on_flip_changed)
@@ -701,32 +644,11 @@ class PreviewWindow(Window):
     @Slot(bool)
     def on_cmap_norm_changed(self, checked: bool):
         if checked == Qt.CheckState.Checked:
-            self.preview_settings_window.clim_label.setText("Limits (Log10)")
-            log_clim = np.floor(np.log10(1)), np.ceil(np.log10(self.camera.pxmax))
-            log_Δclim = log_clim[1] - log_clim[0]
-            log_crange = np.floor(log_clim[0] - log_Δclim * 0.2), np.ceil(log_clim[1] + log_Δclim * 0.2)
-            self.preview_settings_window.clim_spinboxes[0].setRange(log_crange[0], log_crange[1])
-            self.preview_settings_window.clim_spinboxes[0].setValue(log_clim[0])
-            self.preview_settings_window.clim_spinboxes[1].setRange(log_crange[0], log_crange[1])
-            self.preview_settings_window.clim_spinboxes[1].setValue(log_clim[1])
+            log_clim = np.floor(np.log10(1)), np.ceil(np.log10(self.camera.clim[1]))
             self.preview_figure_widget.cmap_norm = LogNorm(10 ** log_clim[0], 10 ** log_clim[1])
         else:
-            self.preview_settings_window.clim_label.setText("Limits")
-            lin_clim = 0, self.camera.pxmax
-            lin_Δclim = lin_clim[1] - lin_clim[0]
-            lin_crange = lin_clim[0] - lin_Δclim * 0.2, lin_clim[1] + lin_Δclim * 0.2
-            self.preview_settings_window.clim_spinboxes[0].setRange(lin_crange[0], lin_crange[1])
-            self.preview_settings_window.clim_spinboxes[0].setValue(lin_clim[0])
-            self.preview_settings_window.clim_spinboxes[1].setRange(lin_crange[0], lin_crange[1])
-            self.preview_settings_window.clim_spinboxes[1].setValue(lin_clim[1])
+            lin_clim = self.camera.clim
             self.preview_figure_widget.cmap_norm = Normalize(lin_clim[0], lin_clim[1])
-
-    @Slot(tuple)
-    def on_clim_changed(self, clim):
-        if self.preview_settings_window.log_checkbox.checkState() == Qt.CheckState.Checked:
-            self.preview_figure_widget.cmap_norm = LogNorm(10 ** clim[0], 10 ** clim[1])
-        else:
-            self.preview_figure_widget.cmap_norm = Normalize(clim[0], clim[1])
 
     @Slot(str)
     def on_rotation_changed(self, rotation: Rotation):

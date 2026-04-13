@@ -191,8 +191,8 @@ class SourceFigureWidget(FigureWidget):
     Source Figure widget
     """
 
-    def __init__(self, frame: np.ndarray, pxmax: float, rotation: Rotation = Rotation.UP, flip: Flip = Flip.POS, alpha_mask: NDArray[np.bool] | None = None, toolitems: list[str] | None = None, parent: QWidget | None = None):
-        super().__init__(Image_Plot_Preset(frame, cmap_name="hot", cmap_norm=Normalize(0, pxmax), alpha_mask=alpha_mask), toolitems, parent)
+    def __init__(self, frame: np.ndarray, clim: tuple[float, float], rotation: Rotation = Rotation.UP, flip: Flip = Flip.POS, alpha_mask: NDArray[np.bool] | None = None, toolitems: list[str] | None = None, parent: QWidget | None = None):
+        super().__init__(Image_Plot_Preset(frame, cmap_name="hot", cmap_norm=Normalize(*clim), alpha_mask=alpha_mask), toolitems, parent)
         self.rotation = rotation
         self.flip = flip
         self.figure.get_imshow_axes().set_title("Source", size=10)

@@ -103,4 +103,6 @@ class ProcessWorker(Worker):
         self.recenter(_current_sink_sample.command, _current_source_sample.capture, self.n_steps)
 
         time.sleep(0.2)
+
+        self.stop()
         self.signals.finished.emit()

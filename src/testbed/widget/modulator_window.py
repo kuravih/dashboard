@@ -5,10 +5,9 @@ from PySide6.QtCore import QTimer, Slot, Qt
 from matplotlib import colormaps
 
 from pykato.log import setup_logger
-from pykato.function import timestamp_string
 
 from ..widget import Window, OrientationWidget, CenterWidget, DoubleValueSetWidget, FileLoadWidget
-from ..function import write_sink_sample_header, write_sink_sample_data, Flip, Rotation, flip_rotate_frame, is_modulator_calibration_file_valid
+from ..function import Flip, Rotation, flip_rotate_frame, is_modulator_calibration_file_valid
 from ..device.modulator import Modulator, SinkSample, FULL_STROKE_NM
 from ..widget.command_preset_widget import ConstantPresetWidget, GradientPresetWidget, CheckerPresetWidget, SinusoidPresetWidget, BoxPresetWidget, PolkaPresetWidget, RegisterPresetWidget, TextPresetWidget, DOTFProbePresetWidget, PairwiseProbePresetWidget
 from ..widget.figure_widget import ModulatorFigureWidget, SinkHistFigureWidget
@@ -64,7 +63,7 @@ class InfoWindow(Window):
     def __init__(self, modulator: Modulator, parent: QWidget | None = None):
         self.modulator = modulator
         # self.modulator.sync_settings()
-        self.sample = SinkSample(self.modulator.last_access_time, self.modulator.frame_rate_fps, self.modulator.center, self.modulator.radius, self.modulator.blank)
+        self.sample = self.modulator.sample
 
         super().__init__(parent, Qt.WindowType.Dialog)
 
@@ -295,7 +294,6 @@ class SettingsWindow(Window):
     def __init__(self, modulator: Modulator, parent: QWidget | None = None):
         self.modulator = modulator
         # self.modulator.sync_settings()
-        self.sample = SinkSample(self._modulator.last_access_time, self._modulator.frame_rate_fps, self._modulator.center, self._modulator.radius, self._modulator.blank)
 
         super().__init__(parent, Qt.WindowType.Dialog)
 
@@ -315,18 +313,6 @@ class SettingsWindow(Window):
     @modulator.setter
     def modulator(self, device: Modulator):
         self._modulator = device
-
-    @property
-    def sample(self) -> SinkSample:
-        return self._sample
-
-    @sample.setter
-    def sample(self, value: SinkSample):
-        self._sample = value
-
-    @Slot(SinkSample)
-    def on_sampled(self, sample: SinkSample):
-        self._sample = sample
 
     def setup_settings_widget(self):
         widget = QWidget(self)
@@ -405,14 +391,6 @@ class SettingsWindow(Window):
         widget.setLayout(layout)
 
         @Slot()
-        def on_save_clicked():
-            timestamp = timestamp_string(frmt="%Y%m%d.%H%M%S", ms=None)
-            filename = f"data/output/{timestamp}_command_sink.raw"
-            with open(filename, "wb", buffering=0) as fileio:
-                write_sink_sample_header(fileio, self.sample)
-                write_sink_sample_data(fileio, self.sample)
-
-        @Slot()
         def on_send_clicked():
             self.modulator.push_command(self.preset_widget.command)
 
@@ -487,9 +465,6 @@ class SettingsWindow(Window):
         pairwise_preset_param_widget.changed.connect(on_preset_changed)
         pairwise_preset_param_widget.hide()
 
-        save_cmd_button = QPushButton("Save", self)
-        save_cmd_button.clicked.connect(on_save_clicked)
-
         send_cmd_button = QPushButton("Send", self)
         send_cmd_button.clicked.connect(on_send_clicked)
 
@@ -497,7 +472,6 @@ class SettingsWindow(Window):
         add_cmd_button.clicked.connect(on_add_clicked)
 
         button_layout = QHBoxLayout()
-        button_layout.addWidget(save_cmd_button)
         button_layout.addWidget(send_cmd_button)
 
         button_layout.addWidget(add_cmd_button)

@@ -27,5 +27,7 @@ class ProcessWorker(Worker):
             time.sleep(0.1)
             # logger.info("%s UpdateWorker.run", self._camera.name)
             self.signals.sampled.emit(self._camera.pull_capture())
+
         logger.info("camera sampling worker finished")
+        self.stop()
         self.signals.finished.emit()
