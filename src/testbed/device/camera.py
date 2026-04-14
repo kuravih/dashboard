@@ -20,8 +20,8 @@ class Camera(Device):
         super().__init__(stream.name)
         self._stream = stream
         self._shape = (self._stream.keywords["HEIGHT"].value, self._stream.keywords["WIDTH"].value)
-        self._link : ZMQLink | None = None
-        self._settings : dict[str, float | dict[str, tuple[tuple[int, int], tuple[int, int]]]] | None = None
+        self._link: ZMQLink | None = None
+        self._settings: dict[str, float | dict[str, tuple[tuple[int, int], tuple[int, int]]]] | None = None
         if self._stream.port != -1:
             self._link = ZMQLink(port=self._stream.port)
             self._link.connect()
@@ -43,15 +43,13 @@ class Camera(Device):
     @property
     def pxmax(self) -> float | int:
         return self._stream.pxmax
-    
+
     @property
     def clim(self) -> tuple[float, float]:
         limits = (0.0, self.pxmax)
         if self.calibration is not None:
             limits = countrate_limits(limits, self.exposure_time_s, self.calibration["dark_rate"], self.calibration["bias"])
         return limits
-    
-    
 
     @property
     def full_shape(self) -> tuple[int, int]:
@@ -96,8 +94,8 @@ class Camera(Device):
     def pull_capture(self) -> SourceSample:
         capture = self._stream.get_data().reshape(self.shape)
         if self.calibration is not None:
-            dark_rate_map = self.calibration["dark_rate"][self.roi["tl"][1]:self.roi["br"][1], self.roi["tl"][0]:self.roi["br"][0]]
-            bias_map = self.calibration["bias"][self.roi["tl"][1]:self.roi["br"][1], self.roi["tl"][0]:self.roi["br"][0]]
+            dark_rate_map = self.calibration["dark_rate"][self.roi["tl"][1] : self.roi["br"][1], self.roi["tl"][0] : self.roi["br"][0]]
+            bias_map = self.calibration["bias"][self.roi["tl"][1] : self.roi["br"][1], self.roi["tl"][0] : self.roi["br"][0]]
             capture = capture_to_countrate(capture, self.exposure_time_s, dark_rate_map, bias_map)
         self._sample = SourceSample(self.last_access_time, self.exposure_time_s, self.gain, self.frame_rate_fps, self.temperature_c, self.roi, capture.copy())
         return self._sample

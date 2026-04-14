@@ -263,7 +263,7 @@ class NDoubleSpinBoxesWidget(QWidget):
         self.setLayout(layout)
 
     @Slot(int)
-    def _on_value_changed(self, _:int):
+    def _on_value_changed(self, _: int):
         self.valueChanged.emit(self.value())
 
     def __getitem__(self, index) -> QDoubleSpinBox:
@@ -308,7 +308,7 @@ class NSpinBoxesWidget(QWidget):
         self.setLayout(layout)
 
     @Slot(int)
-    def _on_value_changed(self, _:int):
+    def _on_value_changed(self, _: int):
         self.valueChanged.emit(self.value())
 
     def __getitem__(self, index) -> QSpinBox:
@@ -319,6 +319,7 @@ class NSpinBoxesWidget(QWidget):
 
     def value(self) -> tuple[int, ...]:
         return tuple(spinbox.value() for spinbox in self._spinboxes)
+
 
 class OrientationWidget(QWidget):
     """
@@ -958,6 +959,7 @@ class DOTFProbeDirectionWidget(QWidget):
 
         self.valueChanged.emit(self.value())
 
+
 class PairwiseProbeDirectionWidget(QWidget):
     """
     Widget with four checkboxes for horizontal/vertical pairwise probes.
@@ -1027,6 +1029,7 @@ class PairwiseProbeDirectionWidget(QWidget):
                     sender.blockSignals(False)
 
         self.valueChanged.emit(self.value())
+
 
 def _tint_pixmap(src: QPixmap, color: QColor) -> QPixmap:
     out = QPixmap(src.size())
@@ -1098,7 +1101,6 @@ class IconButton(QPushButton):
         self._rebuild_icon()
         super().resizeEvent(event)
 
-    def setIconHint(self, icon: QIcon, hint:str):
+    def setIconHint(self, icon: QIcon, hint: str):
         self.setIcon(icon)
         self.setToolTip(hint)
-

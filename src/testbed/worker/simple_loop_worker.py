@@ -52,7 +52,7 @@ class ProcessWorker(Worker):
         super().run()
         t_start = time.time()
 
-        self.source.pull_capture() # Flush the sensor
+        self.source.pull_capture()  # Flush the sensor
         time.sleep(0.2)
 
         # ---- blank --------------------------------------------------------------------------------------------------
@@ -91,4 +91,6 @@ class ProcessWorker(Worker):
 
             logger.info("%s and %s ProcessWorker.run : step %i of %.0f", self.source.name, self.sink.name, i_step, self.n_steps if self.n_steps else np.inf)
 
+        logger.info("simple_loop_worker.py - ProcessWorker() finished")
+        self.stop()
         self.signals.finished.emit()

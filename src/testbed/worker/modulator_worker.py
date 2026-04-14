@@ -26,5 +26,7 @@ class ProcessWorker(Worker):
         while self._running:
             time.sleep(0.1)
             self.signals.sampled.emit(self._modulator.sample)
-        logger.info("modulator sampling worker finished")
+
+        logger.info("modulator_worker.py - ProcessWorker() finished")
+        self.stop()
         self.signals.finished.emit()

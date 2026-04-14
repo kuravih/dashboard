@@ -15,7 +15,7 @@ from ..worker.recenter_worker import ProcessWorker
 from ..worker.camera_worker import ProcessWorker as CameraSamplingWorker
 from ..worker.modulator_worker import ProcessWorker as ModulatorSamplingWorker
 from ..worker.storage_worker import SourceStorageWorker, SinkStorageWorker
-from ..function import flip_rotate_frame, flip_rotate_points
+from ..function import flip_rotate_points
 from .camera_window import PreviewWindow as CameraPreviewWindow
 from .modulator_window import PreviewWindow as ModulatorPreviewWindow
 from .dialog import MessageDialog
@@ -35,7 +35,10 @@ class ProcessSettingsWidget(QWidget):
     """
 
     def __init__(self, parent=None):
-        self._center = [np.nan, np.nan]
+        _n_steps = 4
+        _amplitude = 10.0
+        _sleep_s = 0.1
+        _center = [0.0, 0.0]
         super().__init__(parent)
 
         amplitude_label = QLabel("Amplitude", self)
@@ -46,7 +49,7 @@ class ProcessSettingsWidget(QWidget):
         self.amplitude_spinbox.setSuffix(" %")
         self.amplitude_spinbox.setSingleStep(1)
         self.amplitude_spinbox.setToolTip("Command amplitude")
-        self.amplitude_spinbox.setValue(10)
+        self.amplitude_spinbox.setValue(_amplitude)
 
         n_steps_label = QLabel("Steps", self)
         n_steps_label.setFixedWidth(100)
@@ -55,7 +58,9 @@ class ProcessSettingsWidget(QWidget):
         self.n_steps_spinbox.setRange(0, 9999)
         self.n_steps_spinbox.setSingleStep(1)
         self.n_steps_spinbox.setToolTip("Number of steps")
-        self.n_steps_spinbox.setValue(2)
+        self.n_steps_spinbox.setValue(_n_steps)
+
+        self.speckles = np.full((_n_steps, 2, 2), np.nan)
 
         n_steps_layout = QHBoxLayout()
         n_steps_layout.addWidget(self.n_steps_spinbox)
@@ -68,23 +73,25 @@ class ProcessSettingsWidget(QWidget):
         self.sleep_s_spinbox.setSingleStep(0.0001)
         self.sleep_s_spinbox.setDecimals(4)
         self.sleep_s_spinbox.setSuffix(" s")
-        self.sleep_s_spinbox.setValue(0.1)
+        self.sleep_s_spinbox.setValue(_sleep_s)
 
         center_label = QLabel("Center", self)
         sleep_label.setFixedWidth(100)
 
         self.center_xvalue_textbox = QLineEdit(self)
         self.center_xvalue_textbox.setEnabled(False)
-        self.center_xvalue_textbox.setText(f"{self._center[0]:.0f}")
+        self.center_xvalue_textbox.setText(f"{_center[0]:.0f}")
         self.center_yvalue_textbox = QLineEdit(self)
         self.center_yvalue_textbox.setEnabled(False)
-        self.center_yvalue_textbox.setText(f"{self._center[1]:.0f}")
+        self.center_yvalue_textbox.setText(f"{_center[1]:.0f}")
 
         self.move_pushbutton = IconButton(QIcon(ICON_CENTER), parent=self)
         self.move_pushbutton.setFixedHeight(self.amplitude_spinbox.sizeHint().height())
         self.move_pushbutton.setFixedWidth(self.amplitude_spinbox.sizeHint().height())
         self.move_pushbutton.setToolTip("Move to center")
         self.move_pushbutton.setEnabled(False)
+
+        self.center = _center
 
         widget_layout = QGridLayout()
 
@@ -142,6 +149,14 @@ class ProcessSettingsWidget(QWidget):
         if (self._center[0] != 0) or (self._center[1] != 0):
             self.move_pushbutton.setEnabled(True)
 
+    @property
+    def speckles(self) -> NDArray[np.float64]:
+        return self._speckles
+
+    @speckles.setter
+    def speckles(self, value: NDArray[np.float64]):
+        self._speckles = value
+
 
 class ProcessWindow(Window):
     """
@@ -159,7 +174,6 @@ class ProcessWindow(Window):
         layout.setContentsMargins(2, 2, 2, 2)
         layout.addWidget(self.setup_main_widget())
 
-        self.speckles = np.full((self.settings_widget.n_steps, 2, 2), np.nan)
         self.speckles_plot = None
         self.center_plot = None
 
@@ -183,11 +197,11 @@ class ProcessWindow(Window):
 
     @property
     def speckles(self) -> NDArray[np.float64]:
-        return self._speckles
+        return self.settings_widget.speckles
 
     @speckles.setter
     def speckles(self, value: NDArray[np.float64]):
-        self._speckles = value
+        self.settings_widget.speckles = value
 
     @property
     def speckles_plot(self) -> Line2D | None:
@@ -238,26 +252,8 @@ class ProcessWindow(Window):
         self.controls_widget.progressbar.reset()
         self.controls_widget.progressbar.updateProgress()
         if process_worker_id in testbed.data.workers:  # an update worker is in progress
-            process_worker: ProcessWorker = testbed.data.workers[process_worker_id]
-            process_worker.stop()
-            self.controls_widget.play_pause_button.setIconHint(QIcon(ICON_RUN), "Run")
             testbed.data.workers.pop(process_worker_id)
-
-        assert self.source is not None
-        source_preview_window_id = f"{self.source.name}_preview_window"
-        if source_preview_window_id in testbed.data.windows:
-            source_preview_window: CameraPreviewWindow = testbed.data.windows[source_preview_window_id]
-            source_preview_window.update_timer.stop()
-            source_preview_window.update_timer.timeout.disconnect()
-            source_preview_window.update_timer.timeout.connect(source_preview_window.on_update_timer_tick)
-
-        assert self.sink is not None
-        sink_preview_window_id = f"{self.sink.name}_preview_window"
-        if sink_preview_window_id in testbed.data.windows:
-            sink_preview_window: ModulatorPreviewWindow = testbed.data.windows[sink_preview_window_id]
-            sink_preview_window.update_timer.stop()
-            sink_preview_window.update_timer.timeout.disconnect()
-            sink_preview_window.update_timer.timeout.connect(sink_preview_window.on_update_timer_tick)
+            self.controls_widget.play_pause_button.setIconHint(QIcon(ICON_RUN), "Run")
 
     @Slot()
     def on_start_stop_clicked(self):
@@ -269,36 +265,25 @@ class ProcessWindow(Window):
             if source_sampling_worker_id in testbed.data.workers:
                 source_sampling_worker: CameraSamplingWorker = testbed.data.workers[source_sampling_worker_id]
                 source_sampling_worker.stop()
-                testbed.data.workers.pop(source_sampling_worker_id)
 
             source_storage_worker_id = f"{self.source.name}_storage_worker"
             if source_storage_worker_id in testbed.data.workers:
                 source_storage_worker: SourceStorageWorker = testbed.data.workers[source_storage_worker_id]
                 source_storage_worker.stop()
-                testbed.data.workers.pop(source_storage_worker_id)
 
             sink_sampling_worker_id = f"{self.sink.name}_sampling_worker"
             if sink_sampling_worker_id in testbed.data.workers:
                 sink_sampling_worker: ModulatorSamplingWorker = testbed.data.workers[sink_sampling_worker_id]
                 sink_sampling_worker.stop()
-                testbed.data.workers.pop(sink_sampling_worker_id)
 
             sink_storage_worker_id = f"{self.sink.name}_storage_worker"
             if sink_storage_worker_id in testbed.data.workers:
                 sink_storage_worker: SinkStorageWorker = testbed.data.workers[sink_storage_worker_id]
                 sink_storage_worker.stop()
-                testbed.data.workers.pop(sink_storage_worker_id)
 
-            if process_worker_id in testbed.data.workers:  # an update worker is in progress
+            if process_worker_id in testbed.data.workers:  # a process worker is in progress
                 process_worker: ProcessWorker = testbed.data.workers[process_worker_id]
                 process_worker.stop()
-                testbed.data.workers.pop(process_worker_id)
-
-                self.controls_widget.play_pause_button.setIconHint(QIcon(ICON_RUN), "Run")
-                self.controls_widget.progressbar.setMaximum(100)
-                self.controls_widget.progressbar.reset()
-                self.controls_widget.progressbar.updateProgress()
-
                 return
 
             self.controls_widget.progressbar.setMaximum(self.settings_widget.n_steps)
@@ -327,6 +312,9 @@ class ProcessWindow(Window):
                 @Slot(np.ndarray)
                 def on_speckles_located(speckles):
                     self.speckles = speckles
+                    speckles_x, speckles_y = flip_rotate_points(speckles[:, :, 0], speckles[:, :, 1], source_preview_window.sample.capture.shape, source_preview_window.preview_figure_widget.flip, source_preview_window.preview_figure_widget.rotation)
+                    self.speckles_plot.set_xdata([speckles_x])
+                    self.speckles_plot.set_ydata([speckles_y])
 
                 process_worker.signals.specklesLocated.connect(on_speckles_located)
 
@@ -335,26 +323,11 @@ class ProcessWindow(Window):
                 @Slot(float, float)
                 def on_center_located(xc: float, yc: float):
                     self.center = [xc, yc]
-                    self.settings_widget.center = [xc, yc]
-
-                process_worker.signals.centerLocated.connect(on_center_located)
-
-                source_preview_window.update_timer.stop()
-                source_preview_window.update_timer.timeout.disconnect()
-
-                @Slot()
-                def on_source_update_timer_tick():
-                    source_preview_window.preview_figure_widget.figure.get_image().set_data(flip_rotate_frame(source_preview_window.sample.capture, source_preview_window.preview_figure_widget.flip, source_preview_window.preview_figure_widget.rotation))
-                    speckles_x, speckles_y = flip_rotate_points(self.speckles[:, :, 0], self.speckles[:, :, 1], source_preview_window.sample.capture.shape, source_preview_window.preview_figure_widget.flip, source_preview_window.preview_figure_widget.rotation)
-                    self.speckles_plot.set_xdata([speckles_x])
-                    self.speckles_plot.set_ydata([speckles_y])
-                    center_x, center_y = flip_rotate_points(self.center[0], self.center[1], source_preview_window.sample.capture.shape, source_preview_window.preview_figure_widget.flip, source_preview_window.preview_figure_widget.rotation)
+                    center_x, center_y = flip_rotate_points(xc, yc, source_preview_window.sample.capture.shape, source_preview_window.preview_figure_widget.flip, source_preview_window.preview_figure_widget.rotation)
                     self.center_plot.set_xdata([center_x])
                     self.center_plot.set_ydata([center_y])
-                    source_preview_window.preview_figure_widget.figure.canvas.draw_idle()
 
-                source_preview_window.update_timer.timeout.connect(on_source_update_timer_tick)
-                source_preview_window.update_timer.start(100)  # Update window every 100 ms
+                process_worker.signals.centerLocated.connect(on_center_located)
 
             sink_preview_window_id = f"{self.sink.name}_preview_window"
             if sink_preview_window_id in testbed.data.windows:
@@ -400,6 +373,10 @@ class ProcessWindow(Window):
         return widget
 
     def closeEvent(self, event):
+        if self.speckles_plot is not None:
+            self.speckles_plot.remove()
+        if self.center_plot is not None:
+            self.center_plot.remove()
         while testbed.data.workers:
             key, worker = testbed.data.workers.popitem()
             worker.stop()

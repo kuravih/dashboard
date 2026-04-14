@@ -216,4 +216,6 @@ class ProcessWorker(Worker):
             i_iteration = i_iteration + 1
             self.signals.progressTicked.emit(i_iteration, time.time() - t_start)
 
+        logger.info("speckle_nulling_worker.py - ProcessWorker() finished")
+        self.stop()
         self.signals.finished.emit()

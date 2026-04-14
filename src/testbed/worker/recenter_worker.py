@@ -104,5 +104,6 @@ class ProcessWorker(Worker):
 
         time.sleep(0.2)
 
+        logger.info("recenter_worker.py - ProcessWorker() finished")
         self.stop()
         self.signals.finished.emit()

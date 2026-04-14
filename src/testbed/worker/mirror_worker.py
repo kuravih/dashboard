@@ -31,3 +31,7 @@ class UpdateWorker(Worker):
             count = time.time() % 60.0
             self._mirror.push_command(((2**16 - 1) * preroll(self._modulator.shape, int(count), count / 60.0, 100)).astype(np.uint16))
             self.signals.new_sample.emit(self._modulator.pull_sample())
+
+        logger.info("mirror_worker.py - ProcessWorker() finished")
+        self.stop()
+        self.signals.finished.emit()

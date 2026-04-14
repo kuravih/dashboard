@@ -1,8 +1,12 @@
+from pykato.log import setup_logger
+
 from PySide6.QtCore import Slot
 from ..worker import Worker, WorkerSignals
 from ..device import SourceSample, SinkSample
 from queue import Queue
 from ..function import write_source_sample_header, write_source_sample_data, write_sink_sample_header, write_sink_sample_data
+
+logger = setup_logger("storage_worker", terminator="\n")
 
 
 class SourceStorageWorker(Worker):
@@ -27,6 +31,9 @@ class SourceStorageWorker(Worker):
                 if __sample is None:
                     break
                 write_source_sample_data(fileio, __sample)
+
+        logger.info("storage_worker.py - SourceStorageWorker.run() finished")
+        self.stop()
         self.signals.finished.emit()
 
 
@@ -52,4 +59,7 @@ class SinkStorageWorker(Worker):
                 if __sample is None:
                     break
                 write_sink_sample_data(fileio, __sample)
+
+        logger.info("storage_worker.py - SinkStorageWorker.run() finished")
+        self.stop()
         self.signals.finished.emit()

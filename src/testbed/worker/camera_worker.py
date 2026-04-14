@@ -28,6 +28,6 @@ class ProcessWorker(Worker):
             # logger.info("%s UpdateWorker.run", self._camera.name)
             self.signals.sampled.emit(self._camera.pull_capture())
 
-        logger.info("camera sampling worker finished")
+        logger.info("camera_worker.py - ProcessWorker() finished")
         self.stop()
         self.signals.finished.emit()

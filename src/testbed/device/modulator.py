@@ -10,6 +10,7 @@ logger = setup_logger("Modulator", terminator="\n")
 
 FULL_STROKE_NM = 5
 
+
 class Modulator(Device):
     """
     Modulator
@@ -88,7 +89,7 @@ class Modulator(Device):
             flat = self.calibration["flat"]
             command_adu_float = deflection_to_command(command_nm_float, slope, flat)
         else:
-            command_adu_float = self.pxmax*(command_nm_float/FULL_STROKE_NM + 0.5)
+            command_adu_float = self.pxmax * (command_nm_float / FULL_STROKE_NM + 0.5)
         command_adu_uint16 = np.clip(command_adu_float, 0, self.pxmax).astype(np.uint16)
         self._stream.set_data(command_adu_uint16)
         self._sample = SinkSample(self.last_access_time, self.frame_rate_fps, self.center, self.radius, command_nm_float.copy())

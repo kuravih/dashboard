@@ -32,6 +32,7 @@ from pykato.log import setup_logger
 
 logger = setup_logger("dashboard", terminator="\n")
 
+
 class MainWindow(QMainWindow):
     """
     Main Window
@@ -193,14 +194,14 @@ class MainWindow(QMainWindow):
             device_info_window = testbed.data.windows[device_info_window_id]
             device_sampling_worker.signals.sampled.connect(device_info_window.on_sampled)
 
-        device_sampling_worker.signals.finished.connect(lambda d=device, b=button: self.on_sampling_worker_finished(d, b))
+        device_sampling_worker.signals.finished.connect(lambda d=device, b=button: self.on_sampling_worker_finish(d, b))
 
         testbed.data.workers[device_sampling_worker_id] = device_sampling_worker
 
         testbed.data.threadpool.start(device_sampling_worker)
         button.setIconHint(QIcon(ICON_PAUSE), "Stop")
 
-    def on_sampling_worker_finished(self, device: Camera | Modulator, button: IconButton):
+    def on_sampling_worker_finish(self, device: Camera | Modulator, button: IconButton):
         device_sampling_worker_id = f"{device.name}_sampling_worker"
         if device_sampling_worker_id in testbed.data.workers:  # an update worker is in progress
             testbed.data.workers.pop(device_sampling_worker_id)

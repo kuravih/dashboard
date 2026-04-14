@@ -55,4 +55,6 @@ class ProcessWorker(Worker):
 
             logger.info("%s ProcessWorker.run : step %i of %i", self.source.name, i_exp, self.exp_array.size)
 
+        logger.info("camera_calibration_worker.py - ProcessWorker() finished")
+        self.stop()
         self.signals.finished.emit()

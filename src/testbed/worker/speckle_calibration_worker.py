@@ -83,4 +83,6 @@ class ProcessWorker(Worker):
 
             i_freq = i_freq + 1
 
+        logger.info("speckle_calibration_worker.py - ProcessWorker() finished")
+        self.stop()
         self.signals.finished.emit()

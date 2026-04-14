@@ -20,7 +20,7 @@ class CommandPresetWidget(QWidget):
 
     def __init__(self, shape: tuple[int, int], full_stoke: float, parent=None):
         super().__init__(parent)
-        self._full_stroke = full_stoke # nm
+        self._full_stroke = full_stoke  # nm
         self._command = np.zeros(shape)
         self.setup_main_widget()
 
@@ -32,9 +32,8 @@ class CommandPresetWidget(QWidget):
         return self._command
 
     @command.setter
-    def command(self, value:np.ndarray):
+    def command(self, value: np.ndarray):
         self._command = value
-
 
 
 class ConstantPresetWidget(CommandPresetWidget):
@@ -835,7 +834,6 @@ class PairwiseProbePresetWidget(CommandPresetWidget):
         self.dξ_spinbox.setToolTip("Probe box width\n(higher the value wider the box)")
         self.dξ_spinbox.setValue(0.008)
         self.dξ_spinbox.valueChanged.connect(lambda _dξ: self.on_values_changed(self.amplitude_spinbox.value(), _dξ, self.dη_spinbox.value(), self.ξc_spinbox.value(), self.θ_spinbox.value(), self.probe_dir_checkboxes.value()[0]))
-
 
         ξc_label = QLabel("ξc", self)  # pylint: disable=invalid-name,non-ascii-name
 

@@ -34,6 +34,10 @@ class ProcessSettingsWidget(QWidget):
     """
 
     def __init__(self, parent=None):
+        _amplitude = 10.0
+        _angle_start, _angle_stop, _angle_steps = 0, 170, 18
+        _freq_start, _freq_stop, _freq_steps = 0.06, 0.01, 11
+        _phase_start, _phase_stop, _phase_steps = 0, 180, 2
         super().__init__(parent)
 
         amplitude_label = QLabel("Amplitude", self)
@@ -44,12 +48,12 @@ class ProcessSettingsWidget(QWidget):
         self.amplitude_spinbox.setSuffix(" %")
         self.amplitude_spinbox.setSingleStep(1)
         self.amplitude_spinbox.setToolTip("Command amplitude")
-        self.amplitude_spinbox.setValue(10)
+        self.amplitude_spinbox.setValue(_amplitude)
 
         angle_label = QLabel("Angle Steps", self)
         angle_label.setFixedWidth(100)
 
-        self.angle_steps = LinspaceWidget(0, 170, 18, self)
+        self.angle_steps = LinspaceWidget(_angle_start, _angle_stop, _angle_steps, self)
         self.angle_steps.start_spinbox.setMinimumWidth(100)
         self.angle_steps.stop_spinbox.setMinimumWidth(100)
         self.angle_steps.num_spinbox.setMinimumWidth(100)
@@ -57,7 +61,7 @@ class ProcessSettingsWidget(QWidget):
         freq_label = QLabel("Frequency Steps", self)
         freq_label.setFixedWidth(100)
 
-        self.freq_steps = LinspaceWidget(0.06, 0.01, 11, self)
+        self.freq_steps = LinspaceWidget(_freq_start, _freq_stop, _freq_steps, self)
         self.freq_steps.start_spinbox.setMinimumWidth(100)
         self.freq_steps.stop_spinbox.setMinimumWidth(100)
         self.freq_steps.num_spinbox.setMinimumWidth(100)
@@ -65,7 +69,7 @@ class ProcessSettingsWidget(QWidget):
         phase_label = QLabel("Phase Steps", self)
         phase_label.setFixedWidth(100)
 
-        self.phase_steps = LinspaceWidget(0, 180, 2, self)
+        self.phase_steps = LinspaceWidget(_phase_start, _phase_stop, _phase_steps, self)
         self.phase_steps.start_spinbox.setMinimumWidth(100)
         self.phase_steps.stop_spinbox.setMinimumWidth(100)
         self.phase_steps.num_spinbox.setMinimumWidth(100)
@@ -177,34 +181,14 @@ class ProcessWindow(Window):
         self.controls_widget.progressbar.reset()
         self.controls_widget.progressbar.updateProgress()
         if process_worker_id in testbed.data.workers:  # an update worker is in progress
-            process_worker: ProcessWorker = testbed.data.workers[process_worker_id]
-            process_worker.stop()
-            self.controls_widget.play_pause_button.setIconHint(QIcon(ICON_RUN), "Run")
             testbed.data.workers.pop(process_worker_id)
-
-        assert self.source is not None
-        source_preview_window_id = f"{self.source.name}_preview_window"
-        if source_preview_window_id in testbed.data.windows:
-            source_preview_window: CameraPreviewWindow = testbed.data.windows[source_preview_window_id]
-            source_preview_window.update_timer.stop()
-            source_preview_window.update_timer.timeout.disconnect()
-            source_preview_window.update_timer.timeout.connect(source_preview_window.on_update_timer_tick)
-
-        assert self.sink is not None
-        sink_preview_window_id = f"{self.sink.name}_preview_window"
-        if sink_preview_window_id in testbed.data.windows:
-            sink_preview_window: ModulatorPreviewWindow = testbed.data.windows[sink_preview_window_id]
-            sink_preview_window.update_timer.stop()
-            sink_preview_window.update_timer.timeout.disconnect()
-            sink_preview_window.update_timer.timeout.connect(sink_preview_window.on_update_timer_tick)
+            self.controls_widget.play_pause_button.setIconHint(QIcon(ICON_RUN), "Run")
 
     @Slot()
     def on_source_storage_finished(self):
         assert self.source is not None
         source_storage_worker_id = f"{self.source.name}_storage_worker"
         if source_storage_worker_id in testbed.data.workers:
-            source_storage_worker: SourceStorageWorker = testbed.data.workers[source_storage_worker_id]
-            source_storage_worker.stop()
             testbed.data.workers.pop(source_storage_worker_id)
 
     @Slot()
@@ -212,8 +196,6 @@ class ProcessWindow(Window):
         assert self.sink is not None
         sink_storage_worker_id = f"{self.sink.name}_storage_worker"
         if sink_storage_worker_id in testbed.data.workers:
-            sink_storage_worker: SinkStorageWorker = testbed.data.workers[sink_storage_worker_id]
-            sink_storage_worker.stop()
             testbed.data.workers.pop(sink_storage_worker_id)
 
     @Slot()
@@ -226,36 +208,25 @@ class ProcessWindow(Window):
             if source_sampling_worker_id in testbed.data.workers:
                 source_sampling_worker: CameraSamplingWorker = testbed.data.workers[source_sampling_worker_id]
                 source_sampling_worker.stop()
-                testbed.data.workers.pop(source_sampling_worker_id)
 
             source_storage_worker_id = f"{self.source.name}_storage_worker"
             if source_storage_worker_id in testbed.data.workers:
                 source_storage_worker: SourceStorageWorker = testbed.data.workers[source_storage_worker_id]
                 source_storage_worker.stop()
-                testbed.data.workers.pop(source_storage_worker_id)
 
             sink_sampling_worker_id = f"{self.sink.name}_sampling_worker"
             if sink_sampling_worker_id in testbed.data.workers:
                 sink_sampling_worker: ModulatorSamplingWorker = testbed.data.workers[sink_sampling_worker_id]
                 sink_sampling_worker.stop()
-                testbed.data.workers.pop(sink_sampling_worker_id)
 
             sink_storage_worker_id = f"{self.sink.name}_storage_worker"
             if sink_storage_worker_id in testbed.data.workers:
                 sink_storage_worker: SinkStorageWorker = testbed.data.workers[sink_storage_worker_id]
                 sink_storage_worker.stop()
-                testbed.data.workers.pop(sink_storage_worker_id)
 
-            if process_worker_id in testbed.data.workers:  # an update worker is in progress
+            if process_worker_id in testbed.data.workers:  # a process worker is in progress
                 process_worker: ProcessWorker = testbed.data.workers[process_worker_id]
                 process_worker.stop()
-                testbed.data.workers.pop(process_worker_id)
-
-                self.controls_widget.play_pause_button.setIconHint(QIcon(ICON_RUN), "Run")
-                self.controls_widget.progressbar.setMaximum(100)
-                self.controls_widget.progressbar.reset()
-                self.controls_widget.progressbar.updateProgress()
-
                 return
 
             self.controls_widget.progressbar.setMaximum(self.settings_widget.n_steps)

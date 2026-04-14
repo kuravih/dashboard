@@ -31,6 +31,9 @@ class ProcessSettingsWidget(QWidget):
     """
 
     def __init__(self, parent=None):
+        _n_steps = 9
+        _amplitude = 10.0
+        _sleep_s = 0.1
         super().__init__(parent)
 
         amplitude_label = QLabel("Amplitude", self)
@@ -41,7 +44,7 @@ class ProcessSettingsWidget(QWidget):
         self.amplitude_spinbox.setSuffix(" %")
         self.amplitude_spinbox.setSingleStep(1)
         self.amplitude_spinbox.setToolTip("Command amplitude")
-        self.amplitude_spinbox.setValue(10)
+        self.amplitude_spinbox.setValue(_amplitude)
 
         n_steps_label = QLabel("Steps", self)
         n_steps_label.setFixedWidth(100)
@@ -50,7 +53,7 @@ class ProcessSettingsWidget(QWidget):
         self.n_steps_spinbox.setRange(0, 9999)
         self.n_steps_spinbox.setSingleStep(1)
         self.n_steps_spinbox.setToolTip("Number of steps")
-        self.n_steps_spinbox.setValue(9)
+        self.n_steps_spinbox.setValue(_n_steps)
 
         self.continuous_checkbox = QCheckBox("continuous", self)
         self.continuous_checkbox.setToolTip("Run till stop/pause button is clicked")
@@ -76,7 +79,7 @@ class ProcessSettingsWidget(QWidget):
         self.sleep_s_spinbox.setSingleStep(0.0001)
         self.sleep_s_spinbox.setDecimals(4)
         self.sleep_s_spinbox.setSuffix(" s")
-        self.sleep_s_spinbox.setValue(0.1)
+        self.sleep_s_spinbox.setValue(_sleep_s)
 
         record_label = QLabel("Record", self)
         record_label.setFixedWidth(100)
@@ -202,34 +205,14 @@ class ProcessWindow(Window):
         self.controls_widget.progressbar.reset()
         self.controls_widget.progressbar.updateProgress()
         if process_worker_id in testbed.data.workers:  # an update worker is in progress
-            process_worker: ProcessWorker = testbed.data.workers[process_worker_id]
-            process_worker.stop()
-            self.controls_widget.play_pause_button.setIconHint(QIcon(ICON_RUN), "Run")
             testbed.data.workers.pop(process_worker_id)
-
-        assert self.source is not None
-        source_preview_window_id = f"{self.source.name}_preview_window"
-        if source_preview_window_id in testbed.data.windows:
-            source_preview_window: CameraPreviewWindow = testbed.data.windows[source_preview_window_id]
-            source_preview_window.update_timer.stop()
-            source_preview_window.update_timer.timeout.disconnect()
-            source_preview_window.update_timer.timeout.connect(source_preview_window.on_update_timer_tick)
-
-        assert self.sink is not None
-        sink_preview_window_id = f"{self.sink.name}_preview_window"
-        if sink_preview_window_id in testbed.data.windows:
-            sink_preview_window: ModulatorPreviewWindow = testbed.data.windows[sink_preview_window_id]
-            sink_preview_window.update_timer.stop()
-            sink_preview_window.update_timer.timeout.disconnect()
-            sink_preview_window.update_timer.timeout.connect(sink_preview_window.on_update_timer_tick)
+            self.controls_widget.play_pause_button.setIconHint(QIcon(ICON_RUN), "Run")
 
     @Slot()
     def on_source_storage_finished(self):
         assert self.source is not None
         source_storage_worker_id = f"{self.source.name}_storage_worker"
         if source_storage_worker_id in testbed.data.workers:
-            source_storage_worker: SourceStorageWorker = testbed.data.workers[source_storage_worker_id]
-            source_storage_worker.stop()
             testbed.data.workers.pop(source_storage_worker_id)
 
     @Slot()
@@ -237,8 +220,6 @@ class ProcessWindow(Window):
         assert self.sink is not None
         sink_storage_worker_id = f"{self.sink.name}_storage_worker"
         if sink_storage_worker_id in testbed.data.workers:
-            sink_storage_worker: SinkStorageWorker = testbed.data.workers[sink_storage_worker_id]
-            sink_storage_worker.stop()
             testbed.data.workers.pop(sink_storage_worker_id)
 
     @Slot()
@@ -251,36 +232,25 @@ class ProcessWindow(Window):
             if source_sampling_worker_id in testbed.data.workers:
                 source_sampling_worker: CameraSamplingWorker = testbed.data.workers[source_sampling_worker_id]
                 source_sampling_worker.stop()
-                testbed.data.workers.pop(source_sampling_worker_id)
 
             source_storage_worker_id = f"{self.source.name}_storage_worker"
             if source_storage_worker_id in testbed.data.workers:
                 source_storage_worker: SourceStorageWorker = testbed.data.workers[source_storage_worker_id]
                 source_storage_worker.stop()
-                testbed.data.workers.pop(source_storage_worker_id)
 
             sink_sampling_worker_id = f"{self.sink.name}_sampling_worker"
             if sink_sampling_worker_id in testbed.data.workers:
                 sink_sampling_worker: ModulatorSamplingWorker = testbed.data.workers[sink_sampling_worker_id]
                 sink_sampling_worker.stop()
-                testbed.data.workers.pop(sink_sampling_worker_id)
 
             sink_storage_worker_id = f"{self.sink.name}_storage_worker"
             if sink_storage_worker_id in testbed.data.workers:
                 sink_storage_worker: SinkStorageWorker = testbed.data.workers[sink_storage_worker_id]
                 sink_storage_worker.stop()
-                testbed.data.workers.pop(sink_storage_worker_id)
 
-            if process_worker_id in testbed.data.workers:  # an update worker is in progress
+            if process_worker_id in testbed.data.workers:  # a process worker is in progress
                 process_worker: ProcessWorker = testbed.data.workers[process_worker_id]
                 process_worker.stop()
-                testbed.data.workers.pop(process_worker_id)
-
-                self.controls_widget.play_pause_button.setIconHint(QIcon(ICON_RUN), "Run")
-                self.controls_widget.progressbar.setMaximum(100)
-                self.controls_widget.progressbar.reset()
-                self.controls_widget.progressbar.updateProgress()
-
                 return
 
             if self.settings_widget.continuous:

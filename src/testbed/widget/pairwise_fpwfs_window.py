@@ -1,7 +1,6 @@
 import numpy as np
 from numpy.typing import NDArray
 
-from pykato.function import chord
 from pykato.log import setup_logger
 
 from PySide6.QtCore import Qt, Slot, QTimer
@@ -39,6 +38,12 @@ class ProcessSettingsWidget(QWidget):
     """
 
     def __init__(self, parent=None):
+        _probe_amplitude = 20.0
+        _dξ = 0.075  # 0.008
+        _dη = 0.155  # 0.017
+        _ξc = 0.00010133  # 35.0
+        _reps = 2
+        _sleep_s = 0.1
         self.dark_hole_mask = None  # chord(self.source.shape, self.source.shape[0] * 5 / 16, 0.6)
         self.pairwise_calibration = None
 
@@ -52,7 +57,7 @@ class ProcessSettingsWidget(QWidget):
         self.probe_amp_spinbox.setSuffix(" %")
         self.probe_amp_spinbox.setSingleStep(1)
         self.probe_amp_spinbox.setToolTip("Probe amplitude")
-        self.probe_amp_spinbox.setValue(20)
+        self.probe_amp_spinbox.setValue(_probe_amplitude)
 
         probe_dξ_label = QLabel("Probe dξ", self)
         probe_dξ_label.setFixedWidth(100)
@@ -62,8 +67,7 @@ class ProcessSettingsWidget(QWidget):
         self.probe_dξ_spinbox.setSingleStep(0.001)
         self.probe_dξ_spinbox.setDecimals(3)
         self.probe_dξ_spinbox.setToolTip("Probe dξ")
-        # self._probe_dξ.setValue(0.008)
-        self.probe_dξ_spinbox.setValue(0.075)
+        self.probe_dξ_spinbox.setValue(_dξ)
 
         probe_dη_label = QLabel("Probe dη", self)
         probe_dη_label.setFixedWidth(100)
@@ -73,8 +77,7 @@ class ProcessSettingsWidget(QWidget):
         self.probe_dη_spinbox.setSingleStep(0.001)
         self.probe_dη_spinbox.setDecimals(3)
         self.probe_dη_spinbox.setToolTip("Probe dη")
-        # self._probe_dη.setValue(0.017)
-        self.probe_dη_spinbox.setValue(0.155)
+        self.probe_dη_spinbox.setValue(_dη)
 
         probe_ξc_label = QLabel("Probe ξc", self)
         probe_ξc_label.setFixedWidth(100)
@@ -83,9 +86,8 @@ class ProcessSettingsWidget(QWidget):
         self.probe_ξc_spinbox.setRange(0.0, 100.0)
         self.probe_ξc_spinbox.setSingleStep(0.00000001)
         self.probe_ξc_spinbox.setToolTip("Probe ξc")
-        # self._probe_ξc.setValue(35.0)
         self.probe_ξc_spinbox.setDecimals(8)
-        self.probe_ξc_spinbox.setValue(0.00010133)
+        self.probe_ξc_spinbox.setValue(_ξc)
 
         probe_dir_label = QLabel("Probe dir.", self)
         probe_dir_label.setFixedWidth(100)
@@ -101,7 +103,7 @@ class ProcessSettingsWidget(QWidget):
         self.n_reps_spinbox.setRange(0, 9999)
         self.n_reps_spinbox.setSingleStep(1)
         self.n_reps_spinbox.setToolTip("Number of reps to average")
-        self.n_reps_spinbox.setValue(2)
+        self.n_reps_spinbox.setValue(_reps)
 
         self.continuous_checkbox = QCheckBox("continuous", self)
         self.continuous_checkbox.setToolTip("Run till stop/pause button is clicked")
@@ -132,7 +134,7 @@ class ProcessSettingsWidget(QWidget):
         self._sleep_s_spinbox.setSingleStep(0.0001)
         self._sleep_s_spinbox.setDecimals(4)
         self._sleep_s_spinbox.setSuffix(" s")
-        self._sleep_s_spinbox.setValue(0.1)
+        self._sleep_s_spinbox.setValue(_sleep_s)
 
         widget_layout = QGridLayout()
 
@@ -335,26 +337,26 @@ class ProcessWindow(Window):
     @Slot(Camera)
     def on_source_changed(self, device: Camera):
         self.source = device
-        if process_info_window_id in testbed.data.windows:
-            process_info_window = testbed.data.windows[process_info_window_id]
-            process_info_window.close()
         self.controls_widget.info_button.setEnabled(False)
         self.controls_widget.play_pause_button.setEnabled(False)
         if self.source is not None and self.sink is not None:
             self.controls_widget.info_button.setEnabled(True)
             self.controls_widget.play_pause_button.setEnabled(True)
+        if process_info_window_id in testbed.data.windows:
+            process_info_window: ProcessInfoWindow = testbed.data.windows.pop(process_info_window_id)
+            process_info_window.close()
 
     @Slot(Modulator)
     def on_sink_changed(self, device: Modulator):
         self.sink = device
-        if process_info_window_id in testbed.data.windows:
-            process_info_window = testbed.data.windows[process_info_window_id]
-            process_info_window.close()
         self.controls_widget.info_button.setEnabled(False)
         self.controls_widget.play_pause_button.setEnabled(False)
         if self.source is not None and self.sink is not None:
             self.controls_widget.info_button.setEnabled(True)
             self.controls_widget.play_pause_button.setEnabled(True)
+        if process_info_window_id in testbed.data.windows:
+            process_info_window: ProcessInfoWindow = testbed.data.windows.pop(process_info_window_id)
+            process_info_window.close()
 
     @Slot(int, float)  # step, elapsed_time
     def on_progress_tick(self, step: int, t_elapsed: float):
@@ -367,26 +369,8 @@ class ProcessWindow(Window):
         self.controls_widget.progressbar.reset()
         self.controls_widget.progressbar.updateProgress()
         if process_worker_id in testbed.data.workers:  # an update worker is in progress
-            process_worker: ProcessWorker = testbed.data.workers[process_worker_id]
-            process_worker.stop()
-            self.controls_widget.play_pause_button.setIconHint(QIcon(ICON_RUN), "Run")
             testbed.data.workers.pop(process_worker_id)
-
-        assert self.source is not None
-        source_preview_window_id = f"{self.source.name}_preview_window"
-        if source_preview_window_id in testbed.data.windows:
-            source_preview_window: CameraPreviewWindow = testbed.data.windows[source_preview_window_id]
-            source_preview_window.update_timer.stop()
-            source_preview_window.update_timer.timeout.disconnect()
-            source_preview_window.update_timer.timeout.connect(source_preview_window.on_update_timer_tick)
-
-        assert self.sink is not None
-        sink_preview_window_id = f"{self.sink.name}_preview_window"
-        if sink_preview_window_id in testbed.data.windows:
-            sink_preview_window: ModulatorPreviewWindow = testbed.data.windows[sink_preview_window_id]
-            sink_preview_window.update_timer.stop()
-            sink_preview_window.update_timer.timeout.disconnect()
-            sink_preview_window.update_timer.timeout.connect(sink_preview_window.on_update_timer_tick)
+            self.controls_widget.play_pause_button.setIconHint(QIcon(ICON_RUN), "Run")
 
     @Slot()
     def on_start_stop_clicked(self):
@@ -398,36 +382,15 @@ class ProcessWindow(Window):
             if source_sampling_worker_id in testbed.data.workers:
                 source_sampling_worker: CameraSamplingWorker = testbed.data.workers[source_sampling_worker_id]
                 source_sampling_worker.stop()
-                testbed.data.workers.pop(source_sampling_worker_id)
-
-            source_storage_worker_id = f"{self.source.name}_storage_worker"
-            if source_storage_worker_id in testbed.data.workers:
-                source_storage_worker: SourceStorageWorker = testbed.data.workers[source_storage_worker_id]
-                source_storage_worker.stop()
-                testbed.data.workers.pop(source_storage_worker_id)
 
             sink_sampling_worker_id = f"{self.sink.name}_sampling_worker"
             if sink_sampling_worker_id in testbed.data.workers:
                 sink_sampling_worker: ModulatorSamplingWorker = testbed.data.workers[sink_sampling_worker_id]
                 sink_sampling_worker.stop()
-                testbed.data.workers.pop(sink_sampling_worker_id)
 
-            sink_storage_worker_id = f"{self.sink.name}_storage_worker"
-            if sink_storage_worker_id in testbed.data.workers:
-                sink_storage_worker: SinkStorageWorker = testbed.data.workers[sink_storage_worker_id]
-                sink_storage_worker.stop()
-                testbed.data.workers.pop(sink_storage_worker_id)
-
-            if process_worker_id in testbed.data.workers:  # an update worker is in progress
+            if process_worker_id in testbed.data.workers:  # a process worker is in progress
                 process_worker: ProcessWorker = testbed.data.workers[process_worker_id]
                 process_worker.stop()
-                testbed.data.workers.pop(process_worker_id)
-
-                self.controls_widget.play_pause_button.setIconHint(QIcon(ICON_RUN), "Run")
-                self.controls_widget.progressbar.setMaximum(100)
-                self.controls_widget.progressbar.reset()
-                self.controls_widget.progressbar.updateProgress()
-
                 return
 
             if self.settings_widget.continuous:

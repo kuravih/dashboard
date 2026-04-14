@@ -102,4 +102,6 @@ class ProcessWorker(Worker):
             i_rep = i_rep + 1
             self.signals.progressTicked.emit(i_rep, time.time() - t_start)
 
+        logger.info("dotf_measurement_worker.py - ProcessWorker() finished")
+        self.stop()
         self.signals.finished.emit()

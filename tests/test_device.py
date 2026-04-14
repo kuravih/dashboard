@@ -161,5 +161,3 @@ class TestDevice(unittest.TestCase):
             logger.info("keyword %d = keywords[%s] = {.value = %s,.type = %s,.comment = %s}", ikey, key, modulator_memory.keywords[key].value, modulator_memory.keywords[key].type, modulator_memory.keywords[key].comment)
         logger.info("modulator.shape                     : %s", modulator_memory.ndarray.shape)
         logger.info("modulator.dtype                     : %s", modulator_memory.ndarray.dtype)
-
-

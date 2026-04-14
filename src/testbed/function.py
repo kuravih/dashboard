@@ -382,11 +382,11 @@ def countrate_limits(limits: tuple[float, float | int], exp_time_s: float, dark_
     return np.min((limits[0] - bias - dark_rate * exp_time_s) / exp_time_s), np.max((limits[1] - bias - dark_rate * exp_time_s) / exp_time_s)
 
 
-def deflection_to_command(command: np.ndarray, slope: np.ndarray, flat: np.ndarray) -> np.ndarray:
+def deflection_to_command(deflection: np.ndarray, slope: np.ndarray, flat: np.ndarray) -> np.ndarray:
     """
     Parameters:
-        command: np.ndarray
-            Raw command in nm
+        deflection: np.ndarray
+            Raw deflection in nm
         slope: np.ndarray
             conversion from nm to adu
         flat: np.ndarray (adu)
@@ -395,7 +395,7 @@ def deflection_to_command(command: np.ndarray, slope: np.ndarray, flat: np.ndarr
     Returns: np.ndarray
         Command in adu
     """
-    return command * slope + flat
+    return deflection * slope + flat
 
 
 def command_to_deflection(command: np.ndarray, slope: np.ndarray, flat: np.ndarray) -> np.ndarray:

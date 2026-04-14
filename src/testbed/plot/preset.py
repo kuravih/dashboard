@@ -20,7 +20,7 @@ from pykato.log import setup_logger
 logger = setup_logger("preset", terminator="\n")
 
 
-def Image_Plot_Preset(capture: NDArray[np.uint16|np.float64], cmap_norm: Normalize | None = None, cmap_name: str | None = None, alpha_mask: NDArray[np.bool] | None = None, figure: Figure | None = None) -> Figure:
+def Image_Plot_Preset(capture: NDArray[np.uint16 | np.float64], cmap_norm: Normalize | None = None, cmap_name: str | None = None, alpha_mask: NDArray[np.bool] | None = None, figure: Figure | None = None) -> Figure:
     """
     Plot preset used to display source images.
 
@@ -363,4 +363,3 @@ def DOTF_Measurement_Plot_Preset(measure_dict: dict[int, NDArray[np.complex64]],
     # -----------------------------------------------------------------------------------------------------------------
 
     return figure
-

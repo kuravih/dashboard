@@ -84,26 +84,15 @@ class ProcessWindow(Window):
         self.controls_widget.progressbar.reset()
         self.controls_widget.progressbar.updateProgress()
         if process_worker_id in testbed.data.workers:  # an update worker is in progress
-            process_worker: ProcessWorker = testbed.data.workers[process_worker_id]
-            process_worker.stop()
-            self.controls_widget.play_pause_button.setIconHint(QIcon(ICON_RUN), "Run")
             testbed.data.workers.pop(process_worker_id)
-
-        assert self.source is not None
-        source_preview_window_id = f"{self.source.name}_preview_window"
-        if source_preview_window_id in testbed.data.windows:
-            source_preview_window: CameraPreviewWindow = testbed.data.windows[source_preview_window_id]
-            source_preview_window.update_timer.stop()
-            source_preview_window.update_timer.timeout.disconnect()
-            source_preview_window.update_timer.timeout.connect(source_preview_window.on_update_timer_tick)
+            self.controls_widget.play_pause_button.setIconHint(QIcon(ICON_RUN), "Run")
 
     @Slot()
     def on_source_storage_finished(self):
         assert self.source is not None
         source_storage_worker_id = f"{self.source.name}_storage_worker"
         if source_storage_worker_id in testbed.data.workers:
-            source_storage_worker: SourceStorageWorker = testbed.data.workers[source_storage_worker_id]
-            source_storage_worker.stop()
+            testbed.data.workers.pop(source_storage_worker_id)
 
     @Slot()
     def on_start_stop_clicked(self):
@@ -115,24 +104,15 @@ class ProcessWindow(Window):
             if source_sampling_worker_id in testbed.data.workers:
                 source_sampling_worker: CameraSamplingWorker = testbed.data.workers[source_sampling_worker_id]
                 source_sampling_worker.stop()
-                testbed.data.workers.pop(source_sampling_worker_id)
 
             source_storage_worker_id = f"{self.source.name}_storage_worker"
             if source_storage_worker_id in testbed.data.workers:
                 source_storage_worker: SourceStorageWorker = testbed.data.workers[source_storage_worker_id]
                 source_storage_worker.stop()
-                testbed.data.workers.pop(source_storage_worker_id)
 
-            if process_worker_id in testbed.data.workers:  # an update worker is in progress
+            if process_worker_id in testbed.data.workers:  # a process worker is in progress
                 process_worker: ProcessWorker = testbed.data.workers[process_worker_id]
                 process_worker.stop()
-                testbed.data.workers.pop(process_worker_id)
-
-                self.controls_widget.play_pause_button.setIconHint(QIcon(ICON_RUN), "Run")
-                self.controls_widget.progressbar.setMaximum(100)
-                self.controls_widget.progressbar.reset()
-                self.controls_widget.progressbar.updateProgress()
-
                 return
 
             self.controls_widget.progressbar.setMaximum(self.settings_widget.exposure_times_array.size)
@@ -144,18 +124,17 @@ class ProcessWindow(Window):
             self.controls_widget.play_pause_button.setIconHint(QIcon(ICON_PAUSE), "Pause")
 
             timestamp = timestamp_string(frmt="%Y%m%d.%H%M%S", ms=None)
+
             source_storage_worker = SourceStorageWorker(f"data/output/{timestamp}_{_PROCESS_}_{self.source.name}.raw", self.settings_widget.exposure_times_array.size)
             process_worker.signals.srcSampled.connect(source_storage_worker.on_sampled)
-
             source_storage_worker.signals.finished.connect(self.on_source_storage_finished)
+            testbed.data.workers[source_storage_worker_id] = source_storage_worker
+            testbed.data.threadpool.start(source_storage_worker)
 
             source_preview_window_id = f"{self.source.name}_preview_window"
             if source_preview_window_id in testbed.data.windows:
                 source_preview_window: CameraPreviewWindow = testbed.data.windows[source_preview_window_id]
                 process_worker.signals.srcSampled.connect(source_preview_window.on_sampled)
-
-            testbed.data.workers[source_storage_worker_id] = source_storage_worker
-            testbed.data.threadpool.start(source_storage_worker)
 
             testbed.data.workers[process_worker_id] = process_worker
             testbed.data.threadpool.start(process_worker)
