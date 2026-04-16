@@ -1,6 +1,8 @@
 import pickle
-
 import numpy as np
+from matplotlib.lines import Line2D
+from numpy.typing import NDArray
+
 from pykato.function import timestamp_string
 from pykato.log import setup_logger
 from PySide6.QtCore import Qt, Slot
@@ -15,6 +17,7 @@ from ..worker.speckle_calibration_worker import ProcessWorker
 from ..worker.camera_worker import ProcessWorker as CameraSamplingWorker
 from ..worker.modulator_worker import ProcessWorker as ModulatorSamplingWorker
 from ..worker.storage_worker import SinkStorageWorker, SourceStorageWorker
+from ..function import flip_rotate_points
 from .camera_window import PreviewWindow as CameraPreviewWindow
 from .modulator_window import PreviewWindow as ModulatorPreviewWindow
 from .dialog import MessageDialog
@@ -36,7 +39,7 @@ class ProcessSettingsWidget(QWidget):
     def __init__(self, parent=None):
         _amplitude = 10.0
         _angle_start, _angle_stop, _angle_steps = 0, 170, 18
-        _freq_start, _freq_stop, _freq_steps = 0.06, 0.01, 11
+        _freq_start, _freq_stop, _freq_steps = 0.06, 0.02, 9
         _phase_start, _phase_stop, _phase_steps = 0, 180, 2
         super().__init__(parent)
 
@@ -102,6 +105,8 @@ class ProcessSettingsWidget(QWidget):
 
         self.setLayout(widget_layout)
 
+        self.speckles = np.full((self.freqs_array.size, self.angles_array.size, 2, 2), np.nan)
+
     @property
     def amplitude(self) -> float:
         return FULL_STROKE_NM * self.amplitude_spinbox.value() / 100.0
@@ -119,8 +124,12 @@ class ProcessSettingsWidget(QWidget):
         return self.phase_steps.value()
 
     @property
-    def n_steps(self) -> int:
-        return self.angles_array.size * self.freqs_array.size * self.phases_array.size + 1  # include blank
+    def speckles(self) -> NDArray[np.float64]:
+        return self._speckles
+
+    @speckles.setter
+    def speckles(self, value: NDArray[np.float64]):
+        self._speckles = value
 
 
 class ProcessWindow(Window):
@@ -130,7 +139,6 @@ class ProcessWindow(Window):
 
     def __init__(self, parent=None):
         super().__init__(parent, Qt.WindowType.Dialog)
-        # self.setWindowModality(Qt.WindowModality.WindowModal)
         self.setWindowTitle("Speckle Calibration")
         self.sink = None
         self.source = None
@@ -138,6 +146,9 @@ class ProcessWindow(Window):
         layout = QVBoxLayout()
         layout.setContentsMargins(2, 2, 2, 2)
         layout.addWidget(self.setup_main_widget())
+
+        self.speckles_plot = None
+
         self.setLayout(layout)
 
     @property
@@ -155,6 +166,22 @@ class ProcessWindow(Window):
     @sink.setter
     def sink(self, device: Modulator | None):
         self._sink = device
+
+    @property
+    def speckles(self) -> NDArray[np.float64]:
+        return self.settings_widget.speckles
+
+    @speckles.setter
+    def speckles(self, value: NDArray[np.float64]):
+        self.settings_widget.speckles = value
+
+    @property
+    def speckles_plot(self) -> Line2D | None:
+        return self._speckles_plot
+
+    @speckles_plot.setter
+    def speckles_plot(self, value: Line2D | None):
+        self._speckles_plot = value
 
     @Slot(Camera)
     def on_source_changed(self, device: Camera):
@@ -229,27 +256,26 @@ class ProcessWindow(Window):
                 process_worker.stop()
                 return
 
-            self.controls_widget.progressbar.setMaximum(self.settings_widget.n_steps)
-
             process_worker = ProcessWorker(self.source, self.sink, self.settings_widget.amplitude, self.settings_widget.freqs_array, self.settings_widget.angles_array, self.settings_widget.phases_array)
             process_worker.signals.progressTicked.connect(self.on_progress_tick)
             process_worker.signals.finished.connect(self.on_process_finished)
 
+            self.controls_widget.progressbar.setMaximum(process_worker.n_ticks)
             self.controls_widget.play_pause_button.setIconHint(QIcon(ICON_PAUSE), "Pause")
 
             timestamp = timestamp_string(frmt="%Y%m%d.%H%M%S", ms=None)
 
-            with open(f"data/output/{timestamp}_{_PROCESS_}_parameters.pkl", "wb") as fileio:
+            with open(f"data/output/{timestamp}_{_PROCESS_}_parameters.pkl", "wb") as wbfile:
                 parameters_dict = {"amplitudes": self.settings_widget.amplitude, "frequencies": self.settings_widget.freqs_array, "angles": self.settings_widget.angles_array, "phases": self.settings_widget.phases_array}
-                pickle.dump(parameters_dict, fileio, protocol=pickle.HIGHEST_PROTOCOL)
+                pickle.dump(parameters_dict, wbfile, protocol=pickle.HIGHEST_PROTOCOL)
 
-            source_storage_worker = SourceStorageWorker(f"data/output/{timestamp}_{_PROCESS_}_{self.source.name}.raw", self.settings_widget.n_steps)
+            source_storage_worker = SourceStorageWorker(f"data/output/{timestamp}_{_PROCESS_}_{self.source.name}.raw", process_worker.n_ticks)
             process_worker.signals.srcSampled.connect(source_storage_worker.on_sampled)
             source_storage_worker.signals.finished.connect(self.on_source_storage_finished)
             testbed.data.workers[source_storage_worker_id] = source_storage_worker
             testbed.data.threadpool.start(source_storage_worker)
 
-            sink_storage_worker = SinkStorageWorker(f"data/output/{timestamp}_{_PROCESS_}_{self.sink.name}.raw", self.settings_widget.n_steps)
+            sink_storage_worker = SinkStorageWorker(f"data/output/{timestamp}_{_PROCESS_}_{self.sink.name}.raw", process_worker.n_ticks)
             process_worker.signals.snkSampled.connect(sink_storage_worker.on_sampled)
             sink_storage_worker.signals.finished.connect(self.on_sink_storage_finished)
             testbed.data.workers[sink_storage_worker_id] = sink_storage_worker
@@ -259,6 +285,21 @@ class ProcessWindow(Window):
             if source_preview_window_id in testbed.data.windows:
                 source_preview_window: CameraPreviewWindow = testbed.data.windows[source_preview_window_id]
                 process_worker.signals.srcSampled.connect(source_preview_window.on_sampled)
+
+                if self.speckles_plot is not None:
+                    self.speckles_plot.remove()
+                    self.speckles = np.full((self.settings_widget.freqs_array.size, self.settings_widget.angles_array.size, 2, 2), np.nan)
+
+                (self.speckles_plot,) = source_preview_window.preview_figure_widget.figure.get_imshow_axes().plot([], [], color="red", marker="o", markersize=10, markerfacecolor="none", linestyle="none")
+
+                @Slot(np.ndarray)
+                def on_speckles_located(speckles):
+                    self.speckles = speckles
+                    speckles_x, speckles_y = flip_rotate_points(speckles[:, :, :, 0], speckles[:, :, :, 1], source_preview_window.sample.capture.shape, source_preview_window.preview_figure_widget.flip, source_preview_window.preview_figure_widget.rotation)
+                    self.speckles_plot.set_xdata([speckles_x])
+                    self.speckles_plot.set_ydata([speckles_y])
+
+                process_worker.signals.specklesLocated.connect(on_speckles_located)
 
             sink_preview_window_id = f"{self.sink.name}_preview_window"
             if sink_preview_window_id in testbed.data.windows:
@@ -292,6 +333,8 @@ class ProcessWindow(Window):
         return widget
 
     def closeEvent(self, event):
+        if self.speckles_plot is not None:
+            self.speckles_plot.remove()
         while testbed.data.workers:
             key, worker = testbed.data.workers.popitem()
             worker.stop()

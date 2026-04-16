@@ -1,7 +1,7 @@
 import numpy as np
-
 from matplotlib.lines import Line2D
 from numpy.typing import NDArray
+
 from pykato.log import setup_logger
 from PySide6.QtCore import Qt, Slot
 from PySide6.QtGui import QIcon
@@ -60,8 +60,6 @@ class ProcessSettingsWidget(QWidget):
         self.n_steps_spinbox.setToolTip("Number of steps")
         self.n_steps_spinbox.setValue(_n_steps)
 
-        self.speckles = np.full((_n_steps, 2, 2), np.nan)
-
         n_steps_layout = QHBoxLayout()
         n_steps_layout.addWidget(self.n_steps_spinbox)
 
@@ -90,8 +88,6 @@ class ProcessSettingsWidget(QWidget):
         self.move_pushbutton.setFixedWidth(self.amplitude_spinbox.sizeHint().height())
         self.move_pushbutton.setToolTip("Move to center")
         self.move_pushbutton.setEnabled(False)
-
-        self.center = _center
 
         widget_layout = QGridLayout()
 
@@ -124,6 +120,9 @@ class ProcessSettingsWidget(QWidget):
         widget_layout.addWidget(self.move_pushbutton, row, col)
 
         self.setLayout(widget_layout)
+
+        self.center = _center
+        self.speckles = np.full((_n_steps, 2, 2), np.nan)
 
     @property
     def amplitude(self) -> float:
@@ -165,7 +164,6 @@ class ProcessWindow(Window):
 
     def __init__(self, parent=None):
         super().__init__(parent, Qt.WindowType.Dialog)
-        # self.setWindowModality(Qt.WindowModality.WindowModal)
         self.setWindowTitle("Recenter Process")
         self.sink = None
         self.source = None
@@ -286,12 +284,11 @@ class ProcessWindow(Window):
                 process_worker.stop()
                 return
 
-            self.controls_widget.progressbar.setMaximum(self.settings_widget.n_steps)
-
             process_worker = ProcessWorker(self.source, self.sink, self.settings_widget.amplitude, self.settings_widget.n_steps)
             process_worker.signals.progressTicked.connect(self.on_progress_tick)
             process_worker.signals.finished.connect(self.on_process_finished)
 
+            self.controls_widget.progressbar.setMaximum(process_worker.n_ticks)
             self.controls_widget.play_pause_button.setIconHint(QIcon(ICON_PAUSE), "Pause")
 
             source_preview_window_id = f"{self.source.name}_preview_window"

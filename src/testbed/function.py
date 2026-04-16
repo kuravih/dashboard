@@ -130,9 +130,9 @@ def read_source_samples(filename: str) -> list[SourceSample]:
     header_size = struct.calcsize(HEADER_FORMAT)
     src_header_size = struct.calcsize(SRC_HEADER_FORMAT)
 
-    with open(filename, "rb") as fileio:
+    with open(filename, "rb") as rbfile:
         # --- read header ---
-        header_bytes = fileio.read(header_size)
+        header_bytes = rbfile.read(header_size)
         tag, h, w, dtype_code = struct.unpack(HEADER_FORMAT, header_bytes)
         if tag != SRC_TAG:
             raise ValueError(f"Invalid file header (tag mismatch) looking for {SRC_TAG.decode('utf-8')}, found {tag}")
@@ -143,12 +143,12 @@ def read_source_samples(filename: str) -> list[SourceSample]:
         # --- read capture records ---
         sample_list = []
         while True:
-            src_header_bytes = fileio.read(src_header_size)
+            src_header_bytes = rbfile.read(src_header_size)
             if len(src_header_bytes) < src_header_size:
                 break  # EOF
             (timestamp, frame_rate_fps, temperature_c, gain, exposure_time_s, tl_x, tl_y, br_x, br_y) = struct.unpack(SRC_HEADER_FORMAT, src_header_bytes)  # double timestamp + double frame_rate_fps + double temperature_c + double gain + double exposure_time_s + unsigned short roi.tl.x + unsigned short roi.tl.y + unsigned short roi.br.x + unsigned short roi.br.y
 
-            capture_bytes = fileio.read(capture_size)
+            capture_bytes = rbfile.read(capture_size)
             if len(capture_bytes) < capture_size:
                 break  # incomplete capture
 
@@ -191,9 +191,9 @@ def read_sink_samples(filename: str) -> list[SinkSample]:
     header_size = struct.calcsize(HEADER_FORMAT)
     snk_header_size = struct.calcsize(SNK_HEADER_FORMAT)
 
-    with open(filename, "rb") as fileio:
+    with open(filename, "rb") as rbfile:
         # --- read header ---
-        header_bytes = fileio.read(header_size)
+        header_bytes = rbfile.read(header_size)
         tag, h, w, dtype_code = struct.unpack(HEADER_FORMAT, header_bytes)
         if tag != SNK_TAG:
             raise ValueError(f"Invalid file header (tag mismatch) looking for {SNK_TAG.decode('utf-8')}, found {tag}")
@@ -204,12 +204,12 @@ def read_sink_samples(filename: str) -> list[SinkSample]:
         # --- read command records ---
         sample_list = []
         while True:
-            snk_header_bytes = fileio.read(snk_header_size)
+            snk_header_bytes = rbfile.read(snk_header_size)
             if len(snk_header_bytes) < snk_header_size:
                 break  # EOF
             (timestamp, frame_rate_fps, radius, center_x, center_y) = struct.unpack(SNK_HEADER_FORMAT, snk_header_bytes)  # double timestamp + double frame_rate_fps + unsigned short radius + unsigned short center.x + unsigned short center.y
 
-            command_bytes = fileio.read(command_size)
+            command_bytes = rbfile.read(command_size)
             if len(command_bytes) < command_size:
                 break  # incomplete command
 
@@ -222,8 +222,11 @@ def read_sink_samples(filename: str) -> list[SinkSample]:
 
 
 def find_speckles(speckle_image: np.ndarray, num_peaks: int = 1, footprint_size: int = 10, min_distance: int = 1) -> tuple[list[tuple[float, float]], np.ndarray]:
-    peak_idx = peak_local_max(speckle_image, num_peaks=num_peaks, min_distance=min_distance, threshold_abs=None)
-    assert len(peak_idx) == num_peaks, f"looking for {num_peaks} speckles, found {len(peak_idx)}"
+    peak_idx = []
+    threshold_rel = 0.2
+    while len(peak_idx) < num_peaks:
+        threshold_rel = threshold_rel/2
+        peak_idx = peak_local_max(speckle_image, num_peaks=num_peaks, min_distance=min_distance, threshold_rel=threshold_rel, exclude_border=20)
     peak_mask = np.zeros_like(speckle_image, dtype=bool)
     peak_mask[tuple(peak_idx.T)] = True
     disk_mask = disk(footprint_size)
@@ -244,8 +247,8 @@ def speckle_parameters(center: tuple[float, float], speckle_location_px: tuple[f
 
 
 def is_speckle_calibration_file_valid(filename: str) -> bool:
-    with open(filename, "rb") as _file:
-        d = pickle.load(_file)
+    with open(filename, "rb") as rbfile:
+        d = pickle.load(rbfile)
 
     if "speck_angle_cmd_angle" not in d:
         return False
@@ -265,13 +268,13 @@ def is_speckle_calibration_file_valid(filename: str) -> bool:
 
 
 def read_speckle_calibration_file(filename: str) -> dict[str, dict[str, float]]:
-    with open(filename, "rb") as _file:
-        return pickle.load(_file)
+    with open(filename, "rb") as rbfile:
+        return pickle.load(rbfile)
 
 
 def write_speckle_calibration_file(speckle_calibration_dict: dict[str, dict[str, float]], filename: str):
-    with open(filename, "wb") as _file:
-        pickle.dump(speckle_calibration_dict, _file, protocol=pickle.HIGHEST_PROTOCOL)
+    with open(filename, "wb") as wbfile:
+        pickle.dump(speckle_calibration_dict, wbfile, protocol=pickle.HIGHEST_PROTOCOL)
 
 
 def is_camera_calibration_file_valid(filename: str, shape: tuple[int, int]) -> bool:
@@ -535,8 +538,8 @@ def pairwise_estimate(intensity_p1: NDArray[np.float64], intensity_m1: NDArray[n
 
 
 def is_pairwise_calibration_file_valid(filename: str) -> bool:
-    with open(filename, "rb") as _file:
-        d = pickle.load(_file)
+    with open(filename, "rb") as rbfile:
+        d = pickle.load(rbfile)
     if 1 not in d:
         return False
     if 2 not in d:
@@ -545,10 +548,10 @@ def is_pairwise_calibration_file_valid(filename: str) -> bool:
 
 
 def read_pairwise_calibration_file(filename: str) -> dict[int, NDArray[np.float64]]:
-    with open(filename, "rb") as _file:
-        return pickle.load(_file)
+    with open(filename, "rb") as rbfile:
+        return pickle.load(rbfile)
 
 
 def write_pairwise_calibration_file(pairwise_calibration_dict: dict[int, NDArray[np.float64]], filename: str):
-    with open(filename, "wb") as _file:
-        pickle.dump(pairwise_calibration_dict, _file, protocol=pickle.HIGHEST_PROTOCOL)
+    with open(filename, "wb") as wbfile:
+        pickle.dump(pairwise_calibration_dict, wbfile, protocol=pickle.HIGHEST_PROTOCOL)

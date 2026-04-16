@@ -22,15 +22,15 @@ class SourceStorageWorker(Worker):
 
     def run(self):
         super().run()
-        with open(self.filename, "wb", buffering=0) as fileio:
+        with open(self.filename, "wb", buffering=0) as wbfile:
             _sample = self.queue.get()
-            write_source_sample_header(fileio, _sample)
-            write_source_sample_data(fileio, _sample)
+            write_source_sample_header(wbfile, _sample)
+            write_source_sample_data(wbfile, _sample)
             while self._running:
                 __sample = self.queue.get()
                 if __sample is None:
                     break
-                write_source_sample_data(fileio, __sample)
+                write_source_sample_data(wbfile, __sample)
 
         logger.info("storage_worker.py - SourceStorageWorker.run() finished")
         self.stop()
@@ -50,15 +50,15 @@ class SinkStorageWorker(Worker):
 
     def run(self):
         super().run()
-        with open(self.filename, "wb", buffering=0) as fileio:
+        with open(self.filename, "wb", buffering=0) as wbfile:
             _sample = self.queue.get()
-            write_sink_sample_header(fileio, _sample)
-            write_sink_sample_data(fileio, _sample)
+            write_sink_sample_header(wbfile, _sample)
+            write_sink_sample_data(wbfile, _sample)
             while self._running:
                 __sample = self.queue.get()
                 if __sample is None:
                     break
-                write_sink_sample_data(fileio, __sample)
+                write_sink_sample_data(wbfile, __sample)
 
         logger.info("storage_worker.py - SinkStorageWorker.run() finished")
         self.stop()
