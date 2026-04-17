@@ -50,13 +50,19 @@ class TestDevice(unittest.TestCase):
         logger.info("camera.shape                     : %s", camera.shape)
         logger.info("camera.frame_rate_fps            : %s", camera.frame_rate_fps)
 
-    def test_stbsource_capture(self):
+    def test_stbsource_pull_capture(self):
         # ./stbsource must be running
         camera = Camera(Stream("stb001_stbsource"))
         for i in range(100):
             logger.info("frame : %s", i)
             print(camera.pull_capture())
             time.sleep(0.01)
+
+    # def test_stbsource_set_capture(self):
+    #     # ./stbsource must be running
+    #     camera = Camera(Stream("stb001_stbsource"))
+    #     capture = np.zeros_like(camera.blank)
+    #     camera.set_capture(capture)
 
     # ---- sink -------------------------------------------------------------------------------------------------------
     def test_sink_Stream(self):
@@ -93,7 +99,7 @@ class TestDevice(unittest.TestCase):
         logger.info("slm.shape                        : %s", slm.shape)
         logger.info("slm.frame_rate_fps               : %s", slm.frame_rate_fps)
 
-    def test_stbsink_command(self):
+    def test_stbsink_push_command(self):
         # ./stbsink must be running
         slm = Modulator(Stream("stb001_stbsink"))
         for i in range(100):
@@ -101,6 +107,12 @@ class TestDevice(unittest.TestCase):
             command = slm.blank
             slm.push_command(command)
             time.sleep(0.01)
+
+    # def test_stbsink_get_command(self):
+    #     # ./stbsink must be running
+    #     slm = Modulator(Stream("stb001_stbsink"))
+    #     command = slm.get_command()
+    #     print(command)
 
     # ---- sink -------------------------------------------------------------------------------------------------------
     def test_lcdsink(self):
@@ -121,7 +133,7 @@ class TestDevice(unittest.TestCase):
         logger.info("slm.shape                        : %s", slm.shape)
         logger.info("slm.frame_rate_fps               : %s", slm.frame_rate_fps)
 
-    def test_lcdsink_command(self):
+    def test_lcdsink_push_command(self):
         # ./lcdsink must be running
         slm = Modulator(Stream("lcd001_lcdsink"))
         for i in range(100):

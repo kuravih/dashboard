@@ -21,39 +21,47 @@ class ProcessWorkerSignals(WorkerSignals):
 
 class ProcessWorker(Worker):
     def __init__(self, source: Camera, exp_array: np.ndarray):
-        super().__init__()
         self.signals = ProcessWorkerSignals()
         self.source = source
         self.exp_array = exp_array
+        super().__init__(self.exp_array.size + 1)
+
+    def exptime_sweep(self, exp_array: np.ndarray):
+        i_exp = 0
+        while (exp_array.size > i_exp) and self._running:
+
+            self.source.set_exposure_time_s(float(exp_array[i_exp]))
+
+            # ---- zero -----------------------------------------------------------------------------------------------
+            source_sample = self.source.pull_capture()
+            self.signals.srcSampled.emit(source_sample)
+            time.sleep(0.1)
+
+            i_exp = i_exp + 1
+
+            self.i_tick = self.i_tick + 1
+            self.signals.progressTicked.emit(self.i_tick, time.time() - self.t_start)
+            # ---- zero -----------------------------------------------------------------------------------------------
 
     @Slot()
     def run(self):
         super().run()
-        i_exp = 0
-        t_start = time.time()
 
-        # ---- blank --------------------------------------------------------------------------------------------------
-        self.signals.srcSampled.emit(self.source.pull_capture())
+        try:
+            self.exptime_sweep(self.exp_array)
+        except AssertionError as e:
+            self.signals.error.emit(str(e))
+
+        # ---- zero ---------------------------------------------------------------------------------------------------
+        self.source.set_exposure_time_s(float(self.exp_array[0]))
+
+        source_sample = self.source.pull_capture()
+        self.signals.srcSampled.emit(source_sample)
         time.sleep(0.2)
 
-        self.signals.progressTicked.emit(i_exp, time.time() - t_start)
-        # ---- blank --------------------------------------------------------------------------------------------------
-
-        logger.info("%s ProcessWorker.run : step %i of %i", self.source.name, i_exp, self.exp_array.size)
-
-        i_exp = 0
-        while (self.exp_array.size > i_exp) and self._running:
-
-            self.source.set_exposure_time_s(float(self.exp_array[i_exp]))
-
-            _current_source_sample = self.source.pull_capture()
-            self.signals.srcSampled.emit(_current_source_sample)
-            time.sleep(0.1)
-
-            i_exp = i_exp + 1
-            self.signals.progressTicked.emit(i_exp, time.time() - t_start)
-
-            logger.info("%s ProcessWorker.run : step %i of %i", self.source.name, i_exp, self.exp_array.size)
+        self.i_tick = self.i_tick + 1
+        self.signals.progressTicked.emit(self.i_tick, time.time() - self.t_start)
+        # ---- zero ---------------------------------------------------------------------------------------------------
 
         logger.info("camera_calibration_worker.py - ProcessWorker() finished")
         self.stop()

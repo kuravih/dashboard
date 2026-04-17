@@ -26,42 +26,6 @@ class ProcessWorkerSignals(WorkerSignals):
 
 class ProcessWorker(Worker):
     def __init__(self, source: Camera, sink: Modulator, dark_hole_mask: NDArray[np.bool], pairwise_calibration: dict[int, NDArray[np.float64]], probe_amplitude: float, probe_dξ: float, probe_dη: float, probe_ξc: float, probe_directions: list[PairwiseProbeDirection], n_reps: int):
-        """
-        Pairwise FPWFS Process Worker
-
-        Parameters:
-            source: Camera
-                Data source
-
-            sink: Modulator
-                Data sink
-
-            dark_hole_mask: NDArray[np.bool]
-                Dark hole mask
-
-            pairwise_calibration: dict[int, NDArray[np.float64]]
-                Pairwise FPWFS Calibration
-
-            probe_amplitude: float
-                Probe amplitude
-
-            probe_dξ: float
-                Probe dξ
-
-            probe_dη: float
-                Probe dη
-
-            probe_ξc: float
-                Probe ξc
-
-            probe_directions: list[PairwiseProbeDirection]
-                Probe Direction (PairwiseProbeDirection.HORIZONTAL or PairwiseProbeDirection.VERTICAL)
-
-            n_reps: int
-                Number of reps
-        """
-
-        super().__init__()
         self.signals = ProcessWorkerSignals()
         self.source = source
         self.sink = sink
@@ -72,109 +36,125 @@ class ProcessWorker(Worker):
         self.probe_dη = probe_dη
         self.probe_ξc = probe_ξc
         self.probe_directions = probe_directions
-        self.n_reps = n_reps
         self.wavefront = {}
         for direction in self.probe_directions:
             self.wavefront[direction] = np.zeros(self.source.shape, dtype=np.complex64)
+        self.n_reps = n_reps
+        if self.n_reps:
+            super().__init__(self.n_reps * len(self.probe_directions) + 1)  # blank at the end
+        else:
+            super().__init__(0)
 
-    def sense_wavefront(self, current_cmd: np.ndarray, probe_amplitude: float, dξ: float, dη: float, ξc: float, direction: PairwiseProbeDirection) -> NDArray[np.complex64]:
+    def sense_wavefront(self, probe_amplitude: float, dξ: float, dη: float, ξc: float, direction: PairwiseProbeDirection) -> NDArray[np.complex64]:
+        zero_cmd = np.zeros(self.sink.shape)
 
-        command_0 = np.zeros(self.sink.shape)
-
-        _inc_probe_sink_sample = self.sink.push_command(command_0)
-        self.signals.snkSampled.emit(_inc_probe_sink_sample)
+        zero_sink_sample = self.sink.push_command(zero_cmd)
+        self.signals.snkSampled.emit(zero_sink_sample)
         time.sleep(0.1)
 
-        sample_0 = self.source.pull_capture()
-        self.signals.srcSampled.emit(sample_0)
+        zero_source_sample = self.source.pull_capture()
+        self.signals.srcSampled.emit(zero_source_sample)
         time.sleep(0.2)
 
         # -------------------------------------------------------------------------------------------------------------
         k = 1
-        command_p_h_1 = +probe_amplitude * pairwise_probe(self.sink.shape, dξ, dη, ξc, k * np.pi / 2, direction)
-        command_m_h_1 = -probe_amplitude * pairwise_probe(self.sink.shape, dξ, dη, ξc, k * np.pi / 2, direction)
+        probe_p_h_1 = +probe_amplitude * pairwise_probe(self.sink.shape, dξ, dη, ξc, k * np.pi / 2, direction)
+        probe_m_h_1 = -probe_amplitude * pairwise_probe(self.sink.shape, dξ, dη, ξc, k * np.pi / 2, direction)
 
         k = 2
-        command_p_h_2 = +probe_amplitude * pairwise_probe(self.sink.shape, dξ, dη, ξc, k * np.pi / 2, direction)
-        command_m_h_2 = -probe_amplitude * pairwise_probe(self.sink.shape, dξ, dη, ξc, k * np.pi / 2, direction)
+        probe_p_h_2 = +probe_amplitude * pairwise_probe(self.sink.shape, dξ, dη, ξc, k * np.pi / 2, direction)
+        probe_m_h_2 = -probe_amplitude * pairwise_probe(self.sink.shape, dξ, dη, ξc, k * np.pi / 2, direction)
         # -------------------------------------------------------------------------------------------------------------
 
-        _inc_probe_sink_sample = self.sink.push_command(command_p_h_1)
-        self.signals.snkSampled.emit(_inc_probe_sink_sample)
+        # ---- probe_p_h_1 --------------------------------------------------------------------------------------------
+        probe_p_h_1_sink_sample = self.sink.push_command(probe_p_h_1)
+        self.signals.snkSampled.emit(probe_p_h_1_sink_sample)
         time.sleep(0.1)
 
-        sample_p_h_1 = self.source.pull_capture()
-        self.signals.srcSampled.emit(sample_p_h_1)
+        probe_p_h_1_source_sample = self.source.pull_capture()
+        self.signals.srcSampled.emit(probe_p_h_1_source_sample)
         time.sleep(0.2)
+        # ---- probe_p_h_1 --------------------------------------------------------------------------------------------
 
-        _inc_probe_sink_sample = self.sink.push_command(command_m_h_1)
-        self.signals.snkSampled.emit(_inc_probe_sink_sample)
+        # ---- probe_m_h_1 --------------------------------------------------------------------------------------------
+        probe_m_h_1_sink_sample = self.sink.push_command(probe_m_h_1)
+        self.signals.snkSampled.emit(probe_m_h_1_sink_sample)
         time.sleep(0.1)
 
-        sample_m_h_1 = self.source.pull_capture()
-        self.signals.srcSampled.emit(sample_m_h_1)
+        probe_m_h_1_source_sample = self.source.pull_capture()
+        self.signals.srcSampled.emit(probe_m_h_1_source_sample)
         time.sleep(0.2)
+        # ---- probe_m_h_1 --------------------------------------------------------------------------------------------
 
-        _inc_probe_sink_sample = self.sink.push_command(command_p_h_2)
-        self.signals.snkSampled.emit(_inc_probe_sink_sample)
+        # ---- probe_p_h_2 --------------------------------------------------------------------------------------------
+        probe_p_h_2_sink_sample = self.sink.push_command(probe_p_h_2)
+        self.signals.snkSampled.emit(probe_p_h_2_sink_sample)
         time.sleep(0.1)
 
-        sample_p_h_2 = self.source.pull_capture()
-        self.signals.srcSampled.emit(sample_p_h_2)
+        probe_p_h_2_source_sample = self.source.pull_capture()
+        self.signals.srcSampled.emit(probe_p_h_2_source_sample)
         time.sleep(0.2)
+        # ---- probe_p_h_2 --------------------------------------------------------------------------------------------
 
-        _inc_probe_sink_sample = self.sink.push_command(command_m_h_2)
-        self.signals.snkSampled.emit(_inc_probe_sink_sample)
+        # ---- probe_m_h_2 --------------------------------------------------------------------------------------------
+        probe_m_h_2_sink_sample = self.sink.push_command(probe_m_h_2)
+        self.signals.snkSampled.emit(probe_m_h_2_sink_sample)
         time.sleep(0.1)
 
-        sample_m_h_2 = self.source.pull_capture()
-        self.signals.srcSampled.emit(sample_m_h_2)
+        probe_m_h_2_source_sample = self.source.pull_capture()
+        self.signals.srcSampled.emit(probe_m_h_2_source_sample)
         time.sleep(0.2)
+        # ---- probe_m_h_2 --------------------------------------------------------------------------------------------
 
-        Δp_h_1_mag = np.sqrt((sample_p_h_1.capture + sample_m_h_1.capture) / 2 - sample_0.capture)
+        Δp_h_1_mag = np.sqrt((probe_p_h_1_source_sample.capture + probe_m_h_1_source_sample.capture) / 2 - zero_source_sample.capture)
         Δp_h_1 = Δp_h_1_mag * np.exp(1j * self.pairwise_calibration[1])
 
-        Δp_h_2_mag = np.sqrt((sample_p_h_2.capture + sample_m_h_2.capture) / 2 - sample_0.capture)
+        Δp_h_2_mag = np.sqrt((probe_p_h_2_source_sample.capture + probe_m_h_2_source_sample.capture) / 2 - zero_source_sample.capture)
         Δp_h_2 = Δp_h_2_mag * np.exp(1j * self.pairwise_calibration[2])
 
-        electric_field_h = np.zeros_like(sample_0.capture, dtype=np.complex64)
+        electric_field_h = np.zeros_like(zero_source_sample.capture, dtype=np.complex64)
 
-        electric_field_h[self.dark_hole_mask] = pairwise_estimate(sample_p_h_1.capture[self.dark_hole_mask], sample_m_h_1.capture[self.dark_hole_mask], sample_p_h_2.capture[self.dark_hole_mask], sample_m_h_2.capture[self.dark_hole_mask], pairwise_estimation_matrices(Δp_h_1[self.dark_hole_mask], Δp_h_2[self.dark_hole_mask]))
+        electric_field_h[self.dark_hole_mask] = pairwise_estimate(probe_p_h_1_source_sample.capture[self.dark_hole_mask], probe_m_h_1_source_sample.capture[self.dark_hole_mask], probe_p_h_2_source_sample.capture[self.dark_hole_mask], probe_m_h_2_source_sample.capture[self.dark_hole_mask], pairwise_estimation_matrices(Δp_h_1[self.dark_hole_mask], Δp_h_2[self.dark_hole_mask]))
 
-        electric_field_h[self.dark_hole_mask] = sample_0.capture[self.dark_hole_mask] * np.exp(1j * np.angle(electric_field_h[self.dark_hole_mask]))
+        electric_field_h[self.dark_hole_mask] = zero_source_sample.capture[self.dark_hole_mask] * np.exp(1j * np.angle(electric_field_h[self.dark_hole_mask]))
 
         return electric_field_h
+    
+    def sense_wavefronts(self, probe_amplitude: float, dξ: float, dη: float, ξc: float, directions: list[PairwiseProbeDirection], n_reps: int):
+        i_rep = 0
+        while ((n_reps is 0) or (n_reps > i_rep)) and self._running:
+            for direction in directions:
+                self.wavefront[direction] = self.wavefront[direction] + self.sense_wavefront(probe_amplitude, dξ, dη, ξc, direction)
+                self.signals.wfSensed.emit(direction, self.wavefront[direction] / (i_rep + 1))
+
+            i_rep = i_rep + 1
+
+            self.i_tick = self.i_tick + 1
+            self.signals.progressTicked.emit(self.i_tick, time.time() - self.t_start)
 
     @Slot()
     def run(self):
         super().run()
-        t_start = time.time()
+
+        try:
+            self.sense_wavefronts(self.probe_amplitude, self.probe_dξ, self.probe_dη, self.probe_ξc, self.probe_directions, self.n_reps)
+        except AssertionError as e:
+            self.signals.error.emit(str(e))
 
         # ---- blank --------------------------------------------------------------------------------------------------
-        current_cmd = np.zeros(self.sink.shape)
+        zero_cmd = np.zeros(self.sink.shape)
 
-        _current_sink_sample = self.sink.push_command(current_cmd)
-        self.signals.snkSampled.emit(_current_sink_sample)
+        zero_sink_sample = self.sink.push_command(zero_cmd)
+        self.signals.snkSampled.emit(zero_sink_sample)
         time.sleep(0.1)
 
-        _current_source_sample = self.source.pull_capture()
-        self.signals.srcSampled.emit(_current_source_sample)
+        zero_source_sample = self.source.pull_capture()
+        self.signals.srcSampled.emit(zero_source_sample)
         time.sleep(0.2)
 
-        i_rep = 0
-        self.signals.progressTicked.emit(i_rep, time.time() - t_start)
+        self.i_tick = self.i_tick + 1
+        self.signals.progressTicked.emit(self.i_tick, time.time() - self.t_start)
         # ---- blank --------------------------------------------------------------------------------------------------
-
-        logger.info("%s and %s ProcessWorker.run : step %i of %i", self.source.name, self.sink.name, i_rep, self.n_reps)
-
-        while ((self.n_reps is None) or (self.n_reps > i_rep)) and self._running:
-            for direction in self.probe_directions:
-                self.wavefront[direction] = self.wavefront[direction] + self.sense_wavefront(current_cmd, self.probe_amplitude, self.probe_dξ, self.probe_dη, self.probe_ξc, direction)
-                self.signals.wfSensed.emit(direction, self.wavefront[direction] / (i_rep + 1))
-                logger.info("%s and %s ProcessWorker.run : step %i of %i", self.source.name, self.sink.name, i_rep, self.n_reps)
-
-            i_rep = i_rep + 1
-            self.signals.progressTicked.emit(i_rep, time.time() - t_start)
 
         logger.info("pairwise_fpwfs_worker.py - ProcessWorker() finished")
         self.stop()

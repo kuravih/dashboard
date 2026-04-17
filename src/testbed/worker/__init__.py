@@ -5,7 +5,7 @@ from PySide6.QtCore import QRunnable, Slot, QObject, Signal
 class WorkerSignals(QObject):
     progressTicked = Signal(int, float)  # step, elapsed_time
     finished = Signal()
-
+    error = Signal(str)
 
 class Worker(QRunnable):
 

@@ -15,7 +15,6 @@ from ..function import is_pairwise_calibration_file_valid, read_pairwise_calibra
 from ..worker.pairwise_fpwfs_worker import ProcessWorker
 from ..worker.camera_worker import ProcessWorker as CameraSamplingWorker
 from ..worker.modulator_worker import ProcessWorker as ModulatorSamplingWorker
-from ..worker.storage_worker import SinkStorageWorker, SourceStorageWorker
 from ..widget import PairwiseProbeDirectionWidget
 from .camera_window import PreviewWindow as CameraPreviewWindow
 from .modulator_window import PreviewWindow as ModulatorPreviewWindow
@@ -214,7 +213,7 @@ class ProcessSettingsWidget(QWidget):
 
     @property
     def n_reps(self) -> int:
-        return self.n_reps_spinbox.value()
+        return 0 if self.continuous else self.n_reps_spinbox.value()
 
     @property
     def sleep_s(self) -> float:
@@ -290,7 +289,6 @@ class ProcessWindow(Window):
 
     def __init__(self, parent=None):
         super().__init__(parent, Qt.WindowType.Dialog)
-        # self.setWindowModality(Qt.WindowModality.WindowModal)
         self.setWindowTitle("Pairwise FPWFS Process")
         self.sink = None
         self.source = None
@@ -299,6 +297,7 @@ class ProcessWindow(Window):
         layout = QVBoxLayout()
         layout.setContentsMargins(2, 2, 2, 2)
         layout.addWidget(self.setup_main_widget())
+
         self.setLayout(layout)
 
     @property
@@ -364,8 +363,14 @@ class ProcessWindow(Window):
         self.controls_widget.progressbar.setTime(t_elapsed)
         self.controls_widget.progressbar.updateProgress()
 
+    @Slot(str)
+    def on_process_error(self, message: str):
+        MessageDialog("Pairwise FPWFS Measurement Worker Failed", message, icon=QMessageBox.Icon.Critical, buttons=QMessageBox.StandardButton.Ok).exec()
+        self.on_process_finished()
+
     @Slot()
     def on_process_finished(self):
+        self.controls_widget.progressbar.setMaximum(1)
         self.controls_widget.progressbar.reset()
         self.controls_widget.progressbar.updateProgress()
         if process_worker_id in testbed.data.workers:  # an update worker is in progress
@@ -393,15 +398,12 @@ class ProcessWindow(Window):
                 process_worker.stop()
                 return
 
-            if self.settings_widget.continuous:
-                self.controls_widget.progressbar.setMaximum(0)
-            else:
-                self.controls_widget.progressbar.setMaximum(self.settings_widget.n_reps)
-
             process_worker = ProcessWorker(self.source, self.sink, self.settings_widget.dark_hole_mask, self.pairwise_calibration, self.settings_widget.probe_amplitude, self.settings_widget.probe_dξ, self.settings_widget.probe_dη, self.settings_widget.probe_ξc, self.settings_widget.probe_directions, self.settings_widget.n_reps)
             process_worker.signals.progressTicked.connect(self.on_progress_tick)
             process_worker.signals.finished.connect(self.on_process_finished)
+            process_worker.signals.error.connect(self.on_process_error)
 
+            self.controls_widget.progressbar.setMaximum(process_worker.n_ticks)
             self.controls_widget.play_pause_button.setIconHint(QIcon(ICON_PAUSE), "Pause")
 
             source_preview_window_id = f"{self.source.name}_preview_window"

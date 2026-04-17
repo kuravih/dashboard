@@ -245,6 +245,11 @@ class ProcessWindow(Window):
         self.controls_widget.progressbar.setTime(t_elapsed)
         self.controls_widget.progressbar.updateProgress()
 
+    @Slot(str)
+    def on_process_error(self, message: str):
+        MessageDialog("Recenter Worker Failed", message, icon=QMessageBox.Icon.Critical, buttons=QMessageBox.StandardButton.Ok).exec()
+        self.on_process_finished()
+
     @Slot()
     def on_process_finished(self):
         self.controls_widget.progressbar.reset()
@@ -287,6 +292,7 @@ class ProcessWindow(Window):
             process_worker = ProcessWorker(self.source, self.sink, self.settings_widget.amplitude, self.settings_widget.n_steps)
             process_worker.signals.progressTicked.connect(self.on_progress_tick)
             process_worker.signals.finished.connect(self.on_process_finished)
+            process_worker.signals.error.connect(self.on_process_error)
 
             self.controls_widget.progressbar.setMaximum(process_worker.n_ticks)
             self.controls_widget.play_pause_button.setIconHint(QIcon(ICON_PAUSE), "Pause")

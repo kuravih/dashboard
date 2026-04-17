@@ -22,74 +22,61 @@ class ProcessWorkerSignals(WorkerSignals):
 
 
 class ProcessWorker(Worker):
-    def __init__(self, source: Camera, sink: Modulator, amplitude: float, n_steps: int | None = None):
-        """
-        Simple Loop Process Worker
-
-        Parameters:
-            source: Camera
-                Data source
-
-            sink: Modulator
-                Data sink
-
-            amplitude: float
-                Amplitude percentage
-
-            n_steps: int
-                Number of steps
-
-        """
-        super().__init__()
+    def __init__(self, source: Camera, sink: Modulator, amplitude: float, n_steps: int = 0):
         self.signals = ProcessWorkerSignals()
         self.source = source
         self.sink = sink
         self.amplitude = amplitude
         self.n_steps = n_steps
+        if self.n_steps:
+            super().__init__(self.n_steps + 1)  # blank at the end
+        else:
+            super().__init__(0)
+
+    def count_sweep(self, amplitude: float, n_steps: int = 0):
+        zero_cmd = np.zeros(self.sink.shape)
+        i_step = 0
+        while ((n_steps is 0) or (n_steps > i_step)) and self._running:
+
+            count = amplitude * text(self.sink.shape, f"{i_step:02d}", font_size=150)
+            count_cmd = zero_cmd + count
+
+            count_sink_sample = self.sink.push_command(count_cmd)
+            self.signals.snkSampled.emit(count_sink_sample)
+            time.sleep(0.1)
+
+            count_source_sample = self.source.pull_capture()
+            self.signals.srcSampled.emit(count_source_sample)
+            time.sleep(0.2)
+
+            i_step = i_step + 1
+
+            self.i_tick = self.i_tick + 1
+            self.signals.progressTicked.emit(self.i_tick, time.time() - self.t_start)
 
     @Slot()
     def run(self):
         super().run()
-        t_start = time.time()
 
-        self.source.pull_capture()  # Flush the sensor
-        time.sleep(0.2)
+        try:
+            self.count_sweep(self.amplitude, self.n_steps)
+        except AssertionError as e:
+            self.signals.error.emit(str(e))
 
-        # ---- blank --------------------------------------------------------------------------------------------------
-        current_cmd = np.zeros(self.sink.shape)
+        # ---- zero ---------------------------------------------------------------------------------------------------
+        zero_cmd = np.zeros(self.sink.shape)
 
-        _current_sink_sample = self.sink.push_command(current_cmd)
-        self.signals.snkSampled.emit(_current_sink_sample)
+        zero_sink_sample = self.sink.push_command(zero_cmd)
+        self.signals.snkSampled.emit(zero_sink_sample)
         time.sleep(0.1)
 
-        _current_source_sample = self.source.pull_capture()
-        self.signals.srcSampled.emit(_current_source_sample)
+        zero_source_sample = self.source.pull_capture()
+        self.signals.srcSampled.emit(zero_source_sample)
         time.sleep(0.2)
 
-        i_step = 0
-        self.signals.progressTicked.emit(i_step, time.time() - t_start)
-        # ---- blank --------------------------------------------------------------------------------------------------
-
-        logger.info("%s and %s ProcessWorker.run : step %i of %.0f", self.source.name, self.sink.name, i_step, self.n_steps if self.n_steps else np.inf)
-
-        while ((self.n_steps is None) or (self.n_steps > i_step)) and self._running:
-
-            probe_command = self.amplitude * text(self.sink.shape, f"{i_step:02d}", font_size=150)
-
-            command = current_cmd + probe_command
-
-            _current_sink_sample = self.sink.push_command(command)
-            self.signals.snkSampled.emit(_current_sink_sample)
-            time.sleep(0.1)
-
-            _current_source_sample = self.source.pull_capture()
-            self.signals.srcSampled.emit(_current_source_sample)
-            time.sleep(0.2)
-
-            i_step = i_step + 1
-            self.signals.progressTicked.emit(i_step, time.time() - t_start)
-
-            logger.info("%s and %s ProcessWorker.run : step %i of %.0f", self.source.name, self.sink.name, i_step, self.n_steps if self.n_steps else np.inf)
+        self.i_tick = self.i_tick + 1
+        self.signals.progressTicked.emit(self.i_tick, time.time() - self.t_start)
+        # ---- zero ---------------------------------------------------------------------------------------------------
 
         logger.info("simple_loop_worker.py - ProcessWorker() finished")
         self.stop()

@@ -223,10 +223,13 @@ def read_sink_samples(filename: str) -> list[SinkSample]:
 
 def find_speckles(speckle_image: np.ndarray, num_peaks: int = 1, footprint_size: int = 10, min_distance: int = 1) -> tuple[list[tuple[float, float]], np.ndarray]:
     peak_idx = []
-    threshold_rel = 0.2
+    threshold_rel = 1.0
     while len(peak_idx) < num_peaks:
+        peak_idx = peak_local_max(speckle_image, num_peaks=num_peaks, min_distance=min_distance, threshold_rel=threshold_rel, threshold_abs=None, exclude_border=20)
         threshold_rel = threshold_rel/2
-        peak_idx = peak_local_max(speckle_image, num_peaks=num_peaks, min_distance=min_distance, threshold_rel=threshold_rel, exclude_border=20)
+        if threshold_rel < 0.0625:
+            break
+    assert len(peak_idx) == num_peaks, f"looking for {num_peaks} speckles, found {len(peak_idx)}"
     peak_mask = np.zeros_like(speckle_image, dtype=bool)
     peak_mask[tuple(peak_idx.T)] = True
     disk_mask = disk(footprint_size)

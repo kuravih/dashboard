@@ -49,7 +49,6 @@ class ProcessWindow(Window):
 
     def __init__(self, parent=None):
         super().__init__(parent, Qt.WindowType.Dialog)
-        # self.setWindowModality(Qt.WindowModality.WindowModal)
         self.setWindowTitle("Camera Calibration")
         self.source = None
 
@@ -78,6 +77,11 @@ class ProcessWindow(Window):
         self.controls_widget.progressbar.setValue(step + 1)
         self.controls_widget.progressbar.setTime(t_elapsed)
         self.controls_widget.progressbar.updateProgress()
+
+    @Slot(str)
+    def on_process_error(self, message: str):
+        MessageDialog("Camera Calibration Worker Failed", message, icon=QMessageBox.Icon.Critical, buttons=QMessageBox.StandardButton.Ok).exec()
+        self.on_process_finished()
 
     @Slot()
     def on_process_finished(self):
@@ -115,12 +119,12 @@ class ProcessWindow(Window):
                 process_worker.stop()
                 return
 
-            self.controls_widget.progressbar.setMaximum(self.settings_widget.exposure_times_array.size)
-
             process_worker = ProcessWorker(self.source, self.settings_widget.exposure_times_array)
             process_worker.signals.progressTicked.connect(self.on_progress_tick)
             process_worker.signals.finished.connect(self.on_process_finished)
+            process_worker.signals.error.connect(self.on_process_error)
 
+            self.controls_widget.progressbar.setMaximum(process_worker.n_ticks)
             self.controls_widget.play_pause_button.setIconHint(QIcon(ICON_PAUSE), "Pause")
 
             timestamp = timestamp_string(frmt="%Y%m%d.%H%M%S", ms=None)
