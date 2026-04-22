@@ -192,7 +192,7 @@ class ProcessWindow(Window):
         if self.source is not None and self.sink is not None:
             source_sampling_worker_id = f"{self.source.name}_sampling_worker"
             sink_sampling_worker_id = f"{self.sink.name}_sampling_worker"
-            if testbed.data.is_worker_alive(source_sampling_worker_id) and testbed.data.is_worker_alive(sink_sampling_worker_id):
+            if source_sampling_worker_id not in testbed.data.workers and sink_sampling_worker_id not in testbed.data.workers:
                 enabled = True
         self.controls_widget.play_pause_button.setEnabled(enabled)
 
