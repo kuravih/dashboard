@@ -180,19 +180,31 @@ class ProcessWindow(Window):
     def sink(self, device: Modulator | None):
         self._sink = device
 
+    def update_device_buttons(self, enabled: bool):
+        main_window = self.window()
+        if self.source is not None:
+            main_window.set_device_buttons_enabled(self.source.name, enabled)
+        if self.sink is not None:
+            main_window.set_device_buttons_enabled(self.sink.name, enabled)
+
+    def update_play_pause_button(self):
+        enabled = False
+        if self.source is not None and self.sink is not None:
+            source_sampling_worker_id = f"{self.source.name}_sampling_worker"
+            sink_sampling_worker_id = f"{self.sink.name}_sampling_worker"
+            if testbed.data.is_worker_alive(source_sampling_worker_id) and testbed.data.is_worker_alive(sink_sampling_worker_id):
+                enabled = True
+        self.controls_widget.play_pause_button.setEnabled(enabled)
+
     @Slot(Camera)
     def on_source_changed(self, device: Camera):
         self.source = device
-        self.controls_widget.play_pause_button.setEnabled(False)
-        if self.source is not None and self.sink is not None:
-            self.controls_widget.play_pause_button.setEnabled(True)
+        self.update_play_pause_button()
 
     @Slot(Modulator)
     def on_sink_changed(self, device: Modulator):
         self.sink = device
-        self.controls_widget.play_pause_button.setEnabled(False)
-        if self.source is not None and self.sink is not None:
-            self.controls_widget.play_pause_button.setEnabled(True)
+        self.update_play_pause_button()
 
     @Slot(int, float)  # step, elapsed_time
     def on_progress_tick(self, step: int, t_elapsed: float):
@@ -213,6 +225,7 @@ class ProcessWindow(Window):
         if process_worker_id in testbed.data.workers:  # an update worker is in progress
             testbed.data.workers.pop(process_worker_id)
             self.controls_widget.play_pause_button.setIconHint(QIcon(ICON_RUN), "Run")
+        self.update_device_buttons(True)
 
     @Slot()
     def on_source_storage_finished(self):
@@ -295,6 +308,7 @@ class ProcessWindow(Window):
 
             testbed.data.workers[process_worker_id] = process_worker
             testbed.data.threadpool.start(process_worker)
+            self.update_device_buttons(False)
 
     def setup_main_widget(self) -> QWidget:
         widget = QWidget(self)

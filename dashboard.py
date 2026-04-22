@@ -1,4 +1,5 @@
 import sys
+from typing import NamedTuple
 from PySide6.QtGui import QIcon
 from PySide6.QtWidgets import QMainWindow, QPushButton, QFileDialog, QMessageBox, QApplication, QWidget, QVBoxLayout, QHBoxLayout, QTableWidget, QTableWidgetItem, QHeaderView, QSpacerItem, QSizePolicy
 
@@ -33,6 +34,11 @@ from pykato.log import setup_logger
 logger = setup_logger("dashboard", terminator="\n")
 
 
+class DeviceButtons(NamedTuple):
+    settings: IconButton
+    play_pause: IconButton
+
+
 class MainWindow(QMainWindow):
     """
     Main Window
@@ -48,6 +54,7 @@ class MainWindow(QMainWindow):
         self.table.horizontalHeader().setSectionResizeMode(0, QHeaderView.ResizeMode.Stretch)
         self.table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
         self.table.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
+        self.device_buttons: dict[str, DeviceButtons] = {}
 
         add_device_button = QPushButton("Add Device")
         add_device_button.clicked.connect(self.on_add_device_clicked)
@@ -168,7 +175,7 @@ class MainWindow(QMainWindow):
             settings_window.activateWindow()
             testbed.data.windows[device_settings_window_id] = settings_window
 
-    def on_start_stop(self, device: Camera | Modulator, button: IconButton):
+    def on_play_pause(self, device: Camera | Modulator, button: IconButton):
 
         device_preview_window_id = f"{device.name}_preview_window"
         device_info_window_id = f"{device.name}_info_window"
@@ -194,18 +201,30 @@ class MainWindow(QMainWindow):
             device_info_window = testbed.data.windows[device_info_window_id]
             device_sampling_worker.signals.sampled.connect(device_info_window.on_sampled)
 
-        device_sampling_worker.signals.finished.connect(lambda d=device, b=button: self.on_sampling_worker_finish(d, b))
+        device_sampling_worker.signals.finished.connect(lambda d=device, b=button: self.on_sampling_worker_pause(d, b))
 
         testbed.data.workers[device_sampling_worker_id] = device_sampling_worker
 
         testbed.data.threadpool.start(device_sampling_worker)
-        button.setIconHint(QIcon(ICON_PAUSE), "Stop")
+        button.setIconHint(QIcon(ICON_PAUSE), "Pause")
+        self.on_sampling_worker_play(device)
 
-    def on_sampling_worker_finish(self, device: Camera | Modulator, button: IconButton):
+    def on_sampling_worker_play(self, device: Camera | Modulator):
+        simple_loop_window_id = f"{testbed.SIMPLE_LOOP}_window"
+        if simple_loop_window_id in testbed.data.windows:
+            simple_loop_window: SimpleLoopWindow = testbed.data.windows[simple_loop_window_id]
+            if simple_loop_window.source == device or simple_loop_window.sink == device:
+                simple_loop_window.update_play_pause_button()
+
+    def on_sampling_worker_pause(self, device: Camera | Modulator, button: IconButton):
         device_sampling_worker_id = f"{device.name}_sampling_worker"
         if device_sampling_worker_id in testbed.data.workers:  # an update worker is in progress
             testbed.data.workers.pop(device_sampling_worker_id)
-            button.setIconHint(QIcon(ICON_PLAY), "Start")
+            button.setIconHint(QIcon(ICON_PLAY), "play")
+        simple_loop_window_id = f"{testbed.SIMPLE_LOOP}_window"
+        if simple_loop_window_id in testbed.data.windows:
+            simple_loop_window: SimpleLoopWindow = testbed.data.windows[simple_loop_window_id]
+            simple_loop_window.update_play_pause_button()
 
     @Slot()
     def on_add_device_clicked(self):
@@ -237,7 +256,7 @@ class MainWindow(QMainWindow):
                 button_layout.addWidget(preview_button)
 
                 play_pause_button = IconButton(QIcon(ICON_PLAY), flat=True, parent=self)
-                play_pause_button.setToolTip("Start")
+                play_pause_button.setToolTip("Play")
                 button_layout.addWidget(play_pause_button)
 
                 if stream.kind == Stream.Kind.CAMERA:
@@ -247,9 +266,9 @@ class MainWindow(QMainWindow):
                     preview_button.clicked.connect(lambda _, c=camera: self.open_device_preview_window(c))
                     info_button.clicked.connect(lambda _, c=camera: self.open_device_info_window(c))
                     settings_button.clicked.connect(lambda _, c=camera: self.open_device_settings_window(c))
-                    play_pause_button.clicked.connect(lambda _, b=play_pause_button, c=camera: self.on_start_stop(c, b))
+                    play_pause_button.clicked.connect(lambda _, b=play_pause_button, c=camera: self.on_play_pause(c, b))
                     testbed.data.devices[stream_id] = camera
-                    # self.on_start_stop(camera, play_pause_button) # TODO: uncomment
+                    # self.on_play_pause(camera, play_pause_button) # TODO: uncomment
                     # self.open_device_preview_window(camera) # TODO: uncomment
                 elif stream.kind == Stream.Kind.SLM:
                     modulator = Modulator(stream)
@@ -258,10 +277,11 @@ class MainWindow(QMainWindow):
                     preview_button.clicked.connect(lambda _, m=modulator: self.open_device_preview_window(m))
                     info_button.clicked.connect(lambda _, m=modulator: self.open_device_info_window(m))
                     settings_button.clicked.connect(lambda _, m=modulator: self.open_device_settings_window(m))
-                    play_pause_button.clicked.connect(lambda _, b=play_pause_button, m=modulator: self.on_start_stop(m, b))
+                    play_pause_button.clicked.connect(lambda _, b=play_pause_button, m=modulator: self.on_play_pause(m, b))
                     testbed.data.devices[stream_id] = modulator
-                    # self.on_start_stop(modulator, play_pause_button) # TODO: uncomment
+                    # self.on_play_pause(modulator, play_pause_button) # TODO: uncomment
                     # self.open_device_preview_window(modulator) # TODO: uncomment
+                self.device_buttons[stream_id] = DeviceButtons(settings_button, play_pause_button)
 
                 spacer = QSpacerItem(10, 10, QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
                 button_layout.addItem(spacer)
@@ -272,11 +292,17 @@ class MainWindow(QMainWindow):
                 message_dialog = MessageDialog("Device available", "Device already available. Access via device menu.", icon=QMessageBox.Icon.Information, buttons=QMessageBox.StandardButton.Ok)
                 message_dialog.exec()
 
+    def set_device_buttons_enabled(self, device_name: str, enabled: bool):
+        if device_name in self.device_buttons:
+            self.device_buttons[device_name].settings.setEnabled(enabled)
+            self.device_buttons[device_name].play_pause.setEnabled(enabled)
+
     @Slot()
     def on_remove_device_clicked(self):
         for index in sorted(set(i.row() for i in self.table.selectedIndexes()), reverse=True):
             _key = self.table.item(index, 0).text()
             testbed.data.devices.pop(_key, None)
+            self.device_buttons.pop(_key, None)
             self.table.removeRow(index)
 
     @Slot()
