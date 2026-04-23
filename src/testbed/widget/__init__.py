@@ -378,6 +378,7 @@ class OrientationWidget(QWidget):
         layout.addWidget(self.flip_checkbox)
         layout.addItem(QSpacerItem(10, 10, QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Maximum))
         layout.setContentsMargins(0, 0, 0, 0)
+
         self.setLayout(layout)
 
         # --- connections ---
@@ -484,6 +485,7 @@ class ROIWidget(QWidget):
         layout.addWidget(self.value_label)
         layout.addItem(QSpacerItem(10, 10, QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Maximum))
         layout.setContentsMargins(0, 0, 0, 0)
+
         self.setLayout(layout)
 
         # --- connect handlers ---
@@ -573,6 +575,7 @@ class CenterWidget(QWidget):
         layout.addWidget(self.value_label)
         layout.addItem(QSpacerItem(10, 10, QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Maximum))
         layout.setContentsMargins(0, 0, 0, 0)
+
         self.setLayout(layout)
 
         # --- connect handlers ---
@@ -620,6 +623,7 @@ class ValueSetWidget(QWidget):
         layout.addWidget(self.label)
         layout.addItem(QSpacerItem(10, 10, QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Maximum))
         layout.setContentsMargins(0, 0, 0, 0)
+
         self.setLayout(layout)
 
         self.pushbutton.clicked.connect(lambda: self._emit_clicked(self.spinbox.value()))
@@ -666,6 +670,7 @@ class DoubleValueSetWidget(QWidget):
         layout.addWidget(self.label)
         layout.addItem(QSpacerItem(10, 10, QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Maximum))
         layout.setContentsMargins(0, 0, 0, 0)
+
         self.setLayout(layout)
 
         self.pushbutton.clicked.connect(lambda: self._emit_clicked(self.spinbox.value()))
@@ -782,11 +787,11 @@ class TaskControlsWidget(QWidget):
 
         self.progressbar = ProgressBar(self)
 
-        self.play_pause_button = IconButton(QIcon(ICON_RUN), parent=self)
-        self.play_pause_button.setFixedHeight(self.progressbar.bar.sizeHint().height())
-        self.play_pause_button.setFixedWidth(self.progressbar.bar.sizeHint().height())
-        self.play_pause_button.setToolTip("Run Process")
-        self.play_pause_button.setEnabled(False)
+        self.run_stop_button = IconButton(QIcon(ICON_RUN), parent=self)
+        self.run_stop_button.setFixedHeight(self.progressbar.bar.sizeHint().height())
+        self.run_stop_button.setFixedWidth(self.progressbar.bar.sizeHint().height())
+        self.run_stop_button.setToolTip("Run Process")
+        self.run_stop_button.setEnabled(False)
 
         self.preview_button = IconButton(QIcon(ICON_EYE), parent=self)
         self.preview_button.setFixedHeight(self.progressbar.bar.sizeHint().height())
@@ -801,7 +806,7 @@ class TaskControlsWidget(QWidget):
         self.info_button.setEnabled(False)
 
         layout = QHBoxLayout()
-        layout.addWidget(self.play_pause_button)
+        layout.addWidget(self.run_stop_button)
         layout.addWidget(self.progressbar, stretch=1)
         layout.addWidget(self.info_button)
         layout.addWidget(self.preview_button)
@@ -920,6 +925,7 @@ class DOTFProbeDirectionWidget(QWidget):
                 checkbox.blockSignals(False)
 
         layout.setContentsMargins(0, 0, 0, 0)
+
         self.setLayout(layout)
 
     def __getitem__(self, index) -> QCheckBox:
@@ -993,6 +999,7 @@ class PairwiseProbeDirectionWidget(QWidget):
                 checkbox.blockSignals(False)
 
         layout.setContentsMargins(0, 0, 0, 0)
+
         self.setLayout(layout)
 
     def __getitem__(self, index) -> QCheckBox:

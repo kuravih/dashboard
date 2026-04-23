@@ -1,3 +1,6 @@
+from __future__ import annotations
+from typing import TYPE_CHECKING, cast
+
 import pickle
 import numpy as np
 from matplotlib.lines import Line2D
@@ -11,26 +14,24 @@ from PySide6.QtWidgets import QDoubleSpinBox, QGridLayout, QLabel, QVBoxLayout, 
 
 import testbed
 
+if TYPE_CHECKING:
+    from dashboard import MainWindow
 from ..device.camera import Camera
 from ..device.modulator import Modulator, FULL_STROKE_NM
 from ..worker.speckle_calibration_worker import ProcessWorker
-from ..worker.camera_worker import ProcessWorker as CameraSamplingWorker
-from ..worker.modulator_worker import ProcessWorker as ModulatorSamplingWorker
 from ..worker.storage_worker import SinkStorageWorker, SourceStorageWorker
 from ..function import flip_rotate_points
 from .camera_window import PreviewWindow as CameraPreviewWindow
 from .modulator_window import PreviewWindow as ModulatorPreviewWindow
 from .dialog import MessageDialog
-from .resource import ICON_PAUSE, ICON_RUN
+from .resource import ICON_STOP, ICON_RUN
 
 from . import DevicesSetupWidget, LinspaceWidget, TaskControlsWidget, Window
 
-_PROCESS_ = testbed.SPECKLE_CALIBRATION
-process_worker_id = f"{_PROCESS_}_worker"
-
-logger = setup_logger(f"{_PROCESS_}_window", terminator="\n")
+logger = setup_logger(f"{testbed.SPECKLE_CALIBRATION}_window", terminator="\n")
 
 
+# ==== ProcessSettingsWidget ==========================================================================================
 class ProcessSettingsWidget(QWidget):
     """
     Speckle Calibration Process Settings
@@ -132,10 +133,13 @@ class ProcessSettingsWidget(QWidget):
         self._speckles = value
 
 
+# ==== ProcessWindow ==================================================================================================
 class ProcessWindow(Window):
     """
     Speckle Calibration Process Window
     """
+
+    wid = f"{testbed.SPECKLE_CALIBRATION}_window"
 
     def __init__(self, parent=None):
         super().__init__(parent, Qt.WindowType.Dialog)
@@ -183,19 +187,29 @@ class ProcessWindow(Window):
     def speckles_plot(self, value: Line2D | None):
         self._speckles_plot = value
 
+    def update_device_buttons(self, enabled: bool):
+        main_window = cast("MainWindow", self.parent())
+        if self.source is not None:
+            main_window.set_device_buttons_enabled(self.source.name, enabled)
+        if self.sink is not None:
+            main_window.set_device_buttons_enabled(self.sink.name, enabled)
+
+    def update_process_controls(self):
+        enabled = False
+        if self.source is not None and self.sink is not None:
+            if not testbed.data.is_worker_alive(self.source.sampling_worker_id) and not testbed.data.is_worker_alive(self.sink.sampling_worker_id):
+                enabled = True
+        self.controls_widget.run_stop_button.setEnabled(enabled)
+
     @Slot(Camera)
     def on_source_changed(self, device: Camera):
         self.source = device
-        self.controls_widget.play_pause_button.setEnabled(False)
-        if self.source is not None and self.sink is not None:
-            self.controls_widget.play_pause_button.setEnabled(True)
+        self.update_process_controls()
 
     @Slot(Modulator)
     def on_sink_changed(self, device: Modulator):
         self.sink = device
-        self.controls_widget.play_pause_button.setEnabled(False)
-        if self.source is not None and self.sink is not None:
-            self.controls_widget.play_pause_button.setEnabled(True)
+        self.update_process_controls()
 
     @Slot(int, float)  # step, elapsed_time
     def on_progress_tick(self, step: int, t_elapsed: float):
@@ -212,23 +226,22 @@ class ProcessWindow(Window):
     def on_process_finished(self):
         self.controls_widget.progressbar.reset()
         self.controls_widget.progressbar.updateProgress()
-        if process_worker_id in testbed.data.workers:  # an update worker is in progress
-            testbed.data.workers.pop(process_worker_id)
-            self.controls_widget.play_pause_button.setIconHint(QIcon(ICON_RUN), "Run")
+        if testbed.data.is_worker_alive(ProcessWorker.wid):
+            testbed.data.workers.pop(ProcessWorker.wid)
+            self.controls_widget.run_stop_button.setIconHint(QIcon(ICON_RUN), "Run")
+        self.update_device_buttons(True)
 
     @Slot()
     def on_source_storage_finished(self):
         assert self.source is not None
-        source_storage_worker_id = f"{self.source.name}_storage_worker"
-        if source_storage_worker_id in testbed.data.workers:
-            testbed.data.workers.pop(source_storage_worker_id)
+        if testbed.data.is_worker_alive(self.source.storage_worker_id):
+            testbed.data.workers.pop(self.source.storage_worker_id)
 
     @Slot()
     def on_sink_storage_finished(self):
         assert self.sink is not None
-        sink_storage_worker_id = f"{self.sink.name}_storage_worker"
-        if sink_storage_worker_id in testbed.data.workers:
-            testbed.data.workers.pop(sink_storage_worker_id)
+        if testbed.data.is_worker_alive(self.sink.storage_worker_id):
+            testbed.data.workers.pop(self.sink.storage_worker_id)
 
     @Slot()
     def on_start_stop_clicked(self):
@@ -236,28 +249,16 @@ class ProcessWindow(Window):
             message_dialog = MessageDialog("Devices not selected", "Source and sink devices not selected.", icon=QMessageBox.Icon.Information, buttons=QMessageBox.StandardButton.Ok)
             message_dialog.exec()
         else:
-            source_sampling_worker_id = f"{self.source.name}_sampling_worker"
-            if source_sampling_worker_id in testbed.data.workers:
-                source_sampling_worker: CameraSamplingWorker = testbed.data.workers[source_sampling_worker_id]
-                source_sampling_worker.stop()
-
-            source_storage_worker_id = f"{self.source.name}_storage_worker"
-            if source_storage_worker_id in testbed.data.workers:
-                source_storage_worker: SourceStorageWorker = testbed.data.workers[source_storage_worker_id]
+            if testbed.data.is_worker_alive(self.source.storage_worker_id):
+                source_storage_worker = cast(SourceStorageWorker, testbed.data.workers[self.source.storage_worker_id])
                 source_storage_worker.stop()
 
-            sink_sampling_worker_id = f"{self.sink.name}_sampling_worker"
-            if sink_sampling_worker_id in testbed.data.workers:
-                sink_sampling_worker: ModulatorSamplingWorker = testbed.data.workers[sink_sampling_worker_id]
-                sink_sampling_worker.stop()
-
-            sink_storage_worker_id = f"{self.sink.name}_storage_worker"
-            if sink_storage_worker_id in testbed.data.workers:
-                sink_storage_worker: SinkStorageWorker = testbed.data.workers[sink_storage_worker_id]
+            if testbed.data.is_worker_alive(self.sink.storage_worker_id):
+                sink_storage_worker = cast(SinkStorageWorker, testbed.data.workers[self.sink.storage_worker_id])
                 sink_storage_worker.stop()
 
-            if process_worker_id in testbed.data.workers:  # a process worker is in progress
-                process_worker: ProcessWorker = testbed.data.workers[process_worker_id]
+            if testbed.data.is_worker_alive(ProcessWorker.wid):
+                process_worker = cast(ProcessWorker, testbed.data.workers[ProcessWorker.wid])
                 process_worker.stop()
                 return
 
@@ -267,29 +268,28 @@ class ProcessWindow(Window):
             process_worker.signals.error.connect(self.on_process_error)
 
             self.controls_widget.progressbar.setMaximum(process_worker.n_ticks)
-            self.controls_widget.play_pause_button.setIconHint(QIcon(ICON_PAUSE), "Pause")
+            self.controls_widget.run_stop_button.setIconHint(QIcon(ICON_STOP), "Stop")
 
             timestamp = timestamp_string(frmt="%Y%m%d.%H%M%S", ms=None)
 
-            with open(f"data/output/{timestamp}_{_PROCESS_}_parameters.pkl", "wb") as wbfile:
+            with open(f"data/output/{timestamp}_{testbed.SPECKLE_CALIBRATION}_parameters.pkl", "wb") as wbfile:
                 parameters_dict = {"amplitudes": self.settings_widget.amplitude, "frequencies": self.settings_widget.freqs_array, "angles": self.settings_widget.angles_array, "phases": self.settings_widget.phases_array}
                 pickle.dump(parameters_dict, wbfile, protocol=pickle.HIGHEST_PROTOCOL)
 
-            source_storage_worker = SourceStorageWorker(f"data/output/{timestamp}_{_PROCESS_}_{self.source.name}.raw", process_worker.n_ticks)
+            source_storage_worker = SourceStorageWorker(f"data/output/{timestamp}_{ProcessWorker.wid}_{self.source.name}.raw", process_worker.n_ticks)
             process_worker.signals.srcSampled.connect(source_storage_worker.on_sampled)
             source_storage_worker.signals.finished.connect(self.on_source_storage_finished)
-            testbed.data.workers[source_storage_worker_id] = source_storage_worker
+            testbed.data.workers[self.source.storage_worker_id] = source_storage_worker
             testbed.data.threadpool.start(source_storage_worker)
 
-            sink_storage_worker = SinkStorageWorker(f"data/output/{timestamp}_{_PROCESS_}_{self.sink.name}.raw", process_worker.n_ticks)
+            sink_storage_worker = SinkStorageWorker(f"data/output/{timestamp}_{ProcessWorker.wid}_{self.sink.name}.raw", process_worker.n_ticks)
             process_worker.signals.snkSampled.connect(sink_storage_worker.on_sampled)
             sink_storage_worker.signals.finished.connect(self.on_sink_storage_finished)
-            testbed.data.workers[sink_storage_worker_id] = sink_storage_worker
+            testbed.data.workers[self.sink.storage_worker_id] = sink_storage_worker
             testbed.data.threadpool.start(sink_storage_worker)
 
-            source_preview_window_id = f"{self.source.name}_preview_window"
-            if source_preview_window_id in testbed.data.windows:
-                source_preview_window: CameraPreviewWindow = testbed.data.windows[source_preview_window_id]
+            if testbed.data.is_window_alive(self.source.preview_window_id):
+                source_preview_window = cast(CameraPreviewWindow, testbed.data.windows[self.source.preview_window_id])
                 process_worker.signals.srcSampled.connect(source_preview_window.on_sampled)
 
                 if self.speckles_plot is not None:
@@ -307,13 +307,13 @@ class ProcessWindow(Window):
 
                 process_worker.signals.specklesLocated.connect(on_speckles_located)
 
-            sink_preview_window_id = f"{self.sink.name}_preview_window"
-            if sink_preview_window_id in testbed.data.windows:
-                sink_preview_window: ModulatorPreviewWindow = testbed.data.windows[sink_preview_window_id]
+            if testbed.data.is_window_alive(self.sink.preview_window_id):
+                sink_preview_window = cast(ModulatorPreviewWindow, testbed.data.windows[self.sink.preview_window_id])
                 process_worker.signals.snkSampled.connect(sink_preview_window.on_sampled)
 
-            testbed.data.workers[process_worker_id] = process_worker
+            testbed.data.workers[ProcessWorker.wid] = process_worker
             testbed.data.threadpool.start(process_worker)
+            self.update_device_buttons(False)
 
     def setup_main_widget(self) -> QWidget:
         widget = QWidget(self)
@@ -327,7 +327,7 @@ class ProcessWindow(Window):
         self.settings_widget = ProcessSettingsWidget(self)
 
         self.controls_widget = TaskControlsWidget(self)
-        self.controls_widget.play_pause_button.clicked.connect(self.on_start_stop_clicked)
+        self.controls_widget.run_stop_button.clicked.connect(self.on_start_stop_clicked)
         self.controls_widget.preview_button.hide()
         self.controls_widget.info_button.hide()
 

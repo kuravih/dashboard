@@ -9,9 +9,7 @@ from ..device import SourceSample, SinkSample
 from ..device.camera import Camera
 from . import Worker, WorkerSignals
 
-_PROCESS_ = testbed.CAMERA_CALIBRATION
-
-logger = setup_logger(f"{_PROCESS_}_worker", terminator="\n")
+logger = setup_logger(f"{testbed.CAMERA_CALIBRATION}_worker", terminator="\n")
 
 
 class ProcessWorkerSignals(WorkerSignals):
@@ -20,6 +18,9 @@ class ProcessWorkerSignals(WorkerSignals):
 
 
 class ProcessWorker(Worker):
+
+    wid = f"{testbed.CAMERA_CALIBRATION}_worker"
+
     def __init__(self, source: Camera, exp_array: np.ndarray):
         self.signals = ProcessWorkerSignals()
         self.source = source

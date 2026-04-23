@@ -82,6 +82,7 @@ class FigureWidget(QWidget):
             self._toolbar = NavigationToolbar(self.figure_canvas, toolitems, parent=self)
             layout.addWidget(self._toolbar)
         layout.addWidget(self.figure_canvas)
+
         self.setLayout(layout)
 
     @property

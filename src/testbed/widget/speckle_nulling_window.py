@@ -1,3 +1,6 @@
+from __future__ import annotations
+from typing import TYPE_CHECKING, cast
+
 import numpy as np
 from numpy.typing import NDArray
 
@@ -12,6 +15,8 @@ from matplotlib.colors import Normalize, LogNorm
 
 import testbed
 
+if TYPE_CHECKING:
+    from dashboard import MainWindow
 from ..device.camera import Camera
 from ..device.modulator import Modulator, FULL_STROKE_NM
 from ..function import is_speckle_calibration_file_valid, read_speckle_calibration_file, constrained_sin_fit_fn, quadratic_fit_fn
@@ -23,16 +28,11 @@ from .camera_window import PreviewWindow as CameraPreviewWindow
 from .modulator_window import PreviewWindow as ModulatorPreviewWindow
 from .dialog import MessageDialog
 from .figure_widget import ContrastFigureWidget, SpeckleNullingFigureWidget
-from .resource import ICON_PAUSE, ICON_RUN
+from .resource import ICON_STOP, ICON_RUN
 
 from . import DevicesSetupWidget, LinspaceWidget, TaskControlsWidget, Window, FileLoadWidget
 
-_PROCESS_ = testbed.SPECKLE_NULLING
-process_worker_id = f"{_PROCESS_}_worker"
-process_info_window_id = f"{_PROCESS_}_info_window"
-process_preview_window_id = f"{_PROCESS_}_preview_window"
-
-logger = setup_logger(f"{_PROCESS_}_window", terminator="\n")
+logger = setup_logger(f"{testbed.SPECKLE_NULLING}_window", terminator="\n")
 
 
 # ==== ProcessSettingsWidget ==========================================================================================
@@ -191,6 +191,8 @@ class ProcessInfoWindow(Window):
     Speckle Nulling Process Information Window
     """
 
+    wid = f"{testbed.SPECKLE_NULLING}_info_window"
+
     def __init__(self, phs_lim: tuple[float, float], phs_array: np.ndarray, amp_lim: tuple[float, float], amp_array: np.ndarray, parent: QWidget | None = None):
         super().__init__(parent, Qt.WindowType.Dialog)
 
@@ -217,6 +219,7 @@ class ProcessInfoWindow(Window):
         layout = QVBoxLayout()
         layout.setContentsMargins(2, 2, 2, 2)
         layout.addWidget(self.setup_info_widget())
+
         self.setLayout(layout)
 
         self.update_timer = QTimer(self)
@@ -294,6 +297,7 @@ class ProcessPreviewSettingsWindow(Window):
         layout = QVBoxLayout()
         layout.setContentsMargins(2, 2, 2, 2)
         layout.addWidget(self.setup_settings_widget())
+
         self.setLayout(layout)
 
     def setup_settings_widget(self) -> QWidget:
@@ -347,6 +351,8 @@ class ProcessPreviewWindow(Window):
     Consists of an Imshow axes for the contrast map and a Plot axes for a contrast evolution plot.
     """
 
+    wid = f"{testbed.SPECKLE_NULLING}_preview_window"
+
     def __init__(self, measure_map: np.ndarray, n_iterations: int, dark_hole_mask: NDArray[np.bool], parent: QWidget | None = None):
         super().__init__(parent, Qt.WindowType.Dialog)
         self.measure_map = measure_map
@@ -363,6 +369,7 @@ class ProcessPreviewWindow(Window):
         layout = QVBoxLayout()
         layout.setContentsMargins(2, 2, 2, 2)
         layout.addWidget(self.setup_preview_widget())
+
         self.setLayout(layout)
 
         self.update_timer = QTimer(self)
@@ -441,9 +448,10 @@ class ProcessWindow(Window):
     Speckle Nulling Process Window
     """
 
+    wid = f"{testbed.SPECKLE_NULLING}_window"
+
     def __init__(self, parent=None):
         super().__init__(parent, Qt.WindowType.Dialog)
-        # self.setWindowModality(Qt.WindowModality.WindowModal)
         self.setWindowTitle("Speckle Nulling Process")
         self.sink = None
         self.source = None
@@ -452,6 +460,7 @@ class ProcessWindow(Window):
         layout = QVBoxLayout()
         layout.setContentsMargins(2, 2, 2, 2)
         layout.addWidget(self.setup_main_widget())
+
         self.setLayout(layout)
 
     @property
@@ -482,12 +491,28 @@ class ProcessWindow(Window):
     def on_calibration_change(self):
         self.controls_widget.info_button.setEnabled(False)
         self.controls_widget.preview_button.setEnabled(False)
-        self.controls_widget.play_pause_button.setEnabled(False)
+        self.controls_widget.run_stop_button.setEnabled(False)
         if self.source is not None and self.sink is not None and self.settings_widget.calibration_widget.filepath is not None:
             self.speckle_calibration = read_speckle_calibration_file(self.settings_widget.calibration_widget.filepath)
             self.controls_widget.info_button.setEnabled(True)
             self.controls_widget.preview_button.setEnabled(True)
-            self.controls_widget.play_pause_button.setEnabled(True)
+            self.controls_widget.run_stop_button.setEnabled(True)
+
+    def update_device_buttons(self, enabled: bool):
+        main_window = cast("MainWindow", self.parent())
+        if self.source is not None:
+            main_window.set_device_buttons_enabled(self.source.name, enabled)
+        if self.sink is not None:
+            main_window.set_device_buttons_enabled(self.sink.name, enabled)
+
+    def update_process_controls(self):
+        enabled = False
+        if self.source is not None and self.sink is not None:
+            source_sampling_worker_id = f"{self.source.name}_sampling_worker"
+            sink_sampling_worker_id = f"{self.sink.name}_sampling_worker"
+            if source_sampling_worker_id not in testbed.data.workers and sink_sampling_worker_id not in testbed.data.workers:
+                enabled = True
+        self.controls_widget.run_stop_button.setEnabled(enabled)
 
     @Slot()
     def on_source_changed(self, device: Camera):
@@ -496,7 +521,7 @@ class ProcessWindow(Window):
             testbed.data.windows.pop(process_info_window_id).close()
         if process_preview_window_id in testbed.data.windows:
             testbed.data.windows.pop(process_preview_window_id).close()
-        self.controls_widget.play_pause_button.setEnabled(False)
+        self.controls_widget.run_stop_button.setEnabled(False)
         if self.source is not None:
             self.settings_widget.dark_hole_mask = chord(self.source.shape, self.source.shape[0] * 5 / 16, 0.6)
             if self.sink is not None:
@@ -504,7 +529,7 @@ class ProcessWindow(Window):
                 self.controls_widget.info_button.setEnabled(True)
                 if self.settings_widget.calibration_widget.filepath is not None:
                     self.speckle_calibration = read_speckle_calibration_file(self.settings_widget.calibration_widget.filepath)
-                    self.controls_widget.play_pause_button.setEnabled(True)
+                    self.controls_widget.run_stop_button.setEnabled(True)
 
     @Slot()
     def on_sink_changed(self, device: Modulator):
@@ -513,7 +538,7 @@ class ProcessWindow(Window):
             testbed.data.windows.pop(process_info_window_id).close()
         if process_preview_window_id in testbed.data.windows:
             testbed.data.windows.pop(process_preview_window_id).close()
-        self.controls_widget.play_pause_button.setEnabled(False)
+        self.controls_widget.run_stop_button.setEnabled(False)
         if self.source is not None:
             self.settings_widget.dark_hole_mask = chord(self.source.shape, self.source.shape[0] * 5 / 16, 0.6)
             if self.sink is not None:
@@ -521,7 +546,7 @@ class ProcessWindow(Window):
                 self.controls_widget.info_button.setEnabled(True)
                 if self.settings_widget.calibration_widget.filepath is not None:
                     self.speckle_calibration = read_speckle_calibration_file(self.settings_widget.calibration_widget.filepath)
-                    self.controls_widget.play_pause_button.setEnabled(True)
+                    self.controls_widget.run_stop_button.setEnabled(True)
 
     @Slot(int, float)  # step, elapsed_time
     def on_progress_tick(self, step: int, t_elapsed: float):
@@ -536,7 +561,7 @@ class ProcessWindow(Window):
         if process_worker_id in testbed.data.workers:  # an update worker is in progress
             process_worker: ProcessWorker = testbed.data.workers[process_worker_id]
             process_worker.stop()
-            self.controls_widget.play_pause_button.setIconHint(QIcon(ICON_RUN), "Run")
+            self.controls_widget.run_stop_button.setIconHint(QIcon(ICON_RUN), "Run")
             testbed.data.workers.pop(process_worker_id)
 
         assert self.source is not None
@@ -608,7 +633,7 @@ class ProcessWindow(Window):
                 process_worker.stop()
                 testbed.data.workers.pop(process_worker_id)
 
-                self.controls_widget.play_pause_button.setIconHint(QIcon(ICON_RUN), "Run")
+                self.controls_widget.run_stop_button.setIconHint(QIcon(ICON_RUN), "Run")
                 self.controls_widget.progressbar.setMaximum(100)
                 self.controls_widget.progressbar.reset()
                 self.controls_widget.progressbar.updateProgress()
@@ -624,7 +649,7 @@ class ProcessWindow(Window):
             process_worker.signals.progressTicked.connect(self.on_progress_tick)
             process_worker.signals.finished.connect(self.on_finished)
 
-            self.controls_widget.play_pause_button.setIconHint(QIcon(ICON_PAUSE), "Pause")
+            self.controls_widget.run_stop_button.setIconHint(QIcon(ICON_STOP), "Stop")
 
             source_preview_window_id = f"{self.source.name}_preview_window"
             if source_preview_window_id in testbed.data.windows:
@@ -708,7 +733,7 @@ class ProcessWindow(Window):
         self.settings_widget.calibration_widget.fileChanged.connect(self.on_calibration_change)
 
         self.controls_widget = TaskControlsWidget(self)
-        self.controls_widget.play_pause_button.clicked.connect(self.on_start_stop_clicked)
+        self.controls_widget.run_stop_button.clicked.connect(self.on_start_stop_clicked)
         self.controls_widget.info_button.clicked.connect(self.open_process_info_clicked)
         self.controls_widget.preview_button.clicked.connect(self.open_process_preview_clicked)
 

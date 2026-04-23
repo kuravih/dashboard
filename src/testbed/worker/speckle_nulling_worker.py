@@ -12,9 +12,7 @@ from ..device.modulator import Modulator
 from . import Worker, WorkerSignals
 from ..function import find_speckles, speckle_parameters, constrained_sin_fit_fn, quadratic_fit_fn
 
-_PROCESS_ = testbed.SPECKLE_NULLING
-
-logger = setup_logger(f"{_PROCESS_}_worker", terminator="\n")
+logger = setup_logger(f"{testbed.SPECKLE_NULLING}_worker", terminator="\n")
 
 class ProcessWorkerSignals(WorkerSignals):
     srcSampled = Signal(SourceSample)
@@ -34,6 +32,9 @@ class ProcessWorkerSignals(WorkerSignals):
 
 
 class ProcessWorker(Worker):
+
+    wid = f"{testbed.SPECKLE_NULLING}_worker"
+
     def __init__(self, source: Camera, sink: Modulator, dark_hole_mask: np.ndarray, speckle_calibration: dict[str, dict[str, float]], phs_array: np.ndarray, amp_array: np.ndarray, n_iterations: int | None = None):
         super().__init__()
         self.signals = ProcessWorkerSignals()

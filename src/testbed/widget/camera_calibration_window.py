@@ -1,3 +1,6 @@
+from __future__ import annotations
+from typing import TYPE_CHECKING, cast
+
 import numpy as np
 from pykato.function import timestamp_string
 from pykato.log import setup_logger
@@ -7,22 +10,21 @@ from PySide6.QtWidgets import QVBoxLayout, QHBoxLayout, QWidget, QMessageBox
 
 import testbed
 
+if TYPE_CHECKING:
+    from dashboard import MainWindow
 from ..device.camera import Camera
 from ..worker.camera_calibration_worker import ProcessWorker
 from ..worker.storage_worker import SourceStorageWorker
 from ..widget.camera_window import PreviewWindow as CameraPreviewWindow
-from ..worker.camera_worker import ProcessWorker as CameraSamplingWorker
 from .dialog import MessageDialog
-from .resource import ICON_PAUSE, ICON_RUN
+from .resource import ICON_STOP, ICON_RUN
 
 from . import DevicesSetupWidget, TaskControlsWidget, ExposureTimeArrayWidget, Window
 
-_PROCESS_ = testbed.CAMERA_CALIBRATION
-process_worker_id = f"{_PROCESS_}_worker"
-
-logger = setup_logger(f"{_PROCESS_}_window", terminator="\n")
+logger = setup_logger(f"{testbed.CAMERA_CALIBRATION}_window", terminator="\n")
 
 
+# ==== ProcessSettingsWidget ==========================================================================================
 class ProcessSettingsWidget(QWidget):
     """
     Camera Calibration Process Settings
@@ -42,10 +44,13 @@ class ProcessSettingsWidget(QWidget):
         return np.array(self.exposure_time_s_spinboxes.value())
 
 
+# ==== ProcessWindow ==================================================================================================
 class ProcessWindow(Window):
     """
     Camera Calibration Process Window
     """
+
+    wid = f"{testbed.CAMERA_CALIBRATION}_window"
 
     def __init__(self, parent=None):
         super().__init__(parent, Qt.WindowType.Dialog)
@@ -55,6 +60,7 @@ class ProcessWindow(Window):
         layout = QVBoxLayout()
         layout.setContentsMargins(2, 2, 2, 2)
         layout.addWidget(self.setup_main_widget())
+
         self.setLayout(layout)
 
     @property
@@ -65,12 +71,22 @@ class ProcessWindow(Window):
     def source(self, device: Camera | None):
         self._source = device
 
+    def update_device_buttons(self, enabled: bool):
+        main_window = cast("MainWindow", self.parent())
+        if self.source is not None:
+            main_window.set_device_buttons_enabled(self.source.name, enabled)
+
+    def update_process_controls(self):
+        enabled = False
+        if self.source is not None:
+            if not testbed.data.is_worker_alive(self.source.sampling_worker_id):
+                enabled = True
+        self.controls_widget.run_stop_button.setEnabled(enabled)
+
     @Slot(Camera)
     def on_source_changed(self, device: Camera):
         self.source = device
-        self.controls_widget.play_pause_button.setEnabled(False)
-        if self.source is not None:
-            self.controls_widget.play_pause_button.setEnabled(True)
+        self.update_process_controls()
 
     @Slot(int, float)  # step, elapsed_time
     def on_progress_tick(self, step: int, t_elapsed: float):
@@ -87,16 +103,16 @@ class ProcessWindow(Window):
     def on_process_finished(self):
         self.controls_widget.progressbar.reset()
         self.controls_widget.progressbar.updateProgress()
-        if process_worker_id in testbed.data.workers:  # an update worker is in progress
-            testbed.data.workers.pop(process_worker_id)
-            self.controls_widget.play_pause_button.setIconHint(QIcon(ICON_RUN), "Run")
+        if testbed.data.is_worker_alive(ProcessWorker.wid):
+            testbed.data.workers.pop(ProcessWorker.wid)
+            self.controls_widget.run_stop_button.setIconHint(QIcon(ICON_RUN), "Run")
+        self.update_device_buttons(True)
 
     @Slot()
     def on_source_storage_finished(self):
         assert self.source is not None
-        source_storage_worker_id = f"{self.source.name}_storage_worker"
-        if source_storage_worker_id in testbed.data.workers:
-            testbed.data.workers.pop(source_storage_worker_id)
+        if testbed.data.is_worker_alive(self.source.storage_worker_id):
+            testbed.data.workers.pop(self.source.storage_worker_id)
 
     @Slot()
     def on_start_stop_clicked(self):
@@ -104,18 +120,12 @@ class ProcessWindow(Window):
             message_dialog = MessageDialog("Devices not selected", "Source device not selected.", icon=QMessageBox.Icon.Information, buttons=QMessageBox.StandardButton.Ok)
             message_dialog.exec()
         else:
-            source_sampling_worker_id = f"{self.source.name}_sampling_worker"
-            if source_sampling_worker_id in testbed.data.workers:
-                source_sampling_worker: CameraSamplingWorker = testbed.data.workers[source_sampling_worker_id]
-                source_sampling_worker.stop()
-
-            source_storage_worker_id = f"{self.source.name}_storage_worker"
-            if source_storage_worker_id in testbed.data.workers:
-                source_storage_worker: SourceStorageWorker = testbed.data.workers[source_storage_worker_id]
+            if testbed.data.is_worker_alive(self.source.storage_worker_id):
+                source_storage_worker = cast(SourceStorageWorker, testbed.data.workers[self.source.storage_worker_id])
                 source_storage_worker.stop()
 
-            if process_worker_id in testbed.data.workers:  # a process worker is in progress
-                process_worker: ProcessWorker = testbed.data.workers[process_worker_id]
+            if testbed.data.is_worker_alive(ProcessWorker.wid):
+                process_worker = cast(ProcessWorker, testbed.data.workers[ProcessWorker.wid])
                 process_worker.stop()
                 return
 
@@ -125,23 +135,23 @@ class ProcessWindow(Window):
             process_worker.signals.error.connect(self.on_process_error)
 
             self.controls_widget.progressbar.setMaximum(process_worker.n_ticks)
-            self.controls_widget.play_pause_button.setIconHint(QIcon(ICON_PAUSE), "Pause")
+            self.controls_widget.run_stop_button.setIconHint(QIcon(ICON_STOP), "Stop")
 
             timestamp = timestamp_string(frmt="%Y%m%d.%H%M%S", ms=None)
 
-            source_storage_worker = SourceStorageWorker(f"data/output/{timestamp}_{_PROCESS_}_{self.source.name}.raw", self.settings_widget.exposure_times_array.size)
+            source_storage_worker = SourceStorageWorker(f"data/output/{timestamp}_{ProcessWorker.wid}_{self.source.name}.raw", self.settings_widget.exposure_times_array.size)
             process_worker.signals.srcSampled.connect(source_storage_worker.on_sampled)
             source_storage_worker.signals.finished.connect(self.on_source_storage_finished)
-            testbed.data.workers[source_storage_worker_id] = source_storage_worker
+            testbed.data.workers[self.source.storage_worker_id] = source_storage_worker
             testbed.data.threadpool.start(source_storage_worker)
 
-            source_preview_window_id = f"{self.source.name}_preview_window"
-            if source_preview_window_id in testbed.data.windows:
-                source_preview_window: CameraPreviewWindow = testbed.data.windows[source_preview_window_id]
+            if testbed.data.is_window_alive(self.source.preview_window_id):
+                source_preview_window = cast(CameraPreviewWindow, testbed.data.windows[self.source.preview_window_id])
                 process_worker.signals.srcSampled.connect(source_preview_window.on_sampled)
 
-            testbed.data.workers[process_worker_id] = process_worker
+            testbed.data.workers[ProcessWorker.wid] = process_worker
             testbed.data.threadpool.start(process_worker)
+            self.update_device_buttons(False)
 
     def setup_main_widget(self) -> QWidget:
         widget = QWidget(self)
@@ -154,7 +164,7 @@ class ProcessWindow(Window):
         self.settings_widget = ProcessSettingsWidget(self)
 
         self.controls_widget = TaskControlsWidget(self)
-        self.controls_widget.play_pause_button.clicked.connect(self.on_start_stop_clicked)
+        self.controls_widget.run_stop_button.clicked.connect(self.on_start_stop_clicked)
         self.controls_widget.preview_button.hide()
         self.controls_widget.info_button.hide()
 

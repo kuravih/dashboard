@@ -11,9 +11,7 @@ from ..device.camera import Camera
 from ..device.modulator import Modulator
 from . import Worker, WorkerSignals
 
-_PROCESS_ = testbed.SIMPLE_LOOP
-
-logger = setup_logger(f"{_PROCESS_}_worker", terminator="\n")
+logger = setup_logger(f"{testbed.SIMPLE_LOOP}_worker", terminator="\n")
 
 
 class ProcessWorkerSignals(WorkerSignals):
@@ -22,6 +20,9 @@ class ProcessWorkerSignals(WorkerSignals):
 
 
 class ProcessWorker(Worker):
+
+    wid = f"{testbed.SIMPLE_LOOP}_worker"
+
     def __init__(self, source: Camera, sink: Modulator, amplitude: float, n_steps: int = 0):
         self.signals = ProcessWorkerSignals()
         self.source = source

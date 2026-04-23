@@ -13,9 +13,7 @@ from ..device.camera import Camera
 from ..device.modulator import Modulator
 from . import Worker, WorkerSignals
 
-_PROCESS_ = testbed.PAIRWISE_FPWFS
-
-logger = setup_logger(f"{_PROCESS_}_worker", terminator="\n")
+logger = setup_logger(f"{testbed.PAIRWISE_FPWFS}_worker", terminator="\n")
 
 
 class ProcessWorkerSignals(WorkerSignals):
@@ -25,6 +23,9 @@ class ProcessWorkerSignals(WorkerSignals):
 
 
 class ProcessWorker(Worker):
+
+    wid = f"{testbed.PAIRWISE_FPWFS}_worker"
+
     def __init__(self, source: Camera, sink: Modulator, dark_hole_mask: NDArray[np.bool], pairwise_calibration: dict[int, NDArray[np.float64]], probe_amplitude: float, probe_dξ: float, probe_dη: float, probe_ξc: float, probe_directions: list[PairwiseProbeDirection], n_reps: int):
         self.signals = ProcessWorkerSignals()
         self.source = source
@@ -41,11 +42,12 @@ class ProcessWorker(Worker):
             self.wavefront[direction] = np.zeros(self.source.shape, dtype=np.complex64)
         self.n_reps = n_reps
         if self.n_reps:
-            super().__init__(self.n_reps * len(self.probe_directions) + 1)  # blank at the end
+            super().__init__(self.n_reps * (5 * len(self.probe_directions)) + 1)  # blank at the end
         else:
             super().__init__(0)
 
     def sense_wavefront(self, probe_amplitude: float, dξ: float, dη: float, ξc: float, direction: PairwiseProbeDirection) -> NDArray[np.complex64]:
+        # -------------------------------------------------------------------------------------------------------------
         zero_cmd = np.zeros(self.sink.shape)
 
         zero_sink_sample = self.sink.push_command(zero_cmd)
@@ -55,6 +57,10 @@ class ProcessWorker(Worker):
         zero_source_sample = self.source.pull_capture()
         self.signals.srcSampled.emit(zero_source_sample)
         time.sleep(0.2)
+
+        self.i_tick = self.i_tick + 1
+        self.signals.progressTicked.emit(self.i_tick, time.time() - self.t_start)
+        # -------------------------------------------------------------------------------------------------------------
 
         # -------------------------------------------------------------------------------------------------------------
         k = 1
@@ -74,6 +80,9 @@ class ProcessWorker(Worker):
         probe_p_h_1_source_sample = self.source.pull_capture()
         self.signals.srcSampled.emit(probe_p_h_1_source_sample)
         time.sleep(0.2)
+
+        self.i_tick = self.i_tick + 1
+        self.signals.progressTicked.emit(self.i_tick, time.time() - self.t_start)
         # ---- probe_p_h_1 --------------------------------------------------------------------------------------------
 
         # ---- probe_m_h_1 --------------------------------------------------------------------------------------------
@@ -84,6 +93,9 @@ class ProcessWorker(Worker):
         probe_m_h_1_source_sample = self.source.pull_capture()
         self.signals.srcSampled.emit(probe_m_h_1_source_sample)
         time.sleep(0.2)
+
+        self.i_tick = self.i_tick + 1
+        self.signals.progressTicked.emit(self.i_tick, time.time() - self.t_start)
         # ---- probe_m_h_1 --------------------------------------------------------------------------------------------
 
         # ---- probe_p_h_2 --------------------------------------------------------------------------------------------
@@ -94,6 +106,9 @@ class ProcessWorker(Worker):
         probe_p_h_2_source_sample = self.source.pull_capture()
         self.signals.srcSampled.emit(probe_p_h_2_source_sample)
         time.sleep(0.2)
+
+        self.i_tick = self.i_tick + 1
+        self.signals.progressTicked.emit(self.i_tick, time.time() - self.t_start)
         # ---- probe_p_h_2 --------------------------------------------------------------------------------------------
 
         # ---- probe_m_h_2 --------------------------------------------------------------------------------------------
@@ -104,6 +119,9 @@ class ProcessWorker(Worker):
         probe_m_h_2_source_sample = self.source.pull_capture()
         self.signals.srcSampled.emit(probe_m_h_2_source_sample)
         time.sleep(0.2)
+
+        self.i_tick = self.i_tick + 1
+        self.signals.progressTicked.emit(self.i_tick, time.time() - self.t_start)
         # ---- probe_m_h_2 --------------------------------------------------------------------------------------------
 
         Δp_h_1_mag = np.sqrt((probe_p_h_1_source_sample.capture + probe_m_h_1_source_sample.capture) / 2 - zero_source_sample.capture)
@@ -119,7 +137,7 @@ class ProcessWorker(Worker):
         electric_field_h[self.dark_hole_mask] = zero_source_sample.capture[self.dark_hole_mask] * np.exp(1j * np.angle(electric_field_h[self.dark_hole_mask]))
 
         return electric_field_h
-    
+
     def sense_wavefronts(self, probe_amplitude: float, dξ: float, dη: float, ξc: float, directions: list[PairwiseProbeDirection], n_reps: int):
         i_rep = 0
         while ((n_reps is 0) or (n_reps > i_rep)) and self._running:
@@ -128,9 +146,6 @@ class ProcessWorker(Worker):
                 self.signals.wfSensed.emit(direction, self.wavefront[direction] / (i_rep + 1))
 
             i_rep = i_rep + 1
-
-            self.i_tick = self.i_tick + 1
-            self.signals.progressTicked.emit(self.i_tick, time.time() - self.t_start)
 
     @Slot()
     def run(self):

@@ -20,12 +20,15 @@ class ProcessWorker(Worker):
         self.signals = ProcessWorkerSignals()
         self._camera = camera
 
+    @property
+    def wid(self):
+        return f"{self._camera.name}_sampling_worker"
+
     @Slot()
     def run(self):
         super().run()
         while self._running:
             time.sleep(0.1)
-            # logger.info("%s UpdateWorker.run", self._camera.name)
             self.signals.sampled.emit(self._camera.pull_capture())
 
         logger.info("camera_worker.py - ProcessWorker() finished")

@@ -77,6 +77,26 @@ class Device:
             raise ValueError("Name must be a string")
         self._name = value
 
+    @property
+    def preview_window_id(self) -> str:
+        return f"{self.name}_preview_window"
+
+    @property
+    def info_window_id(self) -> str:
+        return f"{self.name}_info_window"
+    
+    @property
+    def settings_window_id(self) -> str:
+        return f"{self.name}_settings_window"
+    
+    @property
+    def sampling_worker_id(self) -> str:
+        return f"{self.name}_sampling_worker"
+    
+    @property
+    def storage_worker_id(self) -> str:
+        return f"{self.name}_storage_worker"
+
     def __del__(self):
         device_logger.info("Device object %s removed", self.name)
 

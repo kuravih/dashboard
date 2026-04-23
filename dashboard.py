@@ -1,5 +1,5 @@
 import sys
-from typing import NamedTuple
+from typing import NamedTuple, cast
 from PySide6.QtGui import QIcon
 from PySide6.QtWidgets import QMainWindow, QPushButton, QFileDialog, QMessageBox, QApplication, QWidget, QVBoxLayout, QHBoxLayout, QTableWidget, QTableWidgetItem, QHeaderView, QSpacerItem, QSizePolicy
 
@@ -102,14 +102,12 @@ class MainWindow(QMainWindow):
         self.setCentralWidget(container)
 
     def open_device_preview_window(self, device: Camera | Modulator):
-        device_preview_window_id = f"{device.name}_preview_window"
-        device_sampling_worker_id = f"{device.name}_sampling_worker"
 
         @Slot()
         def on_window_closed():
-            testbed.data.windows.pop(device_preview_window_id, None)
+            testbed.data.windows.pop(device.preview_window_id, None)
 
-        if device_preview_window_id not in testbed.data.windows:
+        if not testbed.data.is_window_alive(device.preview_window_id):
             preview_window: CameraPreviewWindow | ModulatorPreviewWindow | None = None
             if isinstance(device, Camera):
                 preview_window = CameraPreviewWindow(device, parent=self)
@@ -122,21 +120,18 @@ class MainWindow(QMainWindow):
             preview_window.show()
             preview_window.raise_()
             preview_window.activateWindow()
-            testbed.data.windows[device_preview_window_id] = preview_window
+            testbed.data.windows[device.preview_window_id] = preview_window
 
-            if device_sampling_worker_id in testbed.data.workers:
-                testbed.data.workers[device_sampling_worker_id].signals.sampled.connect(testbed.data.windows[device_preview_window_id].on_sampled)
+            if testbed.data.is_worker_alive(device.sampling_worker_id):
+                testbed.data.workers[device.sampling_worker_id].signals.sampled.connect(testbed.data.windows[device.preview_window_id].on_sampled)
 
     def open_device_info_window(self, device: Camera | Modulator):
 
-        device_info_window_id = f"{device.name}_info_window"
-        device_sampling_worker_id = f"{device.name}_sampling_worker"
-
         @Slot()
         def on_window_closed():
-            testbed.data.windows.pop(device_info_window_id, None)
+            testbed.data.windows.pop(device.info_window_id, None)
 
-        if device_info_window_id not in testbed.data.windows:
+        if not testbed.data.is_window_alive(device.info_window_id):
             info_window: CameraInfoWindow | ModulatorInfoWindow | None = None
             if isinstance(device, Camera):
                 info_window = CameraInfoWindow(device, parent=self)
@@ -148,20 +143,18 @@ class MainWindow(QMainWindow):
             info_window.show()
             info_window.raise_()
             info_window.activateWindow()
-            testbed.data.windows[device_info_window_id] = info_window
+            testbed.data.windows[device.info_window_id] = info_window
 
-            if device_sampling_worker_id in testbed.data.workers:
-                testbed.data.workers[device_sampling_worker_id].signals.sampled.connect(testbed.data.windows[device_info_window_id].on_sampled)
+            if testbed.data.is_worker_alive(device.sampling_worker_id):
+                testbed.data.workers[device.sampling_worker_id].signals.sampled.connect(testbed.data.windows[device.info_window_id].on_sampled)
 
     def open_device_settings_window(self, device: Camera | Modulator):
 
-        device_settings_window_id = f"{device.name}_settings_window"
-
         @Slot()
         def on_window_closed():
-            testbed.data.windows.pop(device_settings_window_id, None)
+            testbed.data.windows.pop(device.settings_window_id, None)
 
-        if device_settings_window_id not in testbed.data.windows:
+        if not testbed.data.is_window_alive(device.settings_window_id):
             settings_window: CameraSettingsWindow | ModulatorSettingsWindow | None = None
             if isinstance(device, Camera):
                 settings_window = CameraSettingsWindow(device, parent=self)
@@ -173,20 +166,16 @@ class MainWindow(QMainWindow):
             settings_window.show()
             settings_window.raise_()
             settings_window.activateWindow()
-            testbed.data.windows[device_settings_window_id] = settings_window
+            testbed.data.windows[device.settings_window_id] = settings_window
 
     def on_play_pause(self, device: Camera | Modulator, button: IconButton):
 
-        device_preview_window_id = f"{device.name}_preview_window"
-        device_info_window_id = f"{device.name}_info_window"
-        device_sampling_worker_id = f"{device.name}_sampling_worker"
-
-        if device_sampling_worker_id in testbed.data.workers:  # an update worker is in progress
-            device_sampling_worker = testbed.data.workers[device_sampling_worker_id]
+        if testbed.data.is_worker_alive(device.sampling_worker_id):  # an update worker is in progress
+            device_sampling_worker = cast(CameraSamplingWorker | ModulatorSamplingWorker, testbed.data.workers[device.sampling_worker_id])
             device_sampling_worker.stop()
             return
 
-        device_sampling_worker: CameraSamplingWorker | ModulatorSamplingWorker | None = None
+        device_sampling_worker = None
         if isinstance(device, Camera):
             device_sampling_worker = CameraSamplingWorker(device)
         elif isinstance(device, Modulator):
@@ -194,37 +183,76 @@ class MainWindow(QMainWindow):
         else:
             raise ValueError("Invalid device")
 
-        if device_preview_window_id in testbed.data.windows:
-            device_preview_window = testbed.data.windows[device_preview_window_id]
+        if testbed.data.is_window_alive(device.preview_window_id):
+            device_preview_window = cast(CameraPreviewWindow | ModulatorPreviewWindow, testbed.data.windows[device.preview_window_id])
             device_sampling_worker.signals.sampled.connect(device_preview_window.on_sampled)
-        if device_info_window_id in testbed.data.windows:
-            device_info_window = testbed.data.windows[device_info_window_id]
+        if testbed.data.is_window_alive(device.info_window_id):
+            device_info_window = cast(CameraInfoWindow | ModulatorInfoWindow, testbed.data.windows[device.info_window_id])
             device_sampling_worker.signals.sampled.connect(device_info_window.on_sampled)
 
         device_sampling_worker.signals.finished.connect(lambda d=device, b=button: self.on_sampling_worker_pause(d, b))
 
-        testbed.data.workers[device_sampling_worker_id] = device_sampling_worker
+        testbed.data.workers[device.sampling_worker_id] = device_sampling_worker
 
         testbed.data.threadpool.start(device_sampling_worker)
         button.setIconHint(QIcon(ICON_PAUSE), "Pause")
         self.on_sampling_worker_play(device)
 
     def on_sampling_worker_play(self, device: Camera | Modulator):
-        simple_loop_window_id = f"{testbed.SIMPLE_LOOP}_window"
-        if simple_loop_window_id in testbed.data.windows:
-            simple_loop_window: SimpleLoopWindow = testbed.data.windows[simple_loop_window_id]
+        if testbed.data.is_window_alive(SimpleLoopWindow.wid):
+            simple_loop_window = cast(SimpleLoopWindow, testbed.data.windows[SimpleLoopWindow.wid])
             if simple_loop_window.source == device or simple_loop_window.sink == device:
-                simple_loop_window.update_play_pause_button()
+                simple_loop_window.update_process_controls()
+        if testbed.data.is_window_alive(SpeckleCalibrationWindow.wid):
+            speckle_calibration_window = cast(SpeckleCalibrationWindow, testbed.data.windows[SpeckleCalibrationWindow.wid])
+            if speckle_calibration_window.source == device or speckle_calibration_window.sink == device:
+                speckle_calibration_window.update_process_controls()
+        if testbed.data.is_window_alive(SpeckleNullingWindow.wid):
+            speckle_nulling_window = cast(SpeckleNullingWindow, testbed.data.windows[SpeckleNullingWindow.wid])
+            if speckle_nulling_window.source == device or speckle_nulling_window.sink == device:
+                speckle_nulling_window.update_process_controls()
+        if testbed.data.is_window_alive(RecenterWindow.wid):
+            recenter_window = cast(RecenterWindow, testbed.data.windows[RecenterWindow.wid])
+            if recenter_window.source == device or recenter_window.sink == device:
+                recenter_window.update_process_controls()
+        if testbed.data.is_window_alive(CameraCalibrationWindow.wid):
+            camera_calibration_window = cast(CameraCalibrationWindow, testbed.data.windows[CameraCalibrationWindow.wid])
+            if camera_calibration_window.source == device:
+                camera_calibration_window.update_process_controls()
+        if testbed.data.is_window_alive(DOTFMeasurementWindow.wid):
+            dotf_measurement_window = cast(DOTFMeasurementWindow, testbed.data.windows[DOTFMeasurementWindow.wid])
+            if dotf_measurement_window.source == device or dotf_measurement_window.sink == device:
+                dotf_measurement_window.update_process_controls()
+        if testbed.data.is_window_alive(PairwiseFPWFSWindow.wid):
+            pairwise_fpwfs_window = cast(PairwiseFPWFSWindow, testbed.data.windows[PairwiseFPWFSWindow.wid])
+            if pairwise_fpwfs_window.source == device or pairwise_fpwfs_window.sink == device:
+                pairwise_fpwfs_window.update_process_controls()
 
     def on_sampling_worker_pause(self, device: Camera | Modulator, button: IconButton):
-        device_sampling_worker_id = f"{device.name}_sampling_worker"
-        if device_sampling_worker_id in testbed.data.workers:  # an update worker is in progress
-            testbed.data.workers.pop(device_sampling_worker_id)
+        if testbed.data.is_worker_alive(device.sampling_worker_id):
+            testbed.data.workers.pop(device.sampling_worker_id)
             button.setIconHint(QIcon(ICON_PLAY), "play")
-        simple_loop_window_id = f"{testbed.SIMPLE_LOOP}_window"
-        if simple_loop_window_id in testbed.data.windows:
-            simple_loop_window: SimpleLoopWindow = testbed.data.windows[simple_loop_window_id]
-            simple_loop_window.update_play_pause_button()
+        if testbed.data.is_window_alive(SimpleLoopWindow.wid):
+            simple_loop_window = cast(SimpleLoopWindow, testbed.data.windows[SimpleLoopWindow.wid])
+            simple_loop_window.update_process_controls()
+        if testbed.data.is_window_alive(SpeckleCalibrationWindow.wid):
+            speckle_calibration_window = cast(SpeckleCalibrationWindow, testbed.data.windows[SpeckleCalibrationWindow.wid])
+            speckle_calibration_window.update_process_controls()
+        if testbed.data.is_window_alive(SpeckleNullingWindow.wid):
+            speckle_nulling_window = cast(SpeckleNullingWindow, testbed.data.windows[SpeckleNullingWindow.wid])
+            speckle_nulling_window.update_process_controls()
+        if testbed.data.is_window_alive(RecenterWindow.wid):
+            recenter_window = cast(RecenterWindow, testbed.data.windows[RecenterWindow.wid])
+            recenter_window.update_process_controls()
+        if testbed.data.is_window_alive(CameraCalibrationWindow.wid):
+            camera_calibration_window = cast(CameraCalibrationWindow, testbed.data.windows[CameraCalibrationWindow.wid])
+            camera_calibration_window.update_process_controls()
+        if testbed.data.is_window_alive(DOTFMeasurementWindow.wid):
+            dotf_measurement_window = cast(DOTFMeasurementWindow, testbed.data.windows[DOTFMeasurementWindow.wid])
+            dotf_measurement_window.update_process_controls()
+        if testbed.data.is_window_alive(PairwiseFPWFSWindow.wid):
+            pairwise_fpwfs_window = cast(PairwiseFPWFSWindow, testbed.data.windows[PairwiseFPWFSWindow.wid])
+            pairwise_fpwfs_window.update_process_controls()
 
     @Slot()
     def on_add_device_clicked(self):
@@ -232,7 +260,7 @@ class MainWindow(QMainWindow):
         for dialog_filename in dialog_filenames:
             stream_id = QFileInfo(dialog_filename).completeBaseName()
 
-            if stream_id not in testbed.data.devices:
+            if not testbed.data.is_device_alive(stream_id):
                 stream = Stream(stream_id)
                 row = self.table.rowCount()
                 self.table.insertRow(row)
@@ -308,121 +336,107 @@ class MainWindow(QMainWindow):
     @Slot()
     def on_simple_loop_clicked(self):
 
-        simple_loop_window_id = f"{testbed.SIMPLE_LOOP}_window"
-
         @Slot()
         def on_window_closed():
-            testbed.data.windows.pop(simple_loop_window_id, None)
+            testbed.data.windows.pop(SimpleLoopWindow.wid, None)
 
-        if simple_loop_window_id not in testbed.data.windows:
+        if not testbed.data.is_window_alive(SimpleLoopWindow.wid):
             simple_loop_window = SimpleLoopWindow(self)
             simple_loop_window.destroyed.connect(on_window_closed)
             simple_loop_window.show()
             simple_loop_window.raise_()
             simple_loop_window.activateWindow()
-            testbed.data.windows[simple_loop_window_id] = simple_loop_window
+            testbed.data.windows[SimpleLoopWindow.wid] = simple_loop_window
 
     @Slot()
     def on_open_speckle_calibration_clicked(self):
 
-        speckle_calibration_window_id = f"{testbed.SPECKLE_CALIBRATION}_window"
-
         @Slot()
         def on_window_closed():
-            testbed.data.windows.pop(speckle_calibration_window_id, None)
+            testbed.data.windows.pop(SpeckleCalibrationWindow.wid, None)
 
-        if speckle_calibration_window_id not in testbed.data.windows:
+        if not testbed.data.is_window_alive(SpeckleCalibrationWindow.wid):
             speckle_calibration_window = SpeckleCalibrationWindow(self)
             speckle_calibration_window.destroyed.connect(on_window_closed)
             speckle_calibration_window.show()
             speckle_calibration_window.raise_()
             speckle_calibration_window.activateWindow()
-            testbed.data.windows[speckle_calibration_window_id] = speckle_calibration_window
+            testbed.data.windows[SpeckleCalibrationWindow.wid] = speckle_calibration_window
 
     @Slot()
     def on_open_speckle_nulling_clicked(self):
 
-        speckle_nulling_window_id = f"{testbed.SPECKLE_NULLING}_window"
-
         @Slot()
         def on_window_closed():
-            testbed.data.windows.pop(speckle_nulling_window_id, None)
+            testbed.data.windows.pop(SpeckleNullingWindow.wid, None)
 
-        if speckle_nulling_window_id not in testbed.data.windows:
+        if not testbed.data.is_window_alive(SpeckleNullingWindow.wid):
             speckle_nulling_window = SpeckleNullingWindow(self)
             speckle_nulling_window.destroyed.connect(on_window_closed)
             speckle_nulling_window.show()
             speckle_nulling_window.raise_()
             speckle_nulling_window.activateWindow()
-            testbed.data.windows[speckle_nulling_window_id] = speckle_nulling_window
+            testbed.data.windows[SpeckleNullingWindow.wid] = speckle_nulling_window
 
     @Slot()
     def on_open_recenter_clicked(self):
 
-        recenter_window_id = f"{testbed.RECENTER}_window"
-
         @Slot()
         def on_window_closed():
-            testbed.data.windows.pop(recenter_window_id, None)
+            testbed.data.windows.pop(RecenterWindow.wid, None)
 
-        if recenter_window_id not in testbed.data.windows:
+        if not testbed.data.is_window_alive(RecenterWindow.wid):
             recenter_window = RecenterWindow(self)
             recenter_window.destroyed.connect(on_window_closed)
             recenter_window.show()
             recenter_window.raise_()
             recenter_window.activateWindow()
-            testbed.data.windows[recenter_window_id] = recenter_window
+            testbed.data.windows[RecenterWindow.wid] = recenter_window
 
     @Slot()
     def on_open_camera_calibration_clicked(self):
 
-        camera_calibration_window_id = f"{testbed.CAMERA_CALIBRATION}_window"
-
         @Slot()
         def on_window_closed():
-            testbed.data.windows.pop(camera_calibration_window_id, None)
+            testbed.data.windows.pop(CameraCalibrationWindow.wid, None)
 
-        if camera_calibration_window_id not in testbed.data.windows:
+        if not testbed.data.is_window_alive(CameraCalibrationWindow.wid):
             camera_calibration_window = CameraCalibrationWindow(self)
             camera_calibration_window.destroyed.connect(on_window_closed)
             camera_calibration_window.show()
             camera_calibration_window.raise_()
             camera_calibration_window.activateWindow()
-            testbed.data.windows[camera_calibration_window_id] = camera_calibration_window
+            testbed.data.windows[CameraCalibrationWindow.wid] = camera_calibration_window
 
     @Slot()
     def on_open_dotf_measurement_clicked(self):
 
-        dotf_measurement_window_id = f"{testbed.DOTF_MEASUREMENT}_window"
-
         @Slot()
         def on_window_closed():
-            testbed.data.windows.pop(dotf_measurement_window_id, None)
+            testbed.data.windows.pop(DOTFMeasurementWindow.wid, None)
 
-        if dotf_measurement_window_id not in testbed.data.windows:
+        if not testbed.data.is_window_alive(DOTFMeasurementWindow.wid):
             dotf_measurement_window = DOTFMeasurementWindow(self)
             dotf_measurement_window.destroyed.connect(on_window_closed)
             dotf_measurement_window.show()
             dotf_measurement_window.raise_()
             dotf_measurement_window.activateWindow()
-            testbed.data.windows[dotf_measurement_window_id] = dotf_measurement_window
+            testbed.data.windows[DOTFMeasurementWindow.wid] = dotf_measurement_window
 
     @Slot()
     def on_open_pairwise_fpwfs_clicked(self):
 
-        pairwise_fpwfs_window_id = f"{testbed.PAIRWISE_FPWFS}_window"
-
         @Slot()
         def on_window_closed():
-            testbed.data.windows.pop(pairwise_fpwfs_window_id, None)
+            testbed.data.windows.pop(PairwiseFPWFSWindow.wid, None)
 
-        if pairwise_fpwfs_window_id not in testbed.data.windows:
+        if not testbed.data.is_window_alive(PairwiseFPWFSWindow.wid):
             pairwise_fpwfs_window = PairwiseFPWFSWindow(self)
             pairwise_fpwfs_window.destroyed.connect(on_window_closed)
             pairwise_fpwfs_window.show()
             pairwise_fpwfs_window.raise_()
             pairwise_fpwfs_window.activateWindow()
-            testbed.data.windows[pairwise_fpwfs_window_id] = pairwise_fpwfs_window
+            testbed.data.windows[PairwiseFPWFSWindow.wid] = pairwise_fpwfs_window
 
     def closeEvent(self, event):
         if testbed.data.windows:

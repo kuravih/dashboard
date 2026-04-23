@@ -44,5 +44,17 @@ class Data:
     windows: dict[str, CameraPreviewWindow | CameraInfoWindow | CameraSettingsWindow | ModulatorPreviewWindow | ModulatorInfoWindow | ModulatorSettingsWindow | SimpleLoopWindow | SpeckleCalibrationWindow | SpeckleNullingWindow | SpeckleNullingPreviewWindow | SpeckleNullingInfoWindow | RecenterWindow | CameraCalibrationWindow | DOTFMeasurementWindow | PairwiseFPWFSWindow] = {}
     workers: dict[str, CameraSamplingWorker | ModulatorSamplingWorker | SourceStorageWorker | SinkStorageWorker | SimpleLoopWorker | SpeckleCalibrationWorker | SpeckleNullingWorker | RecenterWorker | CameraCalibrationWorker | DOTFMeasurementWorker | PairwiseFPWFSWorker] = {}
 
+    @classmethod
+    def is_device_alive(cls, name: str) -> bool:
+        return name in cls.devices
+
+    @classmethod
+    def is_window_alive(cls, name: str) -> bool:
+        return name in cls.windows
+
+    @classmethod
+    def is_worker_alive(cls, name: str) -> bool:
+        return name in cls.workers
+
 
 data = Data()

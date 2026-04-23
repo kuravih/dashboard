@@ -14,9 +14,7 @@ from ..device.modulator import Modulator
 from . import Worker, WorkerSignals
 from pykato.function import psf_to_otf
 
-_PROCESS_ = testbed.DOTF_MEASUREMENT
-
-logger = setup_logger(f"{_PROCESS_}_worker", terminator="\n")
+logger = setup_logger(f"{testbed.DOTF_MEASUREMENT}_worker", terminator="\n")
 
 
 class ProcessWorkerSignals(WorkerSignals):
@@ -26,6 +24,9 @@ class ProcessWorkerSignals(WorkerSignals):
 
 
 class ProcessWorker(Worker):
+
+    wid = f"{testbed.DOTF_MEASUREMENT}_worker"
+
     def __init__(self, source: Camera, sink: Modulator, probe_amplitude: float, probe_size: tuple[int, int], probe_directions: list[DOTFProbeDirection], n_reps: int = 0):
         self.signals = ProcessWorkerSignals()
         self.source = source
@@ -38,7 +39,7 @@ class ProcessWorker(Worker):
             self.dotf_measurements[direction] = np.zeros(self.source.shape, dtype=np.complex64)
         self.n_reps = n_reps
         if self.n_reps:
-            super().__init__(self.n_reps * len(self.probe_directions) + 1)  # blank at the end
+            super().__init__(self.n_reps * (2 * len(self.probe_directions)) + 1)  # blank at the end
         else:
             super().__init__(0)
 
@@ -56,6 +57,9 @@ class ProcessWorker(Worker):
         incl_probe_source_sample = self.source.pull_capture()
         self.signals.srcSampled.emit(incl_probe_source_sample)
         time.sleep(0.2)
+
+        self.i_tick = self.i_tick + 1
+        self.signals.progressTicked.emit(self.i_tick, time.time() - self.t_start)
         # -------------------------------------------------------------------------------------------------------------
 
         # -------------------------------------------------------------------------------------------------------------
@@ -68,11 +72,14 @@ class ProcessWorker(Worker):
         excl_probe_source_sample = self.source.pull_capture()
         self.signals.srcSampled.emit(excl_probe_source_sample)
         time.sleep(0.2)
+
+        self.i_tick = self.i_tick + 1
+        self.signals.progressTicked.emit(self.i_tick, time.time() - self.t_start)
         # -------------------------------------------------------------------------------------------------------------
 
         return psf_to_otf(incl_probe_source_sample.capture) - psf_to_otf(excl_probe_source_sample.capture)
 
-    def measure_dotfs(self, amplitude: float, probe_size: tuple[int, int], directions:list[DOTFProbeDirection], n_reps: int):
+    def measure_dotfs(self, amplitude: float, probe_size: tuple[int, int], directions: list[DOTFProbeDirection], n_reps: int):
         i_rep = 0
         while ((n_reps is 0) or (n_reps > i_rep)) and self._running:
             for direction in directions:
@@ -80,9 +87,6 @@ class ProcessWorker(Worker):
                 self.signals.dotfMeasured.emit(direction, self.dotf_measurements[direction] / (i_rep + 1))
 
             i_rep = i_rep + 1
-
-            self.i_tick = self.i_tick + 1
-            self.signals.progressTicked.emit(self.i_tick, time.time() - self.t_start)
 
     @Slot()
     def run(self):

@@ -20,6 +20,10 @@ class ProcessWorker(Worker):
         self.signals = ProcessWorkerSignals()
         self._modulator = modulator
 
+    @property
+    def wid(self):
+        return f"{self._modulator.name}_sampling_worker"
+
     @Slot()
     def run(self):
         super().run()

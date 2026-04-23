@@ -33,6 +33,7 @@ class HistogramSettingsWindow(Window):
         layout = QVBoxLayout()
         layout.setContentsMargins(2, 2, 2, 2)
         layout.addWidget(self.setup_preview_settings_widget())
+
         self.setLayout(layout)
 
     def setup_preview_settings_widget(self) -> QWidget:
@@ -72,6 +73,7 @@ class InfoWindow(Window):
         layout = QVBoxLayout()
         layout.setContentsMargins(2, 2, 2, 2)
         layout.addWidget(self.setup_info_widget())
+
         self.setLayout(layout)
 
         self.update_timer = QTimer(self)
@@ -530,6 +532,7 @@ class PreviewSettingsWindow(Window):
         layout = QVBoxLayout()
         layout.setContentsMargins(2, 2, 2, 2)
         layout.addWidget(self.setup_preview_settings_widget())
+
         self.setLayout(layout)
 
     def setup_preview_settings_widget(self) -> QWidget:
@@ -579,6 +582,7 @@ class PreviewWindow(Window):
         layout = QVBoxLayout()
         layout.setContentsMargins(2, 2, 2, 2)
         layout.addWidget(self.setup_preview_widget())
+
         self.setLayout(layout)
 
         self.update_timer = QTimer(self)

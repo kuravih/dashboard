@@ -34,6 +34,7 @@ class HistogramSettingsWindow(Window):
         layout = QVBoxLayout()
         layout.setContentsMargins(2, 2, 2, 2)
         layout.addWidget(self.setup_hist_settings_widget())
+
         self.setLayout(layout)
 
     def setup_hist_settings_widget(self) -> QWidget:
@@ -88,6 +89,7 @@ class InfoWindow(Window):
         layout = QVBoxLayout()
         layout.setContentsMargins(2, 2, 2, 2)
         layout.addWidget(self.setup_info_widget())
+
         self.setLayout(layout)
 
         self.update_timer = QTimer(self)
@@ -351,6 +353,7 @@ class SettingsWindow(Window):
         layout = QVBoxLayout()
         layout.setContentsMargins(2, 2, 2, 2)
         layout.addWidget(self.setup_settings_widget())
+
         self.setLayout(layout)
 
     @property
@@ -475,8 +478,8 @@ class SettingsWindow(Window):
         def on_calibration_change():
             self.camera.set_calibration(self.calibration_widget.filepath)
             camera_preview_window_id = f"{self.camera.name}_preview_window"
-            if camera_preview_window_id in testbed.data.windows:
-                camera_preview_window: PreviewWindow = testbed.data.windows[camera_preview_window_id]
+            if testbed.data.is_window_alive(camera_preview_window_id):
+                camera_preview_window = cast(PreviewWindow, testbed.data.windows[camera_preview_window_id])
                 camera_preview_window.preview_figure_widget.cmap_norm = Normalize(*self.camera.clim)
                 camera_preview_window.preview_figure_widget.figure.get_cbar_axes().set_title("count rate" if self.camera.calibration else "adu", size=10)
 
@@ -516,6 +519,7 @@ class PreviewSettingsWindow(Window):
         layout = QVBoxLayout()
         layout.setContentsMargins(2, 2, 2, 2)
         layout.addWidget(self.setup_preview_settings_widget())
+
         self.setLayout(layout)
 
     def setup_preview_settings_widget(self) -> QWidget:
@@ -586,6 +590,7 @@ class PreviewWindow(Window):
         layout = QVBoxLayout()
         layout.setContentsMargins(2, 2, 2, 2)
         layout.addWidget(self.setup_preview_widget())
+
         self.setLayout(layout)
 
         self.update_timer = QTimer(self)

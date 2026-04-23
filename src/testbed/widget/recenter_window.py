@@ -1,3 +1,6 @@
+from __future__ import annotations
+from typing import TYPE_CHECKING, cast
+
 import numpy as np
 from matplotlib.lines import Line2D
 from numpy.typing import NDArray
@@ -9,26 +12,23 @@ from PySide6.QtWidgets import QDoubleSpinBox, QGridLayout, QHBoxLayout, QLabel, 
 
 import testbed
 
+if TYPE_CHECKING:
+    from dashboard import MainWindow
 from ..device.camera import Camera
 from ..device.modulator import Modulator, FULL_STROKE_NM
 from ..worker.recenter_worker import ProcessWorker
-from ..worker.camera_worker import ProcessWorker as CameraSamplingWorker
-from ..worker.modulator_worker import ProcessWorker as ModulatorSamplingWorker
-from ..worker.storage_worker import SourceStorageWorker, SinkStorageWorker
 from ..function import flip_rotate_points
 from .camera_window import PreviewWindow as CameraPreviewWindow
 from .modulator_window import PreviewWindow as ModulatorPreviewWindow
 from .dialog import MessageDialog
-from .resource import ICON_PAUSE, ICON_RUN, ICON_CENTER
+from .resource import ICON_STOP, ICON_RUN, ICON_CENTER
 
 from . import DevicesSetupWidget, TaskControlsWidget, Window, IconButton
 
-_PROCESS_ = testbed.RECENTER
-process_worker_id = f"{_PROCESS_}_worker"
-
-logger = setup_logger(f"{_PROCESS_}_window", terminator="\n")
+logger = setup_logger(f"{testbed.RECENTER}_window", terminator="\n")
 
 
+# ==== ProcessSettingsWidget ==========================================================================================
 class ProcessSettingsWidget(QWidget):
     """
     Re-centering process settings window
@@ -157,10 +157,13 @@ class ProcessSettingsWidget(QWidget):
         self._speckles = value
 
 
+# ==== ProcessWindow ==================================================================================================
 class ProcessWindow(Window):
     """
     Re-centering process window
     """
+
+    wid = f"{testbed.RECENTER}_window"
 
     def __init__(self, parent=None):
         super().__init__(parent, Qt.WindowType.Dialog)
@@ -225,19 +228,29 @@ class ProcessWindow(Window):
     def center_plot(self, value: Line2D | None):
         self._center_plot = value
 
+    def update_device_buttons(self, enabled: bool):
+        main_window = cast("MainWindow", self.parent())
+        if self.source is not None:
+            main_window.set_device_buttons_enabled(self.source.name, enabled)
+        if self.sink is not None:
+            main_window.set_device_buttons_enabled(self.sink.name, enabled)
+
+    def update_process_controls(self):
+        enabled = False
+        if self.source is not None and self.sink is not None:
+            if not testbed.data.is_worker_alive(self.source.sampling_worker_id) and not testbed.data.is_worker_alive(self.sink.sampling_worker_id):
+                enabled = True
+        self.controls_widget.run_stop_button.setEnabled(enabled)
+
     @Slot(Camera)
     def on_source_changed(self, device: Camera):
         self.source = device
-        self.controls_widget.play_pause_button.setEnabled(False)
-        if self.source is not None and self.sink is not None:
-            self.controls_widget.play_pause_button.setEnabled(True)
+        self.update_process_controls()
 
     @Slot(Modulator)
     def on_sink_changed(self, device: Modulator):
         self.sink = device
-        self.controls_widget.play_pause_button.setEnabled(False)
-        if self.source is not None and self.sink is not None:
-            self.controls_widget.play_pause_button.setEnabled(True)
+        self.update_process_controls()
 
     @Slot(int, float)  # step, elapsed_time
     def on_progress_tick(self, step: int, t_elapsed: float):
@@ -254,9 +267,10 @@ class ProcessWindow(Window):
     def on_process_finished(self):
         self.controls_widget.progressbar.reset()
         self.controls_widget.progressbar.updateProgress()
-        if process_worker_id in testbed.data.workers:  # an update worker is in progress
-            testbed.data.workers.pop(process_worker_id)
-            self.controls_widget.play_pause_button.setIconHint(QIcon(ICON_RUN), "Run")
+        if testbed.data.is_worker_alive(ProcessWorker.wid):
+            testbed.data.workers.pop(ProcessWorker.wid)
+            self.controls_widget.run_stop_button.setIconHint(QIcon(ICON_RUN), "Run")
+        self.update_device_buttons(True)
 
     @Slot()
     def on_start_stop_clicked(self):
@@ -264,28 +278,8 @@ class ProcessWindow(Window):
             message_dialog = MessageDialog("Devices not selected", "Source and sink devices not selected.", icon=QMessageBox.Icon.Information, buttons=QMessageBox.StandardButton.Ok)
             message_dialog.exec()
         else:
-            source_sampling_worker_id = f"{self.source.name}_sampling_worker"
-            if source_sampling_worker_id in testbed.data.workers:
-                source_sampling_worker: CameraSamplingWorker = testbed.data.workers[source_sampling_worker_id]
-                source_sampling_worker.stop()
-
-            source_storage_worker_id = f"{self.source.name}_storage_worker"
-            if source_storage_worker_id in testbed.data.workers:
-                source_storage_worker: SourceStorageWorker = testbed.data.workers[source_storage_worker_id]
-                source_storage_worker.stop()
-
-            sink_sampling_worker_id = f"{self.sink.name}_sampling_worker"
-            if sink_sampling_worker_id in testbed.data.workers:
-                sink_sampling_worker: ModulatorSamplingWorker = testbed.data.workers[sink_sampling_worker_id]
-                sink_sampling_worker.stop()
-
-            sink_storage_worker_id = f"{self.sink.name}_storage_worker"
-            if sink_storage_worker_id in testbed.data.workers:
-                sink_storage_worker: SinkStorageWorker = testbed.data.workers[sink_storage_worker_id]
-                sink_storage_worker.stop()
-
-            if process_worker_id in testbed.data.workers:  # a process worker is in progress
-                process_worker: ProcessWorker = testbed.data.workers[process_worker_id]
+            if testbed.data.is_worker_alive(ProcessWorker.wid):
+                process_worker = cast(ProcessWorker, testbed.data.workers[ProcessWorker.wid])
                 process_worker.stop()
                 return
 
@@ -295,11 +289,10 @@ class ProcessWindow(Window):
             process_worker.signals.error.connect(self.on_process_error)
 
             self.controls_widget.progressbar.setMaximum(process_worker.n_ticks)
-            self.controls_widget.play_pause_button.setIconHint(QIcon(ICON_PAUSE), "Pause")
+            self.controls_widget.run_stop_button.setIconHint(QIcon(ICON_STOP), "Stop")
 
-            source_preview_window_id = f"{self.source.name}_preview_window"
-            if source_preview_window_id in testbed.data.windows:
-                source_preview_window: CameraPreviewWindow = testbed.data.windows[source_preview_window_id]
+            if testbed.data.is_window_alive(self.source.preview_window_id):
+                source_preview_window = cast(CameraPreviewWindow, testbed.data.windows[self.source.preview_window_id])
                 process_worker.signals.srcSampled.connect(source_preview_window.on_sampled)
 
                 if self.speckles_plot is not None:
@@ -332,13 +325,13 @@ class ProcessWindow(Window):
 
                 process_worker.signals.centerLocated.connect(on_center_located)
 
-            sink_preview_window_id = f"{self.sink.name}_preview_window"
-            if sink_preview_window_id in testbed.data.windows:
-                sink_preview_window: ModulatorPreviewWindow = testbed.data.windows[sink_preview_window_id]
+            if testbed.data.is_window_alive(self.sink.preview_window_id):
+                sink_preview_window = cast(ModulatorPreviewWindow, testbed.data.windows[self.sink.preview_window_id])
                 process_worker.signals.snkSampled.connect(sink_preview_window.on_sampled)
 
-            testbed.data.workers[process_worker_id] = process_worker
+            testbed.data.workers[ProcessWorker.wid] = process_worker
             testbed.data.threadpool.start(process_worker)
+            self.update_device_buttons(False)
 
     @Slot()
     def on_center_move_clicked(self):
@@ -364,7 +357,7 @@ class ProcessWindow(Window):
         self.settings_widget.move_pushbutton.clicked.connect(self.on_center_move_clicked)
 
         self.controls_widget = TaskControlsWidget(self)
-        self.controls_widget.play_pause_button.clicked.connect(self.on_start_stop_clicked)
+        self.controls_widget.run_stop_button.clicked.connect(self.on_start_stop_clicked)
         self.controls_widget.info_button.hide()
         self.controls_widget.preview_button.hide()
 

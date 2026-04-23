@@ -12,9 +12,7 @@ from ..device.modulator import Modulator
 from . import Worker, WorkerSignals
 from ..function import find_speckles
 
-_PROCESS_ = testbed.SPECKLE_CALIBRATION
-
-logger = setup_logger(f"{_PROCESS_}_worker", terminator="\n")
+logger = setup_logger(f"{testbed.SPECKLE_CALIBRATION}_worker", terminator="\n")
 
 
 class ProcessWorkerSignals(WorkerSignals):
@@ -24,6 +22,9 @@ class ProcessWorkerSignals(WorkerSignals):
 
 
 class ProcessWorker(Worker):
+
+    wid = f"{testbed.SPECKLE_CALIBRATION}_worker"
+
     def __init__(self, source: Camera, sink: Modulator, amplitude: float, freq_array: np.ndarray, ang_array: np.ndarray, phs_array: np.ndarray):
         self.signals = ProcessWorkerSignals()
         self.source = source
