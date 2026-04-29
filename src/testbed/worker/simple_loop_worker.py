@@ -23,23 +23,23 @@ class ProcessWorker(Worker):
 
     wid = f"{testbed.SIMPLE_LOOP}_worker"
 
-    def __init__(self, source: Camera, sink: Modulator, amplitude: float, n_steps: int = 0):
+    def __init__(self, source: Camera, sink: Modulator, amplitude_nm: float, n_steps: int = 0):
         self.signals = ProcessWorkerSignals()
         self.source = source
         self.sink = sink
-        self.amplitude = amplitude
+        self.amplitude_nm = amplitude_nm
         self.n_steps = n_steps
         if self.n_steps:
             super().__init__(self.n_steps + 1)  # blank at the end
         else:
             super().__init__(0)
 
-    def count_sweep(self, amplitude: float, n_steps: int = 0):
+    def count_sweep(self, amplitude_nm: float, n_steps: int = 0):
         zero_cmd = np.zeros(self.sink.shape)
         i_step = 0
         while ((n_steps is 0) or (n_steps > i_step)) and self._running:
 
-            count = amplitude * text(self.sink.shape, f"{i_step:02d}", font_size=150)
+            count = amplitude_nm * text(self.sink.shape, f"{i_step:02d}", font_size=150)
             count_cmd = zero_cmd + count
 
             count_sink_sample = self.sink.push_command(count_cmd)
@@ -60,7 +60,7 @@ class ProcessWorker(Worker):
         super().run()
 
         try:
-            self.count_sweep(self.amplitude, self.n_steps)
+            self.count_sweep(self.amplitude_nm, self.n_steps)
         except AssertionError as e:
             self.signals.error.emit(str(e))
 

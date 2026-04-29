@@ -32,19 +32,19 @@ class ProcessSettingsWidget(QWidget):
 
     def __init__(self, parent=None):
         _n_steps = 9
-        _amplitude = 10.0
+        _amplitude_perc = 10.0
         _sleep_s = 0.1
         super().__init__(parent)
 
         amplitude_label = QLabel("Amplitude", self)
         amplitude_label.setFixedWidth(100)
 
-        self.amplitude_spinbox = QDoubleSpinBox(self)
-        self.amplitude_spinbox.setRange(-100, 100)
-        self.amplitude_spinbox.setSuffix(" %")
-        self.amplitude_spinbox.setSingleStep(1)
-        self.amplitude_spinbox.setToolTip("Command amplitude")
-        self.amplitude_spinbox.setValue(_amplitude)
+        self.amplitude_perc_spinbox = QDoubleSpinBox(self)
+        self.amplitude_perc_spinbox.setRange(-100, 100)
+        self.amplitude_perc_spinbox.setSuffix(" %")
+        self.amplitude_perc_spinbox.setSingleStep(1)
+        self.amplitude_perc_spinbox.setToolTip("Command amplitude")
+        self.amplitude_perc_spinbox.setValue(_amplitude_perc)
 
         n_steps_label = QLabel("Steps", self)
         n_steps_label.setFixedWidth(100)
@@ -100,7 +100,7 @@ class ProcessSettingsWidget(QWidget):
         col = 0
         widget_layout.addWidget(amplitude_label, row, col)
         col += 1
-        widget_layout.addWidget(self.amplitude_spinbox, row, col, 1, 3)
+        widget_layout.addWidget(self.amplitude_perc_spinbox, row, col, 1, 3)
 
         row += 1
         col = 0
@@ -123,8 +123,8 @@ class ProcessSettingsWidget(QWidget):
         self.setLayout(widget_layout)
 
     @property
-    def amplitude(self) -> float:
-        return FULL_STROKE_NM * self.amplitude_spinbox.value() / 100.0
+    def amplitude_nm(self) -> float:
+        return FULL_STROKE_NM * self.amplitude_perc_spinbox.value() / 100.0
 
     @property
     def continuous(self) -> bool:
@@ -259,7 +259,7 @@ class ProcessWindow(Window):
                 process_worker.stop()
                 return
 
-            process_worker = ProcessWorker(self.source, self.sink, self.settings_widget.amplitude, self.settings_widget.n_steps)
+            process_worker = ProcessWorker(self.source, self.sink, self.settings_widget.amplitude_nm, self.settings_widget.n_steps)
             process_worker.signals.progressTicked.connect(self.on_progress_tick)
             process_worker.signals.finished.connect(self.on_process_finished)
             process_worker.signals.error.connect(self.on_process_error)
