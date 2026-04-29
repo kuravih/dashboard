@@ -502,9 +502,9 @@ def pairwise_probe(shape: tuple[int, int], dξ: float, dη: float, ξc: float, �
         shape: tuple[int, int]
             Image shape.
         dξ: float
-            Probe rectangle size in (along the PairwiseProbeDirection).
+            Probe rectangle size (along the PairwiseProbeDirection).
         dη: float
-            Probe rectangle size in (perpendicular to the PairwiseProbeDirection).
+            Probe rectangle size (perpendicular to the PairwiseProbeDirection).
         ξc: float
             Period of the sinusoid (along the PairwiseProbeDirection).
         θ: float
@@ -542,19 +542,19 @@ def pairwise_estimate(intensity_p1: NDArray[np.float64], intensity_m1: NDArray[n
 
 def is_pairwise_calibration_file_valid(filename: str) -> bool:
     with open(filename, "rb") as rbfile:
-        d = pickle.load(rbfile)
-    if 1 not in d:
+        calibration, amplitude_m, ξc, dξ, dη = pickle.load(rbfile)
+    if 1 not in calibration:
         return False
-    if 2 not in d:
+    if 2 not in calibration:
         return False
     return True
 
 
-def read_pairwise_calibration_file(filename: str) -> dict[int, NDArray[np.float64]]:
+def read_pairwise_calibration_file(filename: str) -> tuple[dict[int, NDArray[np.float64]], float, float, float, float]:
     with open(filename, "rb") as rbfile:
         return pickle.load(rbfile)
 
 
-def write_pairwise_calibration_file(pairwise_calibration_dict: dict[int, NDArray[np.float64]], filename: str):
+def write_pairwise_calibration_file(pairwise_calibration_dict: tuple[dict[int, NDArray[np.float64]], float, float, float, float], filename: str):
     with open(filename, "wb") as wbfile:
         pickle.dump(pairwise_calibration_dict, wbfile, protocol=pickle.HIGHEST_PROTOCOL)

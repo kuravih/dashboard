@@ -37,10 +37,6 @@ class ProcessSettingsWidget(QWidget):
     """
 
     def __init__(self, parent=None):
-        _probe_amplitude = 20.0
-        _dξ = 0.075  # 0.008
-        _dη = 0.155  # 0.017
-        _ξc = 0.00010133  # 35.0
         _reps = 2
         _sleep_s = 0.1
         self.dark_hole_mask = None  # chord(self.source.shape, self.source.shape[0] * 5 / 16, 0.6)
@@ -52,41 +48,45 @@ class ProcessSettingsWidget(QWidget):
         probe_amp_label.setFixedWidth(100)
 
         self.probe_amp_spinbox = QDoubleSpinBox(self)
-        self.probe_amp_spinbox.setRange(-100, 100)
+        self.probe_amp_spinbox.setRange(-0, 100)
         self.probe_amp_spinbox.setSuffix(" %")
         self.probe_amp_spinbox.setSingleStep(1)
         self.probe_amp_spinbox.setToolTip("Probe amplitude")
-        self.probe_amp_spinbox.setValue(_probe_amplitude)
+        self.probe_amp_spinbox.setValue(0.0)
+        self.probe_amp_spinbox.setEnabled(False)
 
         probe_dξ_label = QLabel("Probe dξ", self)
         probe_dξ_label.setFixedWidth(100)
 
         self.probe_dξ_spinbox = QDoubleSpinBox(self)
-        self.probe_dξ_spinbox.setRange(-1.0, 1.0)
-        self.probe_dξ_spinbox.setSingleStep(0.001)
-        self.probe_dξ_spinbox.setDecimals(3)
+        self.probe_dξ_spinbox.setRange(0, 0.02000)
+        self.probe_dξ_spinbox.setSingleStep(0.00001)
+        self.probe_dξ_spinbox.setDecimals(5)
         self.probe_dξ_spinbox.setToolTip("Probe dξ")
-        self.probe_dξ_spinbox.setValue(_dξ)
+        self.probe_dξ_spinbox.setValue(0)
+        self.probe_dξ_spinbox.setEnabled(False)
 
         probe_dη_label = QLabel("Probe dη", self)
         probe_dη_label.setFixedWidth(100)
 
         self.probe_dη_spinbox = QDoubleSpinBox(self)
-        self.probe_dη_spinbox.setRange(-1.0, 1.0)
-        self.probe_dη_spinbox.setSingleStep(0.001)
-        self.probe_dη_spinbox.setDecimals(3)
+        self.probe_dη_spinbox.setRange(0, 0.0500)
+        self.probe_dη_spinbox.setSingleStep(0.0001)
+        self.probe_dη_spinbox.setDecimals(4)
         self.probe_dη_spinbox.setToolTip("Probe dη")
-        self.probe_dη_spinbox.setValue(_dη)
+        self.probe_dη_spinbox.setValue(0)
+        self.probe_dη_spinbox.setEnabled(False)
 
         probe_ξc_label = QLabel("Probe ξc", self)
         probe_ξc_label.setFixedWidth(100)
 
         self.probe_ξc_spinbox = QDoubleSpinBox(self)
-        self.probe_ξc_spinbox.setRange(0.0, 100.0)
-        self.probe_ξc_spinbox.setSingleStep(0.00000001)
+        self.probe_ξc_spinbox.setRange(0.0, 0.0002000000000)
+        self.probe_ξc_spinbox.setSingleStep(0.0000000000001)
         self.probe_ξc_spinbox.setToolTip("Probe ξc")
-        self.probe_ξc_spinbox.setDecimals(8)
-        self.probe_ξc_spinbox.setValue(_ξc)
+        self.probe_ξc_spinbox.setDecimals(13)
+        self.probe_ξc_spinbox.setValue(0)
+        self.probe_ξc_spinbox.setEnabled(False)
 
         probe_dir_label = QLabel("Probe dir.", self)
         probe_dir_label.setFixedWidth(100)
@@ -351,7 +351,8 @@ class ProcessWindow(Window):
         self.controls_widget.info_button.setEnabled(False)
         self.controls_widget.run_stop_button.setEnabled(False)
         if self.source is not None and self.sink is not None and self.settings_widget.calibration_widget.filepath is not None:
-            self.pairwise_calibration = read_pairwise_calibration_file(self.settings_widget.calibration_widget.filepath)
+            self.pairwise_calibration, probe_amp, probe_ξc, probe_dξ, probe_dη = read_pairwise_calibration_file(self.settings_widget.calibration_widget.filepath)
+            self.settings_widget.probe_amp_spinbox.setValue(probe_amp), self.settings_widget.probe_ξc_spinbox.setValue(probe_ξc), self.settings_widget.probe_dξ_spinbox.setValue(probe_dξ), self.settings_widget.probe_dη_spinbox.setValue(probe_dη)
             self.controls_widget.info_button.setEnabled(True)
             self.controls_widget.run_stop_button.setEnabled(True)
 
@@ -440,8 +441,8 @@ class ProcessWindow(Window):
             process_info_window.activateWindow()
             testbed.data.windows[ProcessInfoWindow.wid] = process_info_window
 
-            if ProcessInfoWindow.wid in testbed.data.workers:
-                process_worker = cast(ProcessWorker, testbed.data.workers[ProcessInfoWindow.wid])
+            if testbed.data.is_worker_alive(ProcessWorker.wid):
+                process_worker = cast(ProcessWorker, testbed.data.workers[ProcessWorker.wid])
                 process_worker.signals.wfSensed.connect(process_info_window.on_wf_sensed)
 
     def setup_main_widget(self) -> QWidget:
@@ -469,9 +470,8 @@ class ProcessWindow(Window):
         return widget
 
     def closeEvent(self, event):
-        while testbed.data.workers:
-            key, worker = testbed.data.workers.popitem()
-            worker.stop()
-            logger.info("stopping worker %s", key)
+        if testbed.data.is_worker_alive(ProcessWorker.wid):
+            process_worker = cast(ProcessWorker, testbed.data.workers[ProcessWorker.wid])
+            process_worker.stop()
         self.deleteLater()
         event.accept()

@@ -1,3 +1,4 @@
+from typing import cast
 import numpy as np
 
 from PySide6.QtWidgets import QWidget, QVBoxLayout, QLabel, QRadioButton, QSpacerItem, QButtonGroup, QSizePolicy, QGridLayout, QHBoxLayout, QCheckBox, QComboBox
@@ -8,7 +9,6 @@ from matplotlib.colors import LogNorm, Normalize
 from pykato.log import setup_logger
 
 import testbed
-
 from ..device.camera import Camera, SourceSample
 from ..function import Flip, Rotation, flip_rotate_frame, is_camera_calibration_file_valid
 from ..widget import Window, OrientationWidget, ROIWidget, DoubleValueSetWidget, FileLoadWidget
@@ -327,7 +327,7 @@ class InfoWindow(Window):
         self.info_roi_value_label.setText(f"[({self.sample.roi['br'][0]}, {self.sample.roi['br'][1]})," f"({self.sample.roi['tl'][0]}, {self.sample.roi['tl'][1]})]")  # pylint: disable=W1405:inconsistent-quotes
         self.hist_figure_widget.figure.set_data(self.sample.capture)
         self.hist_figure_widget.figure.canvas.draw_idle()
-        logger.info("camera_window.py - InfoWindow.on_update_timer_tick()")
+        # logger.info("camera_window.py - InfoWindow.on_update_timer_tick()")
 
     def closeEvent(self, event):
         if self.update_timer.isActive():
@@ -668,7 +668,7 @@ class PreviewWindow(Window):
     def on_update_timer_tick(self):
         self.preview_figure_widget.figure.get_image().set_data(flip_rotate_frame(self.sample.capture, self.preview_figure_widget.flip, self.preview_figure_widget.rotation))
         self.preview_figure_widget.figure.canvas.draw_idle()
-        logger.info("camera_window.py - PreviewWindow.on_update_timer_tick()")
+        # logger.info("camera_window.py - PreviewWindow.on_update_timer_tick()")
 
     def closeEvent(self, event):
         if self.update_timer.isActive():

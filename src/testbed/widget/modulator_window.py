@@ -279,7 +279,7 @@ class InfoWindow(Window):
         self.info_frame_rate_value_label.setText(f"{self.sample.frame_rate_fps:.2f}")
         self.hist_figure_widget.figure.set_data(self.sample.command)
         self.hist_figure_widget.figure.canvas.draw_idle()
-        logger.info("modulator_window.py - InfoWindow.on_update_timer_tick()")
+        # logger.info("modulator_window.py - InfoWindow.on_update_timer_tick()")
 
     def closeEvent(self, event):
         if self.update_timer.isActive():
@@ -650,7 +650,7 @@ class PreviewWindow(Window):
     def on_update_timer_tick(self):
         self.preview_figure_widget.figure.get_image().set_data(flip_rotate_frame(self.sample.command, self.preview_figure_widget.flip, self.preview_figure_widget.rotation))
         self.preview_figure_widget.figure.canvas.draw_idle()
-        logger.info("modulator_window.py - PreviewWindow.on_update_timer_tick()")
+        # logger.info("modulator_window.py - PreviewWindow.on_update_timer_tick()")
 
     def closeEvent(self, event):
         if self.update_timer.isActive():

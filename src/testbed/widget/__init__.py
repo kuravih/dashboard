@@ -152,9 +152,14 @@ class ProgressBar(QWidget):
         grid.addWidget(self.label, 0, 0)
         self.setLayout(grid)
 
-        self.setMaximum = self.bar.setMaximum
         self.setValue = self.bar.setValue
         self.reset = self.bar.reset
+
+    def setMaximum(self, maximum: int | None):
+        if maximum is None:
+            self.bar.setMaximum(-1)
+        else:
+            self.bar.setMaximum(maximum)
 
     def setTime(self, timeVal: float):
         self.time = timeVal

@@ -36,7 +36,6 @@ class ProcessWorker(Worker):
     wid = f"{testbed.SPECKLE_NULLING}_worker"
 
     def __init__(self, source: Camera, sink: Modulator, dark_hole_mask: np.ndarray, speckle_calibration: dict[str, dict[str, float]], phs_array: np.ndarray, amp_array: np.ndarray, n_iterations: int | None = None):
-        super().__init__()
         self.signals = ProcessWorkerSignals()
         self.source = source
         self.sink = sink
@@ -45,6 +44,10 @@ class ProcessWorker(Worker):
         self.phs_array = phs_array
         self.amp_array = amp_array
         self.n_iterations = n_iterations
+        if self.n_iterations is None:
+            super().__init__(None)
+        else:
+            super().__init__(self.n_iterations * self.phs_array.size * self.amp_array.size + 1) # blank
 
     def speckle_phs_search(self, current_cmd: np.ndarray, speckle_frequency: float, phs_array: np.ndarray, speckle_angle: float, speckle_stencil: np.ndarray):
         speckle_intensity_array = np.zeros_like(phs_array) * np.nan
@@ -64,6 +67,9 @@ class ProcessWorker(Worker):
             _current_source_sample = self.source.pull_capture()
             self.signals.srcSampled.emit(_current_source_sample)
             time.sleep(0.2)
+
+            self.i_tick = self.i_tick + 1
+            self.signals.progressTicked.emit(self.i_tick, time.time() - self.t_start)
 
             speckle_intensity_array[i_phs] = np.mean(_current_source_sample.capture[speckle_stencil])
             logger.info("speckle_phs_search : np.deg2rad(phs_array[%s]) = %s, speckle_intensity_array[%s] = %s", i_phs, np.deg2rad(phs_array[i_phs]), i_phs, speckle_intensity_array[i_phs])
@@ -112,6 +118,9 @@ class ProcessWorker(Worker):
             self.signals.srcSampled.emit(_current_source_sample)
             time.sleep(0.2)
 
+            self.i_tick = self.i_tick + 1
+            self.signals.progressTicked.emit(self.i_tick, time.time() - self.t_start)
+
             speckle_intensity_array[i_amp] = np.mean(_current_source_sample.capture[speckle_stencil])
             logger.info("speckle_amp_search : amplitude_array[%s] = %s, speckle_intensity_array[%s] = %s", i_amp, amplitude_array[i_amp], i_amp, speckle_intensity_array[i_amp])
             i_amp = i_amp + 1
@@ -144,7 +153,6 @@ class ProcessWorker(Worker):
     @Slot()
     def run(self):
         super().run()
-        t_start = time.time()
 
         measure_array = np.full(self.n_iterations + 1, fill_value=np.nan, dtype=[("avg", float), ("std", float), ("min", float), ("max", float)])
         # ---- blank --------------------------------------------------------------------------------------------------
@@ -171,7 +179,6 @@ class ProcessWorker(Worker):
         logger.info("avg = %.4e, std = %.4e, min = %.4e, max = %.4e", measure_array[0]["avg"], measure_array[0]["std"], measure_array[0]["min"], measure_array[0]["max"])
 
         i_iteration = 0
-        self.signals.progressTicked.emit(i_iteration, time.time() - t_start)
         # ---- blank --------------------------------------------------------------------------------------------------
 
         logger.info("%s and %s ProcessWorker.run : iteration %s of %s", self.source.name, self.sink.name, i_iteration, self.n_iterations)
@@ -215,7 +222,6 @@ class ProcessWorker(Worker):
             # logger.info("avg = %.4e, std = %.4e, min = %.4e, max = %.4e", measure_array[i_iteration + 1]["avg"], measure_array[i_iteration + 1]["std"], measure_array[i_iteration + 1]["min"], measure_array[i_iteration + 1]["max"])
             # ---- stage 4: apply correction --------------------------------------------------------------------------
             i_iteration = i_iteration + 1
-            self.signals.progressTicked.emit(i_iteration, time.time() - t_start)
 
         logger.info("speckle_nulling_worker.py - ProcessWorker() finished")
         self.stop()

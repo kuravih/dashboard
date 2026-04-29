@@ -14,7 +14,7 @@ import matplotlib.patches as patches
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 
 from pykato.plotfunction.gridspec_layout import GridSpec_Layout
-from pykato.plotfunction.preset import AxesImage_patch_alpha_mask_show, AxesImage_patch_cmap_name, AxesImage_patch_cmap_norm, Imshow_Colorbar_Preset, Complex_ImageGrid_TwoColorbars_Preset, Complex_Imshow_TwoColorbars_Preset, Histogram_Colorbar_Preset
+from pykato.plotfunction.preset import monkeypatch_AxesImage_alpha_mask_show, monkeypatch_AxesImage_cmap_name, monkeypatch_AxesImage_cmap_norm, Imshow_Colorbar_Preset, Complex_ImageGrid_TwoColorbars_Preset, Complex_Imshow_TwoColorbars_Preset, Histogram_Colorbar_Preset
 from pykato.log import setup_logger
 
 logger = setup_logger("preset", terminator="\n")
@@ -47,15 +47,15 @@ def Image_Plot_Preset(capture: NDArray[np.uint16 | np.float64], cmap_norm: Norma
     figure = Imshow_Colorbar_Preset(capture, figure=figure)
 
     if cmap_name is not None:
-        AxesImage_patch_cmap_name(figure.get_image())
+        monkeypatch_AxesImage_cmap_name(figure.get_image())
         figure.get_image().set_cmap_name(cmap_name)
 
     if cmap_norm is not None:
-        AxesImage_patch_cmap_norm(figure.get_image())
+        monkeypatch_AxesImage_cmap_norm(figure.get_image())
         figure.get_image().set_cmap_norm(cmap_norm)
 
     if alpha_mask is not None:
-        AxesImage_patch_alpha_mask_show(figure.get_image(), alpha_mask)
+        monkeypatch_AxesImage_alpha_mask_show(figure.get_image(), alpha_mask)
         figure.get_image().set_alpha_mask_show(True)
 
     figure.get_imshow_axes().set_xlabel("px", size=10)
@@ -324,13 +324,13 @@ def Contrast_Evolution_Plot_Preset(contrast: np.ndarray, n_iteration: int, dark_
     figure.close = _close
     # -----------------------------------------------------------------------------------------------------------------
 
-    AxesImage_patch_cmap_name(imshow_image)
+    monkeypatch_AxesImage_cmap_name(imshow_image)
     imshow_image.set_cmap_name("jet")
 
-    AxesImage_patch_cmap_norm(imshow_image)
+    monkeypatch_AxesImage_cmap_norm(imshow_image)
     imshow_image.set_cmap_norm(LogNorm(1, 1e-5))
 
-    AxesImage_patch_alpha_mask_show(imshow_image, dark_hole_mask)
+    monkeypatch_AxesImage_alpha_mask_show(imshow_image, dark_hole_mask)
     imshow_image.set_alpha_mask_show(True)
 
     return figure

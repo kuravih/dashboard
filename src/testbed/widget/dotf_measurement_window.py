@@ -9,7 +9,6 @@ from PySide6.QtGui import QIcon
 from PySide6.QtWidgets import QDoubleSpinBox, QGridLayout, QHBoxLayout, QLabel, QSpinBox, QVBoxLayout, QWidget, QMessageBox, QCheckBox
 
 import testbed
-
 if TYPE_CHECKING:
     from dashboard import MainWindow
 from ..function import DOTFProbeDirection
@@ -17,7 +16,6 @@ from ..widget import NSpinBoxesWidget, DOTFProbeDirectionWidget
 from ..device.camera import Camera
 from ..device.modulator import Modulator, FULL_STROKE_NM
 from ..worker.dotf_measurement_worker import ProcessWorker
-from ..worker.storage_worker import SinkStorageWorker, SourceStorageWorker
 from .camera_window import PreviewWindow as CameraPreviewWindow
 from .modulator_window import PreviewWindow as ModulatorPreviewWindow
 from .dialog import MessageDialog
@@ -142,7 +140,7 @@ class ProcessSettingsWidget(QWidget):
         self.setLayout(widget_layout)
 
     @property
-    def probe_amplitude(self) -> float:
+    def probe_amplitude(self) -> float: # nm
         return FULL_STROKE_NM * self.probe_amplitude_spinbox.value() / 100.0
 
     @property

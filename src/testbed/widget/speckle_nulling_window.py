@@ -14,15 +14,12 @@ from matplotlib import colormaps
 from matplotlib.colors import Normalize, LogNorm
 
 import testbed
-
 if TYPE_CHECKING:
     from dashboard import MainWindow
 from ..device.camera import Camera
 from ..device.modulator import Modulator, FULL_STROKE_NM
 from ..function import is_speckle_calibration_file_valid, read_speckle_calibration_file, constrained_sin_fit_fn, quadratic_fit_fn
 from ..worker.speckle_nulling_worker import ProcessWorker
-from ..worker.camera_worker import ProcessWorker as CameraSamplingWorker
-from ..worker.modulator_worker import ProcessWorker as ModulatorSamplingWorker
 from ..worker.storage_worker import SinkStorageWorker, SourceStorageWorker
 from .camera_window import PreviewWindow as CameraPreviewWindow
 from .modulator_window import PreviewWindow as ModulatorPreviewWindow
@@ -74,7 +71,7 @@ class ProcessSettingsWidget(QWidget):
         self.n_iterations_spinbox.setRange(0, 9999)
         self.n_iterations_spinbox.setSingleStep(1)
         self.n_iterations_spinbox.setToolTip("Number of nulling iterations")
-        self.n_iterations_spinbox.setValue(2)
+        self.n_iterations_spinbox.setValue(10)
 
         self._continuous_checkbox = QCheckBox("continuous", self)
         self._continuous_checkbox.setToolTip("Run till stop/pause button is clicked")
@@ -489,14 +486,11 @@ class ProcessWindow(Window):
 
     @Slot()
     def on_calibration_change(self):
-        self.controls_widget.info_button.setEnabled(False)
-        self.controls_widget.preview_button.setEnabled(False)
-        self.controls_widget.run_stop_button.setEnabled(False)
         if self.source is not None and self.sink is not None and self.settings_widget.calibration_widget.filepath is not None:
             self.speckle_calibration = read_speckle_calibration_file(self.settings_widget.calibration_widget.filepath)
-            self.controls_widget.info_button.setEnabled(True)
-            self.controls_widget.preview_button.setEnabled(True)
-            self.controls_widget.run_stop_button.setEnabled(True)
+        else:
+            self.speckle_calibration = None
+        self.update_process_controls()
 
     def update_device_buttons(self, enabled: bool):
         main_window = cast("MainWindow", self.parent())
@@ -507,46 +501,54 @@ class ProcessWindow(Window):
 
     def update_process_controls(self):
         enabled = False
-        if self.source is not None and self.sink is not None:
-            source_sampling_worker_id = f"{self.source.name}_sampling_worker"
-            sink_sampling_worker_id = f"{self.sink.name}_sampling_worker"
-            if source_sampling_worker_id not in testbed.data.workers and sink_sampling_worker_id not in testbed.data.workers:
+        if self.source is not None and self.sink is not None and self.settings_widget.calibration_widget.filepath is not None:
+            if not testbed.data.is_worker_alive(self.source.sampling_worker_id) and not testbed.data.is_worker_alive(self.sink.sampling_worker_id):
                 enabled = True
+        self.controls_widget.info_button.setEnabled(enabled)
+        self.controls_widget.preview_button.setEnabled(enabled)
         self.controls_widget.run_stop_button.setEnabled(enabled)
 
     @Slot()
     def on_source_changed(self, device: Camera):
         self.source = device
-        if process_info_window_id in testbed.data.windows:
-            testbed.data.windows.pop(process_info_window_id).close()
-        if process_preview_window_id in testbed.data.windows:
-            testbed.data.windows.pop(process_preview_window_id).close()
-        self.controls_widget.run_stop_button.setEnabled(False)
         if self.source is not None:
             self.settings_widget.dark_hole_mask = chord(self.source.shape, self.source.shape[0] * 5 / 16, 0.6)
-            if self.sink is not None:
-                self.controls_widget.preview_button.setEnabled(True)
-                self.controls_widget.info_button.setEnabled(True)
-                if self.settings_widget.calibration_widget.filepath is not None:
-                    self.speckle_calibration = read_speckle_calibration_file(self.settings_widget.calibration_widget.filepath)
-                    self.controls_widget.run_stop_button.setEnabled(True)
+        self.update_process_controls()
+        if testbed.data.is_window_alive(ProcessInfoWindow.wid):
+            process_info_window = cast(ProcessInfoWindow, testbed.data.windows.pop(ProcessInfoWindow.wid))
+            process_info_window.close()
+        if testbed.data.is_window_alive(ProcessPreviewWindow.wid):
+            process_preview_window = cast(ProcessPreviewWindow, testbed.data.windows.pop(ProcessPreviewWindow.wid))
+            process_preview_window.close()
+        # self.controls_widget.run_stop_button.setEnabled(False)
+        # if self.source is not None:
+        #     self.settings_widget.dark_hole_mask = chord(self.source.shape, self.source.shape[0] * 5 / 16, 0.6)
+        #     if self.sink is not None:
+        #         self.controls_widget.preview_button.setEnabled(True)
+        #         self.controls_widget.info_button.setEnabled(True)
+        #         if self.settings_widget.calibration_widget.filepath is not None:
+        #             self.speckle_calibration = read_speckle_calibration_file(self.settings_widget.calibration_widget.filepath)
+        #             self.controls_widget.run_stop_button.setEnabled(True)
 
     @Slot()
     def on_sink_changed(self, device: Modulator):
         self.sink = device
-        if process_info_window_id in testbed.data.windows:
-            testbed.data.windows.pop(process_info_window_id).close()
-        if process_preview_window_id in testbed.data.windows:
-            testbed.data.windows.pop(process_preview_window_id).close()
-        self.controls_widget.run_stop_button.setEnabled(False)
-        if self.source is not None:
-            self.settings_widget.dark_hole_mask = chord(self.source.shape, self.source.shape[0] * 5 / 16, 0.6)
-            if self.sink is not None:
-                self.controls_widget.preview_button.setEnabled(True)
-                self.controls_widget.info_button.setEnabled(True)
-                if self.settings_widget.calibration_widget.filepath is not None:
-                    self.speckle_calibration = read_speckle_calibration_file(self.settings_widget.calibration_widget.filepath)
-                    self.controls_widget.run_stop_button.setEnabled(True)
+        self.update_process_controls()
+        if testbed.data.is_window_alive(ProcessInfoWindow.wid):
+            process_info_window = cast(ProcessInfoWindow, testbed.data.windows.pop(ProcessInfoWindow.wid))
+            process_info_window.close()
+        if testbed.data.is_window_alive(ProcessPreviewWindow.wid):
+            process_preview_window = cast(ProcessPreviewWindow, testbed.data.windows.pop(ProcessPreviewWindow.wid))
+            process_preview_window.close()
+        # self.controls_widget.run_stop_button.setEnabled(False)
+        # if self.source is not None:
+        #     self.settings_widget.dark_hole_mask = chord(self.source.shape, self.source.shape[0] * 5 / 16, 0.6)
+        #     if self.sink is not None:
+        #         self.controls_widget.preview_button.setEnabled(True)
+        #         self.controls_widget.info_button.setEnabled(True)
+        #         if self.settings_widget.calibration_widget.filepath is not None:
+        #             self.speckle_calibration = read_speckle_calibration_file(self.settings_widget.calibration_widget.filepath)
+        #             self.controls_widget.run_stop_button.setEnabled(True)
 
     @Slot(int, float)  # step, elapsed_time
     def on_progress_tick(self, step: int, t_elapsed: float):
@@ -554,49 +556,31 @@ class ProcessWindow(Window):
         self.controls_widget.progressbar.setTime(t_elapsed)
         self.controls_widget.progressbar.updateProgress()
 
+    @Slot(str)
+    def on_process_error(self, message: str):
+        MessageDialog("Speckle Nulling Worker Failed", message, icon=QMessageBox.Icon.Critical, buttons=QMessageBox.StandardButton.Ok).exec()
+        self.on_process_finished()
+
     @Slot()
-    def on_finished(self):
+    def on_process_finished(self):
         self.controls_widget.progressbar.reset()
         self.controls_widget.progressbar.updateProgress()
-        if process_worker_id in testbed.data.workers:  # an update worker is in progress
-            process_worker: ProcessWorker = testbed.data.workers[process_worker_id]
-            process_worker.stop()
+        if testbed.data.is_worker_alive(ProcessWorker.wid):
+            testbed.data.workers.pop(ProcessWorker.wid)
             self.controls_widget.run_stop_button.setIconHint(QIcon(ICON_RUN), "Run")
-            testbed.data.workers.pop(process_worker_id)
-
-        assert self.source is not None
-        source_preview_window_id = f"{self.source.name}_preview_window"
-        if source_preview_window_id in testbed.data.windows:
-            source_preview_window: CameraPreviewWindow = testbed.data.windows[source_preview_window_id]
-            source_preview_window.update_timer.stop()
-            source_preview_window.update_timer.timeout.disconnect()
-            source_preview_window.update_timer.timeout.connect(source_preview_window.on_update_timer_tick)
-
-        assert self.sink is not None
-        sink_preview_window_id = f"{self.sink.name}_preview_window"
-        if sink_preview_window_id in testbed.data.windows:
-            sink_preview_window: ModulatorPreviewWindow = testbed.data.windows[sink_preview_window_id]
-            sink_preview_window.update_timer.stop()
-            sink_preview_window.update_timer.timeout.disconnect()
-            sink_preview_window.update_timer.timeout.connect(sink_preview_window.on_update_timer_tick)
+        self.update_device_buttons(True)
 
     @Slot()
     def on_source_storage_finished(self):
         assert self.source is not None
-        source_storage_worker_id = f"{self.source.name}_storage_worker"
-        if source_storage_worker_id in testbed.data.workers:
-            source_storage_worker: SourceStorageWorker = testbed.data.workers[source_storage_worker_id]
-            source_storage_worker.stop()
-            testbed.data.workers.pop(source_storage_worker_id)
+        if testbed.data.is_worker_alive(self.source.storage_worker_id):
+            testbed.data.workers.pop(self.source.storage_worker_id)
 
     @Slot()
     def on_sink_storage_finished(self):
         assert self.sink is not None
-        sink_storage_worker_id = f"{self.sink.name}_storage_worker"
-        if sink_storage_worker_id in testbed.data.workers:
-            sink_storage_worker: SinkStorageWorker = testbed.data.workers[sink_storage_worker_id]
-            sink_storage_worker.stop()
-            testbed.data.workers.pop(sink_storage_worker_id)
+        if testbed.data.is_worker_alive(self.sink.storage_worker_id):
+            testbed.data.workers.pop(self.sink.storage_worker_id)
 
     @Slot()
     def on_start_stop_clicked(self):
@@ -604,65 +588,37 @@ class ProcessWindow(Window):
             message_dialog = MessageDialog("Devices not selected", "Source and sink devices not selected.", icon=QMessageBox.Icon.Information, buttons=QMessageBox.StandardButton.Ok)
             message_dialog.exec()
         else:
-            source_sampling_worker_id = f"{self.source.name}_sampling_worker"
-            if source_sampling_worker_id in testbed.data.workers:
-                source_sampling_worker: CameraSamplingWorker = testbed.data.workers[source_sampling_worker_id]
-                source_sampling_worker.stop()
-                testbed.data.workers.pop(source_sampling_worker_id)
-
-            source_storage_worker_id = f"{self.source.name}_storage_worker"
-            if source_storage_worker_id in testbed.data.workers:
-                source_storage_worker: SourceStorageWorker = testbed.data.workers[source_storage_worker_id]
+            if testbed.data.is_worker_alive(self.source.storage_worker_id):
+                source_storage_worker = cast(SourceStorageWorker, testbed.data.workers[self.source.storage_worker_id])
                 source_storage_worker.stop()
-                testbed.data.workers.pop(source_storage_worker_id)
 
-            sink_sampling_worker_id = f"{self.sink.name}_sampling_worker"
-            if sink_sampling_worker_id in testbed.data.workers:
-                sink_sampling_worker: ModulatorSamplingWorker = testbed.data.workers[sink_sampling_worker_id]
-                sink_sampling_worker.stop()
-                testbed.data.workers.pop(sink_sampling_worker_id)
-
-            sink_storage_worker_id = f"{self.sink.name}_storage_worker"
-            if sink_storage_worker_id in testbed.data.workers:
-                sink_storage_worker: SinkStorageWorker = testbed.data.workers[sink_storage_worker_id]
+            if testbed.data.is_worker_alive(self.sink.storage_worker_id):
+                sink_storage_worker = cast(SinkStorageWorker, testbed.data.workers[self.sink.storage_worker_id])
                 sink_storage_worker.stop()
-                testbed.data.workers.pop(sink_storage_worker_id)
 
-            if process_worker_id in testbed.data.workers:  # an update worker is in progress
-                process_worker: ProcessWorker = testbed.data.workers[process_worker_id]
+            if testbed.data.is_worker_alive(ProcessWorker.wid):
+                process_worker = cast(ProcessWorker, testbed.data.workers[ProcessWorker.wid])
                 process_worker.stop()
-                testbed.data.workers.pop(process_worker_id)
-
-                self.controls_widget.run_stop_button.setIconHint(QIcon(ICON_RUN), "Run")
-                self.controls_widget.progressbar.setMaximum(100)
-                self.controls_widget.progressbar.reset()
-                self.controls_widget.progressbar.updateProgress()
-
                 return
-
-            if self.settings_widget.continuous:
-                self.controls_widget.progressbar.setMaximum(0)
-            else:
-                self.controls_widget.progressbar.setMaximum(self.settings_widget.n_iterations)
 
             process_worker = ProcessWorker(self.source, self.sink, self.settings_widget.dark_hole_mask, self.speckle_calibration, self.settings_widget.phs_array, self.settings_widget.amp_array, self.settings_widget.n_iterations)
             process_worker.signals.progressTicked.connect(self.on_progress_tick)
-            process_worker.signals.finished.connect(self.on_finished)
+            process_worker.signals.finished.connect(self.on_process_finished)
+            process_worker.signals.error.connect(self.on_process_error)
 
+            self.controls_widget.progressbar.setMaximum(process_worker.n_ticks)
             self.controls_widget.run_stop_button.setIconHint(QIcon(ICON_STOP), "Stop")
 
-            source_preview_window_id = f"{self.source.name}_preview_window"
-            if source_preview_window_id in testbed.data.windows:
-                source_preview_window: CameraPreviewWindow = testbed.data.windows[source_preview_window_id]
+            if testbed.data.is_window_alive(self.source.preview_window_id):
+                source_preview_window = cast(CameraPreviewWindow, testbed.data.windows[self.source.preview_window_id])
                 process_worker.signals.srcSampled.connect(source_preview_window.on_sampled)
 
-            sink_preview_window_id = f"{self.sink.name}_preview_window"
-            if sink_preview_window_id in testbed.data.windows:
-                sink_preview_window: ModulatorPreviewWindow = testbed.data.windows[sink_preview_window_id]
+            if testbed.data.is_window_alive(self.sink.preview_window_id):
+                sink_preview_window = cast(ModulatorPreviewWindow, testbed.data.windows[self.sink.preview_window_id])
                 process_worker.signals.snkSampled.connect(sink_preview_window.on_sampled)
 
-            if process_info_window_id in testbed.data.windows:
-                process_info_window: ProcessInfoWindow = testbed.data.windows[process_info_window_id]
+            if testbed.data.is_window_alive(ProcessInfoWindow.wid):
+                process_info_window = cast(ProcessInfoWindow, testbed.data.windows[ProcessInfoWindow.wid])
                 process_worker.signals.phsSwept.connect(process_info_window.on_phs_swept)
                 process_worker.signals.phsFitted.connect(process_info_window.on_phs_fitted)
                 process_worker.signals.phsSolved.connect(process_info_window.on_phs_solved)
@@ -670,30 +626,31 @@ class ProcessWindow(Window):
                 process_worker.signals.ampFitted.connect(process_info_window.on_amp_fitted)
                 process_worker.signals.ampSolved.connect(process_info_window.on_amp_solved)
 
-            if process_preview_window_id in testbed.data.windows:
-                process_preview_window: ProcessPreviewWindow = testbed.data.windows[process_preview_window_id]
+            if testbed.data.is_window_alive(ProcessPreviewWindow.wid):
+                process_preview_window = cast(ProcessPreviewWindow, testbed.data.windows[ProcessPreviewWindow.wid])
                 process_worker.signals.speckleLocated.connect(process_preview_window.on_speckle_located)
                 process_worker.signals.contrastMeasured.connect(process_preview_window.on_contrast_measured)
 
-            testbed.data.workers[process_worker_id] = process_worker
+            testbed.data.workers[ProcessWorker.wid] = process_worker
             testbed.data.threadpool.start(process_worker)
+            self.update_device_buttons(False)
 
     def open_process_preview_clicked(self):
 
         @Slot()
         def on_window_closed():
-            testbed.data.windows.pop(process_preview_window_id, None)
+            testbed.data.windows.pop(ProcessPreviewWindow.wid, None)
 
-        if process_preview_window_id not in testbed.data.windows and self.source is not None and self.sink is not None:
+        if not testbed.data.is_window_alive(ProcessPreviewWindow.wid) and self.source is not None and self.sink is not None:
             process_preview_window = ProcessPreviewWindow(self.source.sample.capture, self.settings_widget.n_iterations, self.settings_widget.dark_hole_mask, parent=self)
             process_preview_window.destroyed.connect(on_window_closed)
             process_preview_window.show()
             process_preview_window.raise_()
             process_preview_window.activateWindow()
-            testbed.data.windows[process_preview_window_id] = process_preview_window
+            testbed.data.windows[ProcessPreviewWindow.wid] = process_preview_window
 
-            if process_worker_id in testbed.data.workers:
-                process_worker: ProcessWorker = testbed.data.workers[process_worker_id]
+            if testbed.data.is_worker_alive(ProcessWorker.wid):
+                process_worker = cast(ProcessWorker, testbed.data.workers[ProcessWorker.wid])
                 process_worker.signals.speckleLocated.connect(process_preview_window.on_speckle_located)
                 process_worker.signals.contrastMeasured.connect(process_preview_window.on_contrast_measured)
 
@@ -701,18 +658,18 @@ class ProcessWindow(Window):
 
         @Slot()
         def on_window_closed():
-            testbed.data.windows.pop(process_info_window_id, None)
+            testbed.data.windows.pop(ProcessInfoWindow.wid, None)
 
-        if process_info_window_id not in testbed.data.windows and self.source is not None and self.sink is not None:
+        if not testbed.data.is_window_alive(ProcessInfoWindow.wid) and self.source is not None and self.sink is not None:
             process_info_window = ProcessInfoWindow([0, 360], self.settings_widget.phs_array, [self.settings_widget.amp_array[0], self.settings_widget.amp_array[-1]], self.settings_widget.amp_array, parent=self)
             process_info_window.destroyed.connect(on_window_closed)
             process_info_window.show()
             process_info_window.raise_()
             process_info_window.activateWindow()
-            testbed.data.windows[process_info_window_id] = process_info_window
+            testbed.data.windows[ProcessInfoWindow.wid] = process_info_window
 
-            if process_worker_id in testbed.data.workers:
-                process_worker: ProcessWorker = testbed.data.workers[process_worker_id]
+            if testbed.data.is_worker_alive(ProcessWorker.wid):
+                process_worker = cast(ProcessWorker, testbed.data.workers[ProcessWorker.wid])
                 process_worker.signals.phsSwept.connect(process_info_window.on_phs_swept)
                 process_worker.signals.phsFitted.connect(process_info_window.on_phs_fitted)
                 process_worker.signals.phsSolved.connect(process_info_window.on_phs_solved)
@@ -745,9 +702,8 @@ class ProcessWindow(Window):
         return widget
 
     def closeEvent(self, event):
-        while testbed.data.workers:
-            key, worker = testbed.data.workers.popitem()
-            worker.stop()
-            logger.info("stopping worker %s", key)
+        if testbed.data.is_worker_alive(ProcessWorker.wid):
+            process_worker = cast(ProcessWorker, testbed.data.workers[ProcessWorker.wid])
+            process_worker.stop()
         self.deleteLater()
         event.accept()

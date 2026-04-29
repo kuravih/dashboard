@@ -11,7 +11,6 @@ from PySide6.QtGui import QIcon
 from PySide6.QtWidgets import QDoubleSpinBox, QGridLayout, QHBoxLayout, QLabel, QSpinBox, QVBoxLayout, QWidget, QMessageBox, QLineEdit
 
 import testbed
-
 if TYPE_CHECKING:
     from dashboard import MainWindow
 from ..device.camera import Camera
@@ -373,9 +372,8 @@ class ProcessWindow(Window):
             self.speckles_plot.remove()
         if self.center_plot is not None:
             self.center_plot.remove()
-        while testbed.data.workers:
-            key, worker = testbed.data.workers.popitem()
-            worker.stop()
-            logger.info("stopping worker %s", key)
+        if testbed.data.is_worker_alive(ProcessWorker.wid):
+            process_worker = cast(ProcessWorker, testbed.data.workers[ProcessWorker.wid])
+            process_worker.stop()
         self.deleteLater()
         event.accept()

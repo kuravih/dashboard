@@ -1,9 +1,6 @@
 from __future__ import annotations
 from typing import TYPE_CHECKING, cast
 
-if TYPE_CHECKING:
-    from dashboard import MainWindow
-
 from pykato.function import timestamp_string
 from pykato.log import setup_logger
 from PySide6.QtCore import Qt, Slot
@@ -11,7 +8,8 @@ from PySide6.QtGui import QIcon
 from PySide6.QtWidgets import QCheckBox, QDoubleSpinBox, QGridLayout, QHBoxLayout, QLabel, QSpinBox, QVBoxLayout, QWidget, QMessageBox
 
 import testbed
-
+if TYPE_CHECKING:
+    from dashboard import MainWindow
 from ..device.camera import Camera
 from ..device.modulator import Modulator, FULL_STROKE_NM
 from ..worker.simple_loop_worker import ProcessWorker
@@ -321,9 +319,8 @@ class ProcessWindow(Window):
         return widget
 
     def closeEvent(self, event):
-        while testbed.data.workers:
-            key, worker = testbed.data.workers.popitem()
-            worker.stop()
-            logger.info("stopping worker %s", key)
+        if testbed.data.is_worker_alive(ProcessWorker.wid):
+            process_worker = cast(ProcessWorker, testbed.data.workers[ProcessWorker.wid])
+            process_worker.stop()
         self.deleteLater()
         event.accept()

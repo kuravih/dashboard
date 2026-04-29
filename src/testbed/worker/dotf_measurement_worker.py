@@ -6,7 +6,6 @@ from numpy.typing import NDArray
 from pykato.log import setup_logger
 
 import testbed
-
 from ..function import dotf_probe, DOTFProbeDirection
 from ..device import SourceSample, SinkSample
 from ..device.camera import Camera

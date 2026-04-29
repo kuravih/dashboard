@@ -13,7 +13,6 @@ from PySide6.QtGui import QIcon
 from PySide6.QtWidgets import QDoubleSpinBox, QGridLayout, QLabel, QVBoxLayout, QWidget, QMessageBox
 
 import testbed
-
 if TYPE_CHECKING:
     from dashboard import MainWindow
 from ..device.camera import Camera
@@ -276,13 +275,13 @@ class ProcessWindow(Window):
                 parameters_dict = {"amplitudes": self.settings_widget.amplitude, "frequencies": self.settings_widget.freqs_array, "angles": self.settings_widget.angles_array, "phases": self.settings_widget.phases_array}
                 pickle.dump(parameters_dict, wbfile, protocol=pickle.HIGHEST_PROTOCOL)
 
-            source_storage_worker = SourceStorageWorker(f"data/output/{timestamp}_{ProcessWorker.wid}_{self.source.name}.raw", process_worker.n_ticks)
+            source_storage_worker = SourceStorageWorker(f"data/output/{timestamp}_{testbed.SPECKLE_CALIBRATION}_{self.source.name}.raw", process_worker.n_ticks)
             process_worker.signals.srcSampled.connect(source_storage_worker.on_sampled)
             source_storage_worker.signals.finished.connect(self.on_source_storage_finished)
             testbed.data.workers[self.source.storage_worker_id] = source_storage_worker
             testbed.data.threadpool.start(source_storage_worker)
 
-            sink_storage_worker = SinkStorageWorker(f"data/output/{timestamp}_{ProcessWorker.wid}_{self.sink.name}.raw", process_worker.n_ticks)
+            sink_storage_worker = SinkStorageWorker(f"data/output/{timestamp}_{testbed.SPECKLE_CALIBRATION}_{self.sink.name}.raw", process_worker.n_ticks)
             process_worker.signals.snkSampled.connect(sink_storage_worker.on_sampled)
             sink_storage_worker.signals.finished.connect(self.on_sink_storage_finished)
             testbed.data.workers[self.sink.storage_worker_id] = sink_storage_worker
@@ -341,9 +340,14 @@ class ProcessWindow(Window):
     def closeEvent(self, event):
         if self.speckles_plot is not None:
             self.speckles_plot.remove()
-        while testbed.data.workers:
-            key, worker = testbed.data.workers.popitem()
-            worker.stop()
-            logger.info("stopping worker %s", key)
+        if testbed.data.is_worker_alive(ProcessWorker.wid):
+            process_worker = cast(ProcessWorker, testbed.data.workers[ProcessWorker.wid])
+            process_worker.stop()
+        if testbed.data.is_worker_alive(self.source.storage_worker_id):
+            source_storage_worker = cast(SourceStorageWorker, testbed.data.workers[self.source.storage_worker_id])
+            source_storage_worker.stop()
+        if testbed.data.is_worker_alive(self.sink.storage_worker_id):
+            sink_storage_worker = cast(SinkStorageWorker, testbed.data.workers[self.sink.storage_worker_id])
+            sink_storage_worker.stop()
         self.deleteLater()
         event.accept()

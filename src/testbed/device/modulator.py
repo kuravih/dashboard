@@ -85,9 +85,7 @@ class Modulator(Device):
     def push_command(self, command: np.ndarray) -> SinkSample:
         command_nm_float = command.astype(float)
         if self.calibration is not None:
-            slope = self.calibration["slope"]
-            flat = self.calibration["flat"]
-            command_adu_float = deflection_to_command(command_nm_float, slope, flat)
+            command_adu_float = deflection_to_command(command_nm_float, self.calibration["slope"], self.calibration["flat"])
         else:
             command_adu_float = self.pxmax * (command_nm_float / FULL_STROKE_NM + 0.5)
         command_adu_uint16 = np.clip(command_adu_float, 0, self.pxmax).astype(np.uint16)

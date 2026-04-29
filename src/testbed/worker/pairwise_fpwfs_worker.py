@@ -6,7 +6,6 @@ from numpy.typing import NDArray
 from pykato.log import setup_logger
 
 import testbed
-
 from ..function import pairwise_probe, PairwiseProbeDirection, pairwise_estimation_matrices, pairwise_estimate
 from ..device import SourceSample, SinkSample
 from ..device.camera import Camera
@@ -124,10 +123,10 @@ class ProcessWorker(Worker):
         self.signals.progressTicked.emit(self.i_tick, time.time() - self.t_start)
         # ---- probe_m_h_2 --------------------------------------------------------------------------------------------
 
-        Δp_h_1_mag = np.sqrt((probe_p_h_1_source_sample.capture + probe_m_h_1_source_sample.capture) / 2 - zero_source_sample.capture)
+        Δp_h_1_mag = np.sqrt(np.clip((probe_p_h_1_source_sample.capture + probe_m_h_1_source_sample.capture) / 2 - zero_source_sample.capture, min=0))
         Δp_h_1 = Δp_h_1_mag * np.exp(1j * self.pairwise_calibration[1])
 
-        Δp_h_2_mag = np.sqrt((probe_p_h_2_source_sample.capture + probe_m_h_2_source_sample.capture) / 2 - zero_source_sample.capture)
+        Δp_h_2_mag = np.sqrt(np.clip((probe_p_h_2_source_sample.capture + probe_m_h_2_source_sample.capture) / 2 - zero_source_sample.capture, min=0))
         Δp_h_2 = Δp_h_2_mag * np.exp(1j * self.pairwise_calibration[2])
 
         electric_field_h = np.zeros_like(zero_source_sample.capture, dtype=np.complex64)
