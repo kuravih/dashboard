@@ -37,45 +37,45 @@ class ProcessSettingsWidget(QWidget):
     """
 
     def __init__(self, parent=None):
-        _amplitude = 10.0
-        _angle_start, _angle_stop, _angle_steps = 0, 170, 18
-        _freq_start, _freq_stop, _freq_steps = 0.06, 0.02, 9
-        _phase_start, _phase_stop, _phase_steps = 0, 180, 2
+        _amplitude_perc = 10.0
+        _angle_deg_start, _angle_deg_stop, _angle_deg_steps = 0, 170, 18
+        _frequency_start, _frequency_stop, _frequency_steps = 0.06, 0.02, 9
+        _phase_deg_start, _phase_deg_stop, _phase_deg_steps = 0, 180, 2
         super().__init__(parent)
 
         amplitude_label = QLabel("Amplitude", self)
         amplitude_label.setFixedWidth(100)
 
-        self.amplitude_spinbox = QDoubleSpinBox(self)
-        self.amplitude_spinbox.setRange(-100, 100)
-        self.amplitude_spinbox.setSuffix(" %")
-        self.amplitude_spinbox.setSingleStep(1)
-        self.amplitude_spinbox.setToolTip("Command amplitude")
-        self.amplitude_spinbox.setValue(_amplitude)
+        self.amplitude_perc_spinbox = QDoubleSpinBox(self)
+        self.amplitude_perc_spinbox.setRange(-100, 100)
+        self.amplitude_perc_spinbox.setSuffix(" %")
+        self.amplitude_perc_spinbox.setSingleStep(1)
+        self.amplitude_perc_spinbox.setToolTip("Command amplitude")
+        self.amplitude_perc_spinbox.setValue(_amplitude_perc)
 
         angle_label = QLabel("Angle Steps", self)
         angle_label.setFixedWidth(100)
 
-        self.angle_steps = LinspaceWidget(_angle_start, _angle_stop, _angle_steps, self)
-        self.angle_steps.start_spinbox.setMinimumWidth(100)
-        self.angle_steps.stop_spinbox.setMinimumWidth(100)
-        self.angle_steps.num_spinbox.setMinimumWidth(100)
+        self.angle_deg_steps = LinspaceWidget(_angle_deg_start, _angle_deg_stop, _angle_deg_steps, self)
+        self.angle_deg_steps.start_spinbox.setMinimumWidth(100)
+        self.angle_deg_steps.stop_spinbox.setMinimumWidth(100)
+        self.angle_deg_steps.num_spinbox.setMinimumWidth(100)
 
-        freq_label = QLabel("Frequency Steps", self)
-        freq_label.setFixedWidth(100)
+        frequency_label = QLabel("Frequency Steps", self)
+        frequency_label.setFixedWidth(100)
 
-        self.freq_steps = LinspaceWidget(_freq_start, _freq_stop, _freq_steps, self)
-        self.freq_steps.start_spinbox.setMinimumWidth(100)
-        self.freq_steps.stop_spinbox.setMinimumWidth(100)
-        self.freq_steps.num_spinbox.setMinimumWidth(100)
+        self.frequency_steps = LinspaceWidget(_frequency_start, _frequency_stop, _frequency_steps, self)
+        self.frequency_steps.start_spinbox.setMinimumWidth(100)
+        self.frequency_steps.stop_spinbox.setMinimumWidth(100)
+        self.frequency_steps.num_spinbox.setMinimumWidth(100)
 
         phase_label = QLabel("Phase Steps", self)
         phase_label.setFixedWidth(100)
 
-        self.phase_steps = LinspaceWidget(_phase_start, _phase_stop, _phase_steps, self)
-        self.phase_steps.start_spinbox.setMinimumWidth(100)
-        self.phase_steps.stop_spinbox.setMinimumWidth(100)
-        self.phase_steps.num_spinbox.setMinimumWidth(100)
+        self.phase_deg_steps = LinspaceWidget(_phase_deg_start, _phase_deg_stop, _phase_deg_steps, self)
+        self.phase_deg_steps.start_spinbox.setMinimumWidth(100)
+        self.phase_deg_steps.stop_spinbox.setMinimumWidth(100)
+        self.phase_deg_steps.num_spinbox.setMinimumWidth(100)
 
         widget_layout = QGridLayout()
 
@@ -83,45 +83,53 @@ class ProcessSettingsWidget(QWidget):
         col = 0
         widget_layout.addWidget(amplitude_label, row, col)
         col += 1
-        widget_layout.addWidget(self.amplitude_spinbox, row, col, 1, 3)
+        widget_layout.addWidget(self.amplitude_perc_spinbox, row, col, 1, 3)
 
         row += 1
         col = 0
         widget_layout.addWidget(angle_label, row, col)
         col += 1
-        widget_layout.addWidget(self.angle_steps, row, col, 1, 3)
+        widget_layout.addWidget(self.angle_deg_steps, row, col, 1, 3)
 
         row += 1
         col = 0
-        widget_layout.addWidget(freq_label, row, col)
+        widget_layout.addWidget(frequency_label, row, col)
         col += 1
-        widget_layout.addWidget(self.freq_steps, row, col, 1, 3)
+        widget_layout.addWidget(self.frequency_steps, row, col, 1, 3)
 
         row += 1
         col = 0
         widget_layout.addWidget(phase_label, row, col)
         col += 1
-        widget_layout.addWidget(self.phase_steps, row, col, 1, 3)
+        widget_layout.addWidget(self.phase_deg_steps, row, col, 1, 3)
 
         self.setLayout(widget_layout)
 
-        self.speckles = np.full((self.freqs_array.size, self.angles_array.size, 2, 2), np.nan)
+        self.speckles = np.full((self.frequency_array.size, self.angle_rad_array.size, 2, 2), np.nan)
 
     @property
-    def amplitude(self) -> float:
-        return FULL_STROKE_NM * self.amplitude_spinbox.value() / 100.0
+    def amplitude_nm(self) -> float:
+        return FULL_STROKE_NM * self.amplitude_perc_spinbox.value() / 100.0
 
     @property
-    def angles_array(self) -> np.ndarray:
-        return self.angle_steps.value()
+    def angle_deg_array(self) -> np.ndarray:
+        return self.angle_deg_steps.value()
 
     @property
-    def freqs_array(self) -> np.ndarray:
-        return self.freq_steps.value()
+    def angle_rad_array(self) -> np.ndarray:
+        return np.deg2rad(self.angle_deg_array)
+ 
+    @property
+    def frequency_array(self) -> np.ndarray:
+        return self.frequency_steps.value()
 
     @property
-    def phases_array(self) -> np.ndarray:
-        return self.phase_steps.value()
+    def phase_deg_array(self) -> np.ndarray:
+        return self.phase_deg_steps.value()
+
+    @property
+    def phase_rad_array(self) -> np.ndarray:
+        return np.deg2rad(self.phase_deg_array)
 
     @property
     def speckles(self) -> NDArray[np.float64]:
@@ -261,7 +269,7 @@ class ProcessWindow(Window):
                 process_worker.stop()
                 return
 
-            process_worker = ProcessWorker(self.source, self.sink, self.settings_widget.amplitude, self.settings_widget.freqs_array, self.settings_widget.angles_array, self.settings_widget.phases_array)
+            process_worker = ProcessWorker(self.source, self.sink, self.settings_widget.amplitude_nm, self.settings_widget.frequency_array, self.settings_widget.angle_rad_array, self.settings_widget.phase_rad_array)
             process_worker.signals.progressTicked.connect(self.on_progress_tick)
             process_worker.signals.finished.connect(self.on_process_finished)
             process_worker.signals.error.connect(self.on_process_error)
@@ -272,7 +280,7 @@ class ProcessWindow(Window):
             timestamp = timestamp_string(frmt="%Y%m%d.%H%M%S", ms=None)
 
             with open(f"data/output/{timestamp}_{testbed.SPECKLE_CALIBRATION}_parameters.pkl", "wb") as wbfile:
-                parameters_dict = {"amplitudes": self.settings_widget.amplitude, "frequencies": self.settings_widget.freqs_array, "angles": self.settings_widget.angles_array, "phases": self.settings_widget.phases_array}
+                parameters_dict = {"amplitudes": self.settings_widget.amplitude_nm, "frequencies": self.settings_widget.frequency_array, "angles": self.settings_widget.angle_deg_array, "phases": self.settings_widget.phase_deg_array}
                 pickle.dump(parameters_dict, wbfile, protocol=pickle.HIGHEST_PROTOCOL)
 
             source_storage_worker = SourceStorageWorker(f"data/output/{timestamp}_{testbed.SPECKLE_CALIBRATION}_{self.source.name}.raw", process_worker.n_ticks)
@@ -293,7 +301,7 @@ class ProcessWindow(Window):
 
                 if self.speckles_plot is not None:
                     self.speckles_plot.remove()
-                    self.speckles = np.full((self.settings_widget.freqs_array.size, self.settings_widget.angles_array.size, 2, 2), np.nan)
+                    self.speckles = np.full((self.settings_widget.frequency_array.size, self.settings_widget.angle_deg_array.size, 2, 2), np.nan)
 
                 (self.speckles_plot,) = source_preview_window.preview_figure_widget.figure.get_imshow_axes().plot([], [], color="red", marker="o", markersize=10, markerfacecolor="none", linestyle="none")
 
