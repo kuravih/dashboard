@@ -53,29 +53,29 @@ class ProcessSettingsWidget(QWidget):
         self.amplitude_perc_spinbox.setToolTip("Command amplitude")
         self.amplitude_perc_spinbox.setValue(_amplitude_perc)
 
-        angle_label = QLabel("Angle Steps", self)
-        angle_label.setFixedWidth(100)
+        angle_steps_label = QLabel("Angle Steps", self)
+        angle_steps_label.setFixedWidth(100)
 
-        self.angle_deg_steps = LinspaceWidget(_angle_deg_start, _angle_deg_stop, _angle_deg_steps, self)
-        self.angle_deg_steps.start_spinbox.setMinimumWidth(100)
-        self.angle_deg_steps.stop_spinbox.setMinimumWidth(100)
-        self.angle_deg_steps.num_spinbox.setMinimumWidth(100)
+        self.angle_deg_steps_linspace = LinspaceWidget(_angle_deg_start, _angle_deg_stop, _angle_deg_steps, self)
+        self.angle_deg_steps_linspace.start_spinbox.setMinimumWidth(100)
+        self.angle_deg_steps_linspace.stop_spinbox.setMinimumWidth(100)
+        self.angle_deg_steps_linspace.num_spinbox.setMinimumWidth(100)
 
-        frequency_label = QLabel("Frequency Steps", self)
-        frequency_label.setFixedWidth(100)
+        frequency_steps_label = QLabel("Frequency Steps", self)
+        frequency_steps_label.setFixedWidth(100)
 
-        self.frequency_steps = LinspaceWidget(_frequency_start, _frequency_stop, _frequency_steps, self)
-        self.frequency_steps.start_spinbox.setMinimumWidth(100)
-        self.frequency_steps.stop_spinbox.setMinimumWidth(100)
-        self.frequency_steps.num_spinbox.setMinimumWidth(100)
+        self.frequency_steps_linspace = LinspaceWidget(_frequency_start, _frequency_stop, _frequency_steps, self)
+        self.frequency_steps_linspace.start_spinbox.setMinimumWidth(100)
+        self.frequency_steps_linspace.stop_spinbox.setMinimumWidth(100)
+        self.frequency_steps_linspace.num_spinbox.setMinimumWidth(100)
 
-        phase_label = QLabel("Phase Steps", self)
-        phase_label.setFixedWidth(100)
+        phase_steps_label = QLabel("Phase Steps", self)
+        phase_steps_label.setFixedWidth(100)
 
-        self.phase_deg_steps = LinspaceWidget(_phase_deg_start, _phase_deg_stop, _phase_deg_steps, self)
-        self.phase_deg_steps.start_spinbox.setMinimumWidth(100)
-        self.phase_deg_steps.stop_spinbox.setMinimumWidth(100)
-        self.phase_deg_steps.num_spinbox.setMinimumWidth(100)
+        self.phase_deg_steps_linspace = LinspaceWidget(_phase_deg_start, _phase_deg_stop, _phase_deg_steps, self)
+        self.phase_deg_steps_linspace.start_spinbox.setMinimumWidth(100)
+        self.phase_deg_steps_linspace.stop_spinbox.setMinimumWidth(100)
+        self.phase_deg_steps_linspace.num_spinbox.setMinimumWidth(100)
 
         widget_layout = QGridLayout()
 
@@ -87,21 +87,21 @@ class ProcessSettingsWidget(QWidget):
 
         row += 1
         col = 0
-        widget_layout.addWidget(angle_label, row, col)
+        widget_layout.addWidget(angle_steps_label, row, col)
         col += 1
-        widget_layout.addWidget(self.angle_deg_steps, row, col, 1, 3)
+        widget_layout.addWidget(self.angle_deg_steps_linspace, row, col, 1, 3)
 
         row += 1
         col = 0
-        widget_layout.addWidget(frequency_label, row, col)
+        widget_layout.addWidget(frequency_steps_label, row, col)
         col += 1
-        widget_layout.addWidget(self.frequency_steps, row, col, 1, 3)
+        widget_layout.addWidget(self.frequency_steps_linspace, row, col, 1, 3)
 
         row += 1
         col = 0
-        widget_layout.addWidget(phase_label, row, col)
+        widget_layout.addWidget(phase_steps_label, row, col)
         col += 1
-        widget_layout.addWidget(self.phase_deg_steps, row, col, 1, 3)
+        widget_layout.addWidget(self.phase_deg_steps_linspace, row, col, 1, 3)
 
         self.setLayout(widget_layout)
 
@@ -113,7 +113,7 @@ class ProcessSettingsWidget(QWidget):
 
     @property
     def angle_deg_array(self) -> np.ndarray:
-        return self.angle_deg_steps.value()
+        return self.angle_deg_steps_linspace.value()
 
     @property
     def angle_rad_array(self) -> np.ndarray:
@@ -121,11 +121,11 @@ class ProcessSettingsWidget(QWidget):
  
     @property
     def frequency_array(self) -> np.ndarray:
-        return self.frequency_steps.value()
+        return self.frequency_steps_linspace.value()
 
     @property
     def phase_deg_array(self) -> np.ndarray:
-        return self.phase_deg_steps.value()
+        return self.phase_deg_steps_linspace.value()
 
     @property
     def phase_rad_array(self) -> np.ndarray:
