@@ -330,8 +330,8 @@ def Contrast_Evolution_Plot_Preset(contrast: np.ndarray, n_iteration: int, dark_
     monkeypatch_AxesImage_cmap_norm(imshow_image)
     imshow_image.set_cmap_norm(LogNorm(1, 1e-5))
 
-    monkeypatch_AxesImage_alpha_mask_show(imshow_image, dark_hole_mask)
-    imshow_image.set_alpha_mask_show(True)
+    # monkeypatch_AxesImage_alpha_mask_show(imshow_image, dark_hole_mask, 'black')
+    # imshow_image.set_alpha_mask_show(True)
 
     return figure
 

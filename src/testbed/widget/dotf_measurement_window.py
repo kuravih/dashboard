@@ -9,6 +9,7 @@ from PySide6.QtGui import QIcon
 from PySide6.QtWidgets import QDoubleSpinBox, QGridLayout, QHBoxLayout, QLabel, QSpinBox, QVBoxLayout, QWidget, QMessageBox, QCheckBox
 
 import testbed
+
 if TYPE_CHECKING:
     from dashboard import MainWindow
 from ..function import DOTFProbeDirection
@@ -36,32 +37,30 @@ class ProcessSettingsWidget(QWidget):
     """
 
     def __init__(self, parent=None):
-        _probe_amplitude = 50.0
-        _probe_width, _probe_length = 10, 20
-        _reps = 2
+        _probe_amplitude_perc_min, _probe_amplitude_perc_max, _probe_amplitude_perc = -100.0, 100.0, 10.0
+        _probe_min, _probe_max, _probe_width, _probe_length = 0, 100, 10, 20
+        _n_reps_min, _n_reps_max, _n_reps = 0, 9999, 2
         _sleep_s = 0.1
         super().__init__(parent)
 
-        probe_amplitude_label = QLabel("Probe Amp.", self)
-        probe_amplitude_label.setFixedWidth(100)
+        probe_amp_label = QLabel("Probe Amp.", self)
+        probe_amp_label.setFixedWidth(100)
 
-        self.probe_amplitude_spinbox = QDoubleSpinBox(self)
-        self.probe_amplitude_spinbox.setRange(-100, 100)
-        self.probe_amplitude_spinbox.setSuffix(" %")
-        self.probe_amplitude_spinbox.setSingleStep(1)
-        self.probe_amplitude_spinbox.setToolTip("Probe amplitude")
-        self.probe_amplitude_spinbox.setValue(_probe_amplitude)
+        self.probe_amplitude_perc_spinbox = QDoubleSpinBox(self)
+        self.probe_amplitude_perc_spinbox.setRange(_probe_amplitude_perc_min, _probe_amplitude_perc_max)
+        self.probe_amplitude_perc_spinbox.setSuffix(" %")
+        self.probe_amplitude_perc_spinbox.setSingleStep(1)
+        self.probe_amplitude_perc_spinbox.setToolTip("Probe amplitude")
+        self.probe_amplitude_perc_spinbox.setValue(_probe_amplitude_perc)
 
         probe_size_label = QLabel("Probe size", self)
         probe_size_label.setFixedWidth(100)
 
         self.probe_size_spinboxes = NSpinBoxesWidget(2, self)
-        self.probe_size_spinboxes[0].setMinimum(0)
-        self.probe_size_spinboxes[0].setMaximum(100)
+        self.probe_size_spinboxes[0].setRange(_probe_min, _probe_max)
         self.probe_size_spinboxes[0].setToolTip("Probe length")
         self.probe_size_spinboxes[0].setValue(_probe_length)
-        self.probe_size_spinboxes[1].setMinimum(0)
-        self.probe_size_spinboxes[1].setMaximum(100)
+        self.probe_size_spinboxes[1].setRange(_probe_min, _probe_max)
         self.probe_size_spinboxes[1].setToolTip("Probe width")
         self.probe_size_spinboxes[1].setValue(_probe_width)
 
@@ -74,10 +73,10 @@ class ProcessSettingsWidget(QWidget):
         n_reps_label.setFixedWidth(100)
 
         self.n_reps_spinbox = QSpinBox(self)
-        self.n_reps_spinbox.setRange(0, 9999)
+        self.n_reps_spinbox.setRange(_n_reps_min, _n_reps_max)
         self.n_reps_spinbox.setSingleStep(1)
         self.n_reps_spinbox.setToolTip("Number of reps to average")
-        self.n_reps_spinbox.setValue(_reps)
+        self.n_reps_spinbox.setValue(_n_reps)
 
         self.continuous_checkbox = QCheckBox("continuous", self)
         self.continuous_checkbox.setToolTip("Run till stop/pause button is clicked")
@@ -109,9 +108,9 @@ class ProcessSettingsWidget(QWidget):
 
         row = 0
         col = 0
-        widget_layout.addWidget(probe_amplitude_label, row, col)
+        widget_layout.addWidget(probe_amp_label, row, col)
         col += 1
-        widget_layout.addWidget(self.probe_amplitude_spinbox, row, col, 1, 3)
+        widget_layout.addWidget(self.probe_amplitude_perc_spinbox, row, col, 1, 3)
 
         row += 1
         col = 0
@@ -140,8 +139,8 @@ class ProcessSettingsWidget(QWidget):
         self.setLayout(widget_layout)
 
     @property
-    def probe_amplitude(self) -> float: # nm
-        return FULL_STROKE_NM * self.probe_amplitude_spinbox.value() / 100.0
+    def probe_amplitude_nm(self) -> float:  # nm
+        return FULL_STROKE_NM * self.probe_amplitude_perc_spinbox.value() / 100.0
 
     @property
     def probe_size(self) -> tuple[int, int]:
@@ -316,7 +315,7 @@ class ProcessWindow(Window):
                 process_worker.stop()
                 return
 
-            process_worker = ProcessWorker(self.source, self.sink, self.settings_widget.probe_amplitude, self.settings_widget.probe_size, self.settings_widget.probe_directions, self.settings_widget.n_reps)
+            process_worker = ProcessWorker(self.source, self.sink, self.settings_widget.probe_amplitude_nm, self.settings_widget.probe_size, self.settings_widget.probe_directions, self.settings_widget.n_reps)
             process_worker.signals.progressTicked.connect(self.on_progress_tick)
             process_worker.signals.finished.connect(self.on_process_finished)
             process_worker.signals.error.connect(self.on_process_error)

@@ -8,6 +8,7 @@ from PySide6.QtGui import QIcon
 from PySide6.QtWidgets import QCheckBox, QDoubleSpinBox, QGridLayout, QHBoxLayout, QLabel, QSpinBox, QVBoxLayout, QWidget, QMessageBox
 
 import testbed
+
 if TYPE_CHECKING:
     from dashboard import MainWindow
 from ..device.camera import Camera
@@ -31,8 +32,8 @@ class ProcessSettingsWidget(QWidget):
     """
 
     def __init__(self, parent=None):
-        _n_steps = 9
-        _amplitude_perc = 10.0
+        _n_steps_min, _n_steps_max, _n_steps = 0, 9999, 9
+        _amplitude_perc_min, _amplitude_perc_max, _amplitude_perc = -100.0, 100.0, 10.0
         _sleep_s = 0.1
         super().__init__(parent)
 
@@ -40,7 +41,7 @@ class ProcessSettingsWidget(QWidget):
         amplitude_label.setFixedWidth(100)
 
         self.amplitude_perc_spinbox = QDoubleSpinBox(self)
-        self.amplitude_perc_spinbox.setRange(-100, 100)
+        self.amplitude_perc_spinbox.setRange(_amplitude_perc_min, _amplitude_perc_max)
         self.amplitude_perc_spinbox.setSuffix(" %")
         self.amplitude_perc_spinbox.setSingleStep(1)
         self.amplitude_perc_spinbox.setToolTip("Command amplitude")
@@ -50,7 +51,7 @@ class ProcessSettingsWidget(QWidget):
         n_steps_label.setFixedWidth(100)
 
         self.n_steps_spinbox = QSpinBox(self)
-        self.n_steps_spinbox.setRange(0, 9999)
+        self.n_steps_spinbox.setRange(_n_steps_min, _n_steps_max)
         self.n_steps_spinbox.setSingleStep(1)
         self.n_steps_spinbox.setToolTip("Number of steps")
         self.n_steps_spinbox.setValue(_n_steps)

@@ -13,6 +13,7 @@ from PySide6.QtGui import QIcon
 from PySide6.QtWidgets import QDoubleSpinBox, QGridLayout, QLabel, QVBoxLayout, QWidget, QMessageBox
 
 import testbed
+
 if TYPE_CHECKING:
     from dashboard import MainWindow
 from ..device.camera import Camera
@@ -37,7 +38,7 @@ class ProcessSettingsWidget(QWidget):
     """
 
     def __init__(self, parent=None):
-        _amplitude_perc = 10.0
+        _amplitude_perc_min, _amplitude_perc_max, _amplitude_perc = -100.0, 100.0, 10.0
         _angle_deg_start, _angle_deg_stop, _angle_deg_steps = 0, 170, 18
         _frequency_start, _frequency_stop, _frequency_steps = 0.06, 0.02, 9
         _phase_deg_start, _phase_deg_stop, _phase_deg_steps = 0, 180, 2
@@ -47,7 +48,7 @@ class ProcessSettingsWidget(QWidget):
         amplitude_label.setFixedWidth(100)
 
         self.amplitude_perc_spinbox = QDoubleSpinBox(self)
-        self.amplitude_perc_spinbox.setRange(-100, 100)
+        self.amplitude_perc_spinbox.setRange(_amplitude_perc_min, _amplitude_perc_max)
         self.amplitude_perc_spinbox.setSuffix(" %")
         self.amplitude_perc_spinbox.setSingleStep(1)
         self.amplitude_perc_spinbox.setToolTip("Command amplitude")
@@ -118,7 +119,7 @@ class ProcessSettingsWidget(QWidget):
     @property
     def angle_rad_array(self) -> np.ndarray:
         return np.deg2rad(self.angle_deg_array)
- 
+
     @property
     def frequency_array(self) -> np.ndarray:
         return self.frequency_steps_linspace.value()

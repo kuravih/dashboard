@@ -9,6 +9,7 @@ from PySide6.QtGui import QIcon
 from PySide6.QtWidgets import QVBoxLayout, QHBoxLayout, QWidget, QMessageBox
 
 import testbed
+
 if TYPE_CHECKING:
     from dashboard import MainWindow
 from ..device.camera import Camera

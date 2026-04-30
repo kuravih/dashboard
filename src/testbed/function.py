@@ -243,10 +243,10 @@ def find_speckles(speckle_image: np.ndarray, num_peaks: int = 1, footprint_size:
 def speckle_parameters(center: tuple[float, float], speckle_location_px: tuple[float, float], speck_calibration: dict[str, dict[str, float]]) -> tuple[float, float]:
     speckle_location_px_delta = np.array(speckle_location_px) - np.array(center)
     speckle_dist = np.hypot(speckle_location_px_delta[0], speckle_location_px_delta[1])
-    speckle_angle = -np.arctan2(speckle_location_px_delta[0], speckle_location_px_delta[1])
+    speckle_angle_rad = -np.arctan2(speckle_location_px_delta[0], speckle_location_px_delta[1])
     speckle_frequency = (speckle_dist - speck_calibration["speck_dist_cmd_freq"]["intercept"]) / speck_calibration["speck_dist_cmd_freq"]["slope"]
-    speckle_angle = (speckle_angle - speck_calibration["speck_angle_cmd_angle"]["intercept"]) / speck_calibration["speck_angle_cmd_angle"]["slope"]
-    return speckle_frequency, speckle_angle
+    speckle_angle_rad = (speckle_angle_rad - speck_calibration["speck_angle_cmd_angle"]["intercept"]) / speck_calibration["speck_angle_cmd_angle"]["slope"]
+    return speckle_frequency, speckle_angle_rad
 
 
 def is_speckle_calibration_file_valid(filename: str) -> bool:

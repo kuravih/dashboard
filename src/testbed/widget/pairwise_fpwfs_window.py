@@ -37,7 +37,8 @@ class ProcessSettingsWidget(QWidget):
     """
 
     def __init__(self, parent=None):
-        _reps = 2
+        _probe_amplitude_perc_min, _probe_amplitude_perc_max, _probe_amplitude_perc = -100.0, 100.0, 10.0
+        _n_reps_min, _n_reps_max, _n_reps = 0, 9999, 2
         _sleep_s = 0.1
         self.dark_hole_mask = None  # chord(self.source.shape, self.source.shape[0] * 5 / 16, 0.6)
         self.pairwise_calibration = None
@@ -47,13 +48,13 @@ class ProcessSettingsWidget(QWidget):
         probe_amp_label = QLabel("Probe Amp.", self)
         probe_amp_label.setFixedWidth(100)
 
-        self.probe_amp_spinbox = QDoubleSpinBox(self)
-        self.probe_amp_spinbox.setRange(-0, 100)
-        self.probe_amp_spinbox.setSuffix(" %")
-        self.probe_amp_spinbox.setSingleStep(1)
-        self.probe_amp_spinbox.setToolTip("Probe amplitude")
-        self.probe_amp_spinbox.setValue(0.0)
-        self.probe_amp_spinbox.setEnabled(False)
+        self.probe_amplitude_perc_spinbox = QDoubleSpinBox(self)
+        self.probe_amplitude_perc_spinbox.setRange(_probe_amplitude_perc_min, _probe_amplitude_perc_max)
+        self.probe_amplitude_perc_spinbox.setSuffix(" %")
+        self.probe_amplitude_perc_spinbox.setSingleStep(1)
+        self.probe_amplitude_perc_spinbox.setToolTip("Probe amplitude")
+        self.probe_amplitude_perc_spinbox.setValue(_probe_amplitude_perc)
+        self.probe_amplitude_perc_spinbox.setEnabled(False)
 
         probe_dξ_label = QLabel("Probe dξ", self)
         probe_dξ_label.setFixedWidth(100)
@@ -99,10 +100,10 @@ class ProcessSettingsWidget(QWidget):
         n_reps_label.setFixedWidth(100)
 
         self.n_reps_spinbox = QSpinBox(self)
-        self.n_reps_spinbox.setRange(0, 9999)
+        self.n_reps_spinbox.setRange(_n_reps_min, _n_reps_max)
         self.n_reps_spinbox.setSingleStep(1)
         self.n_reps_spinbox.setToolTip("Number of reps to average")
-        self.n_reps_spinbox.setValue(_reps)
+        self.n_reps_spinbox.setValue(_n_reps)
 
         self.continuous_checkbox = QCheckBox("continuous", self)
         self.continuous_checkbox.setToolTip("Run till stop/pause button is clicked")
@@ -141,7 +142,7 @@ class ProcessSettingsWidget(QWidget):
         col = 0
         widget_layout.addWidget(probe_amp_label, row, col)
         col += 1
-        widget_layout.addWidget(self.probe_amp_spinbox, row, col, 1, 3)
+        widget_layout.addWidget(self.probe_amplitude_perc_spinbox, row, col, 1, 3)
 
         row += 1
         col = 0
@@ -188,8 +189,8 @@ class ProcessSettingsWidget(QWidget):
         self.setLayout(widget_layout)
 
     @property
-    def probe_amplitude(self) -> float:
-        return FULL_STROKE_NM * self.probe_amp_spinbox.value() / 100.0
+    def probe_amplitude_nm(self) -> float:
+        return FULL_STROKE_NM * self.probe_amplitude_perc_spinbox.value() / 100.0
 
     @property
     def probe_dξ(self) -> float:
@@ -352,7 +353,7 @@ class ProcessWindow(Window):
         self.controls_widget.run_stop_button.setEnabled(False)
         if self.source is not None and self.sink is not None and self.settings_widget.calibration_widget.filepath is not None:
             self.pairwise_calibration, probe_amp, probe_ξc, probe_dξ, probe_dη = read_pairwise_calibration_file(self.settings_widget.calibration_widget.filepath)
-            self.settings_widget.probe_amp_spinbox.setValue(probe_amp), self.settings_widget.probe_ξc_spinbox.setValue(probe_ξc), self.settings_widget.probe_dξ_spinbox.setValue(probe_dξ), self.settings_widget.probe_dη_spinbox.setValue(probe_dη)
+            self.settings_widget.probe_amplitude_perc_spinbox.setValue(probe_amp), self.settings_widget.probe_ξc_spinbox.setValue(probe_ξc), self.settings_widget.probe_dξ_spinbox.setValue(probe_dξ), self.settings_widget.probe_dη_spinbox.setValue(probe_dη)
             self.controls_widget.info_button.setEnabled(True)
             self.controls_widget.run_stop_button.setEnabled(True)
 
@@ -404,7 +405,7 @@ class ProcessWindow(Window):
                 process_worker.stop()
                 return
 
-            process_worker = ProcessWorker(self.source, self.sink, self.settings_widget.dark_hole_mask, self.pairwise_calibration, self.settings_widget.probe_amplitude, self.settings_widget.probe_dξ, self.settings_widget.probe_dη, self.settings_widget.probe_ξc, self.settings_widget.probe_directions, self.settings_widget.n_reps)
+            process_worker = ProcessWorker(self.source, self.sink, self.settings_widget.dark_hole_mask, self.pairwise_calibration, self.settings_widget.probe_amplitude_nm, self.settings_widget.probe_dξ, self.settings_widget.probe_dη, self.settings_widget.probe_ξc, self.settings_widget.probe_directions, self.settings_widget.n_reps)
             process_worker.signals.progressTicked.connect(self.on_progress_tick)
             process_worker.signals.finished.connect(self.on_process_finished)
             process_worker.signals.error.connect(self.on_process_error)

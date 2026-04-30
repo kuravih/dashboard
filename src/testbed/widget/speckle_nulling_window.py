@@ -14,6 +14,7 @@ from matplotlib import colormaps
 from matplotlib.colors import Normalize, LogNorm
 
 import testbed
+
 if TYPE_CHECKING:
     from dashboard import MainWindow
 from ..device.camera import Camera
@@ -39,39 +40,41 @@ class ProcessSettingsWidget(QWidget):
     """
 
     def __init__(self, parent=None):
+        _phase_deg_start, _phase_deg_stop, _phase_deg_steps = 0, 300, 6
+        _amplitude_perc_min, _amplitude_perc_max, _amplitude_perc_start, _amplitude_perc_stop, _amplitude_perc_steps = -100.0, 100.0, 0.0, 50.0, 11
+        _n_iterations_min, _n_iterations_max, _n_iterations = 0, 9999, 10
+        super().__init__(parent)
         self.dark_hole_mask = None  # chord(self.source.shape, self.source.shape[0] * 5 / 16, 0.6)
         self.speckle_calibration = None
 
-        super().__init__(parent)
+        phase_steps_label = QLabel("Phase steps", self)
+        phase_steps_label.setFixedWidth(100)
 
-        phs_steps_label = QLabel("Phase steps", self)
-        phs_steps_label.setFixedWidth(100)
+        self.phase_deg_steps_linspace = LinspaceWidget(_phase_deg_start, _phase_deg_stop, _phase_deg_steps, self)
+        self.phase_deg_steps_linspace.start_spinbox.setMinimumWidth(100)
+        self.phase_deg_steps_linspace.stop_spinbox.setMinimumWidth(100)
+        self.phase_deg_steps_linspace.num_spinbox.setMinimumWidth(100)
 
-        self.phs_steps_linspace = LinspaceWidget(0, 300, 6, self)
-        self.phs_steps_linspace.start_spinbox.setMinimumWidth(100)
-        self.phs_steps_linspace.stop_spinbox.setMinimumWidth(100)
-        self.phs_steps_linspace.num_spinbox.setMinimumWidth(100)
+        amplitude_steps_label = QLabel("Amp. steps", self)
+        amplitude_steps_label.setFixedWidth(100)
 
-        amp_steps_label = QLabel("Amp. steps", self)
-        amp_steps_label.setFixedWidth(100)
-
-        self.amp_steps_linspace = LinspaceWidget(0.0, 50, 11, self)
-        self.amp_steps_linspace.start_spinbox.setRange(-100, 100)
-        self.amp_steps_linspace.start_spinbox.setSuffix(" %")
-        self.amp_steps_linspace.start_spinbox.setMinimumWidth(100)
-        self.amp_steps_linspace.stop_spinbox.setRange(-100, 100)
-        self.amp_steps_linspace.stop_spinbox.setSuffix(" %")
-        self.amp_steps_linspace.stop_spinbox.setMinimumWidth(100)
-        self.amp_steps_linspace.num_spinbox.setMinimumWidth(100)
+        self.amplitude_perc_steps_linspace = LinspaceWidget(_amplitude_perc_start, _amplitude_perc_stop, _amplitude_perc_steps, self)
+        self.amplitude_perc_steps_linspace.start_spinbox.setRange(_amplitude_perc_min, _amplitude_perc_max)
+        self.amplitude_perc_steps_linspace.start_spinbox.setSuffix(" %")
+        self.amplitude_perc_steps_linspace.start_spinbox.setMinimumWidth(100)
+        self.amplitude_perc_steps_linspace.stop_spinbox.setRange(_amplitude_perc_min, _amplitude_perc_max)
+        self.amplitude_perc_steps_linspace.stop_spinbox.setSuffix(" %")
+        self.amplitude_perc_steps_linspace.stop_spinbox.setMinimumWidth(100)
+        self.amplitude_perc_steps_linspace.num_spinbox.setMinimumWidth(100)
 
         n_iterations_label = QLabel("Iterations", self)
         n_iterations_label.setFixedWidth(100)
 
         self.n_iterations_spinbox = QSpinBox(self)
-        self.n_iterations_spinbox.setRange(0, 9999)
+        self.n_iterations_spinbox.setRange(_n_iterations_min, _n_iterations_max)
         self.n_iterations_spinbox.setSingleStep(1)
         self.n_iterations_spinbox.setToolTip("Number of nulling iterations")
-        self.n_iterations_spinbox.setValue(10)
+        self.n_iterations_spinbox.setValue(_n_iterations)
 
         self._continuous_checkbox = QCheckBox("continuous", self)
         self._continuous_checkbox.setToolTip("Run till stop/pause button is clicked")
@@ -111,15 +114,15 @@ class ProcessSettingsWidget(QWidget):
 
         row = 0
         col = 0
-        widget_layout.addWidget(phs_steps_label, row, col)
+        widget_layout.addWidget(phase_steps_label, row, col)
         col += 1
-        widget_layout.addWidget(self.phs_steps_linspace, row, col)
+        widget_layout.addWidget(self.phase_deg_steps_linspace, row, col)
 
         row += 1
         col = 0
-        widget_layout.addWidget(amp_steps_label, row, col)
+        widget_layout.addWidget(amplitude_steps_label, row, col)
         col += 1
-        widget_layout.addWidget(self.amp_steps_linspace, row, col)
+        widget_layout.addWidget(self.amplitude_perc_steps_linspace, row, col)
 
         row += 1
         col = 0
@@ -158,12 +161,16 @@ class ProcessSettingsWidget(QWidget):
         return self.sink_checkbox.isChecked()
 
     @property
-    def phs_array(self) -> np.ndarray:
-        return self.phs_steps_linspace.value()
+    def phase_deg_array(self) -> np.ndarray:
+        return self.phase_deg_steps_linspace.value()
 
     @property
-    def amp_array(self) -> np.ndarray:
-        return FULL_STROKE_NM * self.amp_steps_linspace.value() / 100.0
+    def phase_rad_array(self) -> np.ndarray:
+        return np.deg2rad(self.phase_deg_array)
+
+    @property
+    def amplitude_nm_array(self) -> np.ndarray:
+        return FULL_STROKE_NM * self.amplitude_perc_steps_linspace.value() / 100.0
 
     @property
     def dark_hole_mask(self) -> NDArray[np.bool] | None:
@@ -190,26 +197,26 @@ class ProcessInfoWindow(Window):
 
     wid = f"{testbed.SPECKLE_NULLING}_info_window"
 
-    def __init__(self, phs_lim: tuple[float, float], phs_array: np.ndarray, amp_lim: tuple[float, float], amp_array: np.ndarray, parent: QWidget | None = None):
+    def __init__(self, phase_deg_lim: tuple[float, float], phase_deg_array: np.ndarray, amplitude_nm_lim: tuple[float, float], amplitude_nm_array: np.ndarray, parent: QWidget | None = None):
         super().__init__(parent, Qt.WindowType.Dialog)
 
-        self.phs_lim = phs_lim
-        self.phs_array = phs_array
-        self.phs_intensity_data_array = np.ones_like(phs_array) * np.nan
+        self.phase_deg_lim = phase_deg_lim
+        self.phase_deg_array = phase_deg_array
+        self.phase_deg_intensity_data_array = np.ones_like(phase_deg_array) * np.nan
 
-        self.phs_intensity_fit = None, None, None
-        self.phs_intensity_fit_x_data = np.linspace(phs_lim[0], phs_lim[1], 361)
-        self.phs_intensity_fit_y_data = np.ones_like(self.phs_intensity_fit_x_data) * np.nan
-        self.phs_solve = np.nan
+        self.phase_deg_intensity_fit = None, None, None
+        self.phase_deg_intensity_fit_x_data = np.linspace(phase_deg_lim[0], phase_deg_lim[1], 361)
+        self.phase_deg_intensity_fit_y_data = np.ones_like(self.phase_deg_intensity_fit_x_data) * np.nan
+        self.phase_deg_solve = np.nan
 
-        self.amp_lim = amp_lim
-        self.amp_array = amp_array
-        self.amp_intensity_data_array = np.ones_like(amp_array) * np.nan
+        self.amplitude_nm_lim = amplitude_nm_lim
+        self.amplitude_nm_array = amplitude_nm_array
+        self.amplitude_nm_intensity_data_array = np.ones_like(amplitude_nm_array) * np.nan
 
-        self.amp_intensity_fit = None, None, None
-        self.amp_intensity_fit_x_data = np.linspace(amp_lim[0], amp_lim[-1], 101)
-        self.amp_intensity_fit_y_data = np.ones_like(self.amp_intensity_fit_x_data) * np.nan
-        self.amp_solve = np.nan
+        self.amplitude_nm_intensity_fit = None, None, None
+        self.amplitude_nm_intensity_fit_x_data = np.linspace(amplitude_nm_lim[0], amplitude_nm_lim[-1], 101)
+        self.amplitude_nm_intensity_fit_y_data = np.ones_like(self.amplitude_nm_intensity_fit_x_data) * np.nan
+        self.amplitude_nm_solve = np.nan
 
         self.setWindowTitle("Speckle Nulling")
 
@@ -224,50 +231,50 @@ class ProcessInfoWindow(Window):
         self.update_timer.start(100)  # Update window every 100 ms
 
     @Slot(np.ndarray)
-    def on_phs_swept(self, intensity: np.ndarray):
-        self.phs_intensity_data_array[:] = intensity[:]
+    def on_phase_swept(self, intensity: np.ndarray):
+        self.phase_deg_intensity_data_array[:] = intensity[:]
         self.process_info_figure.phs_ax.relim()
         self.process_info_figure.phs_ax.autoscale_view(scalex=False, scaley=True)
 
     @Slot(float, float, float)
-    def on_phs_fitted(self, fit_amplitude: float, fit_phase: float, fit_offset: float):
-        self.phs_intensity_fit_y_data = constrained_sin_fit_fn(np.deg2rad(self.phs_intensity_fit_x_data), fit_amplitude, fit_phase, fit_offset)
+    def on_phase_fitted(self, fit_amplitude: float, fit_phase: float, fit_offset: float):
+        self.phase_deg_intensity_fit_y_data = constrained_sin_fit_fn(np.deg2rad(self.phase_deg_intensity_fit_x_data), fit_amplitude, fit_phase, fit_offset)
 
     @Slot(float)
-    def on_phs_solved(self, solve: float):
-        self.phs_solve = np.rad2deg(solve)
+    def on_phase_solved(self, solve: float):
+        self.phase_deg_solve = np.rad2deg(solve)
 
     @Slot(np.ndarray)
-    def on_amp_swept(self, intensity: np.ndarray):
-        self.amp_intensity_data_array[:] = intensity[:]
+    def on_amplitude_swept(self, intensity: np.ndarray):
+        self.amplitude_nm_intensity_data_array[:] = intensity[:]
         self.process_info_figure.amp_ax.relim()
         self.process_info_figure.amp_ax.autoscale_view(scalex=False, scaley=True)
 
     @Slot(float, float, float)
-    def on_amp_fitted(self, fit_a: float, fit_x0: float, fit_c: float):
-        self.amp_intensity_fit_y_data = quadratic_fit_fn(self.amp_intensity_fit_x_data, fit_a, fit_x0, fit_c)
+    def on_amplitude_fitted(self, fit_a: float, fit_x0: float, fit_c: float):
+        self.amplitude_nm_intensity_fit_y_data = quadratic_fit_fn(self.amplitude_nm_intensity_fit_x_data, fit_a, fit_x0, fit_c)
 
     @Slot(float)
-    def on_amp_solved(self, solve: float):
-        self.amp_solve = solve
+    def on_amplitude_solved(self, solve: float):
+        self.amplitude_nm_solve = solve
 
     def setup_info_widget(self) -> QWidget:
         widget = QWidget(self)
         layout = QVBoxLayout(widget)
         layout.setContentsMargins(2, 2, 2, 2)
         widget.setLayout(layout)
-        self.process_info_figure = SpeckleNullingFigureWidget(self.phs_lim, self.amp_lim, ["Home", "Pan", "Zoom", "Save"], parent=self)
+        self.process_info_figure = SpeckleNullingFigureWidget(self.phase_deg_lim, self.amplitude_nm_lim, ["Home", "Pan", "Zoom", "Save"], parent=self)
         layout.addWidget(self.process_info_figure)
         return widget
 
     @Slot()
     def on_update_timer_tick(self):
-        self.process_info_figure.set_phs_data_plot(self.phs_array, self.phs_intensity_data_array)
-        self.process_info_figure.set_phs_fit_plot(self.phs_intensity_fit_x_data, self.phs_intensity_fit_y_data)
-        self.process_info_figure.set_phs_solve(self.phs_solve)
-        self.process_info_figure.set_amp_data_plot(self.amp_array, self.amp_intensity_data_array)
-        self.process_info_figure.set_amp_fit_plot(self.amp_intensity_fit_x_data, self.amp_intensity_fit_y_data)
-        self.process_info_figure.set_amp_solve(self.amp_solve)
+        self.process_info_figure.set_phs_data_plot(self.phase_deg_array, self.phase_deg_intensity_data_array)
+        self.process_info_figure.set_phs_fit_plot(self.phase_deg_intensity_fit_x_data, self.phase_deg_intensity_fit_y_data)
+        self.process_info_figure.set_phs_solve(self.phase_deg_solve)
+        self.process_info_figure.set_amp_data_plot(self.amplitude_nm_array, self.amplitude_nm_intensity_data_array)
+        self.process_info_figure.set_amp_fit_plot(self.amplitude_nm_intensity_fit_x_data, self.amplitude_nm_intensity_fit_y_data)
+        self.process_info_figure.set_amp_solve(self.amplitude_nm_solve)
         self.process_info_figure.figure.canvas.draw_idle()
 
     def closeEvent(self, event):
@@ -601,7 +608,7 @@ class ProcessWindow(Window):
                 process_worker.stop()
                 return
 
-            process_worker = ProcessWorker(self.source, self.sink, self.settings_widget.dark_hole_mask, self.speckle_calibration, self.settings_widget.phs_array, self.settings_widget.amp_array, self.settings_widget.n_iterations)
+            process_worker = ProcessWorker(self.source, self.sink, self.settings_widget.dark_hole_mask, self.speckle_calibration, self.settings_widget.phase_rad_array, self.settings_widget.amplitude_nm_array, self.settings_widget.n_iterations)
             process_worker.signals.progressTicked.connect(self.on_progress_tick)
             process_worker.signals.finished.connect(self.on_process_finished)
             process_worker.signals.error.connect(self.on_process_error)
@@ -619,12 +626,12 @@ class ProcessWindow(Window):
 
             if testbed.data.is_window_alive(ProcessInfoWindow.wid):
                 process_info_window = cast(ProcessInfoWindow, testbed.data.windows[ProcessInfoWindow.wid])
-                process_worker.signals.phsSwept.connect(process_info_window.on_phs_swept)
-                process_worker.signals.phsFitted.connect(process_info_window.on_phs_fitted)
-                process_worker.signals.phsSolved.connect(process_info_window.on_phs_solved)
-                process_worker.signals.ampSwept.connect(process_info_window.on_amp_swept)
-                process_worker.signals.ampFitted.connect(process_info_window.on_amp_fitted)
-                process_worker.signals.ampSolved.connect(process_info_window.on_amp_solved)
+                process_worker.signals.phaseSwept.connect(process_info_window.on_phase_swept)
+                process_worker.signals.phaseFitted.connect(process_info_window.on_phase_fitted)
+                process_worker.signals.phaseSolved.connect(process_info_window.on_phase_solved)
+                process_worker.signals.amplitudeSwept.connect(process_info_window.on_amplitude_swept)
+                process_worker.signals.amplitudeFitted.connect(process_info_window.on_amplitude_fitted)
+                process_worker.signals.amplitudeSolved.connect(process_info_window.on_amplitude_solved)
 
             if testbed.data.is_window_alive(ProcessPreviewWindow.wid):
                 process_preview_window = cast(ProcessPreviewWindow, testbed.data.windows[ProcessPreviewWindow.wid])
@@ -661,7 +668,7 @@ class ProcessWindow(Window):
             testbed.data.windows.pop(ProcessInfoWindow.wid, None)
 
         if not testbed.data.is_window_alive(ProcessInfoWindow.wid) and self.source is not None and self.sink is not None:
-            process_info_window = ProcessInfoWindow([0, 360], self.settings_widget.phs_array, [self.settings_widget.amp_array[0], self.settings_widget.amp_array[-1]], self.settings_widget.amp_array, parent=self)
+            process_info_window = ProcessInfoWindow([0, 360], self.settings_widget.phase_deg_array, [self.settings_widget.amplitude_nm_array[0], self.settings_widget.amplitude_nm_array[-1]], self.settings_widget.amplitude_nm_array, parent=self)
             process_info_window.destroyed.connect(on_window_closed)
             process_info_window.show()
             process_info_window.raise_()
@@ -670,12 +677,12 @@ class ProcessWindow(Window):
 
             if testbed.data.is_worker_alive(ProcessWorker.wid):
                 process_worker = cast(ProcessWorker, testbed.data.workers[ProcessWorker.wid])
-                process_worker.signals.phsSwept.connect(process_info_window.on_phs_swept)
-                process_worker.signals.phsFitted.connect(process_info_window.on_phs_fitted)
-                process_worker.signals.phsSolved.connect(process_info_window.on_phs_solved)
-                process_worker.signals.ampSwept.connect(process_info_window.on_amp_swept)
-                process_worker.signals.ampFitted.connect(process_info_window.on_amp_fitted)
-                process_worker.signals.ampSolved.connect(process_info_window.on_amp_solved)
+                process_worker.signals.phaseSwept.connect(process_info_window.on_phase_swept)
+                process_worker.signals.phaseFitted.connect(process_info_window.on_phase_fitted)
+                process_worker.signals.phaseSolved.connect(process_info_window.on_phase_solved)
+                process_worker.signals.amplitudeSwept.connect(process_info_window.on_amplitude_swept)
+                process_worker.signals.amplitudeFitted.connect(process_info_window.on_amplitude_fitted)
+                process_worker.signals.amplitudeSolved.connect(process_info_window.on_amplitude_solved)
 
     def setup_main_widget(self) -> QWidget:
         widget = QWidget(self)

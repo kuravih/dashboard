@@ -25,13 +25,13 @@ class ProcessWorker(Worker):
 
     wid = f"{testbed.PAIRWISE_FPWFS}_worker"
 
-    def __init__(self, source: Camera, sink: Modulator, dark_hole_mask: NDArray[np.bool], pairwise_calibration: dict[int, NDArray[np.float64]], probe_amplitude: float, probe_dξ: float, probe_dη: float, probe_ξc: float, probe_directions: list[PairwiseProbeDirection], n_reps: int):
+    def __init__(self, source: Camera, sink: Modulator, dark_hole_mask: NDArray[np.bool], pairwise_calibration: dict[int, NDArray[np.float64]], probe_amplitude_nm: float, probe_dξ: float, probe_dη: float, probe_ξc: float, probe_directions: list[PairwiseProbeDirection], n_reps: int):
         self.signals = ProcessWorkerSignals()
         self.source = source
         self.sink = sink
         self.dark_hole_mask = dark_hole_mask
         self.pairwise_calibration = pairwise_calibration
-        self.probe_amplitude = probe_amplitude
+        self.probe_amplitude_nm = probe_amplitude_nm
         self.probe_dξ = probe_dξ
         self.probe_dη = probe_dη
         self.probe_ξc = probe_ξc
@@ -45,7 +45,7 @@ class ProcessWorker(Worker):
         else:
             super().__init__(0)
 
-    def sense_wavefront(self, probe_amplitude: float, dξ: float, dη: float, ξc: float, direction: PairwiseProbeDirection) -> NDArray[np.complex64]:
+    def sense_wavefront(self, probe_amplitude_nm: float, dξ: float, dη: float, ξc: float, direction: PairwiseProbeDirection) -> NDArray[np.complex64]:
         # -------------------------------------------------------------------------------------------------------------
         zero_cmd = np.zeros(self.sink.shape)
 
@@ -63,12 +63,12 @@ class ProcessWorker(Worker):
 
         # -------------------------------------------------------------------------------------------------------------
         k = 1
-        probe_p_h_1 = +probe_amplitude * pairwise_probe(self.sink.shape, dξ, dη, ξc, k * np.pi / 2, direction)
-        probe_m_h_1 = -probe_amplitude * pairwise_probe(self.sink.shape, dξ, dη, ξc, k * np.pi / 2, direction)
+        probe_p_h_1 = +probe_amplitude_nm * pairwise_probe(self.sink.shape, dξ, dη, ξc, k * np.pi / 2, direction)
+        probe_m_h_1 = -probe_amplitude_nm * pairwise_probe(self.sink.shape, dξ, dη, ξc, k * np.pi / 2, direction)
 
         k = 2
-        probe_p_h_2 = +probe_amplitude * pairwise_probe(self.sink.shape, dξ, dη, ξc, k * np.pi / 2, direction)
-        probe_m_h_2 = -probe_amplitude * pairwise_probe(self.sink.shape, dξ, dη, ξc, k * np.pi / 2, direction)
+        probe_p_h_2 = +probe_amplitude_nm * pairwise_probe(self.sink.shape, dξ, dη, ξc, k * np.pi / 2, direction)
+        probe_m_h_2 = -probe_amplitude_nm * pairwise_probe(self.sink.shape, dξ, dη, ξc, k * np.pi / 2, direction)
         # -------------------------------------------------------------------------------------------------------------
 
         # ---- probe_p_h_1 --------------------------------------------------------------------------------------------
@@ -137,11 +137,11 @@ class ProcessWorker(Worker):
 
         return electric_field_h
 
-    def sense_wavefronts(self, probe_amplitude: float, dξ: float, dη: float, ξc: float, directions: list[PairwiseProbeDirection], n_reps: int):
+    def sense_wavefronts(self, probe_amplitude_nm: float, dξ: float, dη: float, ξc: float, directions: list[PairwiseProbeDirection], n_reps: int):
         i_rep = 0
         while ((n_reps is 0) or (n_reps > i_rep)) and self._running:
             for direction in directions:
-                self.wavefront[direction] = self.wavefront[direction] + self.sense_wavefront(probe_amplitude, dξ, dη, ξc, direction)
+                self.wavefront[direction] = self.wavefront[direction] + self.sense_wavefront(probe_amplitude_nm, dξ, dη, ξc, direction)
                 self.signals.wfSensed.emit(direction, self.wavefront[direction] / (i_rep + 1))
 
             i_rep = i_rep + 1
@@ -151,7 +151,7 @@ class ProcessWorker(Worker):
         super().run()
 
         try:
-            self.sense_wavefronts(self.probe_amplitude, self.probe_dξ, self.probe_dη, self.probe_ξc, self.probe_directions, self.n_reps)
+            self.sense_wavefronts(self.probe_amplitude_nm, self.probe_dξ, self.probe_dη, self.probe_ξc, self.probe_directions, self.n_reps)
         except AssertionError as e:
             self.signals.error.emit(str(e))
 

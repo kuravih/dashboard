@@ -11,6 +11,7 @@ from PySide6.QtGui import QIcon
 from PySide6.QtWidgets import QDoubleSpinBox, QGridLayout, QHBoxLayout, QLabel, QSpinBox, QVBoxLayout, QWidget, QMessageBox, QLineEdit
 
 import testbed
+
 if TYPE_CHECKING:
     from dashboard import MainWindow
 from ..device.camera import Camera
@@ -34,8 +35,8 @@ class ProcessSettingsWidget(QWidget):
     """
 
     def __init__(self, parent=None):
-        _n_steps = 4
-        _amplitude = 10.0
+        _n_steps_min, _n_steps_max, _n_steps = 0, 9999, 8
+        _amplitude_perc_min, _amplitude_perc_max, _amplitude_perc = -100.0, 100.0, 10.0
         _sleep_s = 0.1
         _center = [0.0, 0.0]
         super().__init__(parent)
@@ -43,18 +44,18 @@ class ProcessSettingsWidget(QWidget):
         amplitude_label = QLabel("Amplitude", self)
         amplitude_label.setFixedWidth(100)
 
-        self.amplitude_spinbox = QDoubleSpinBox(self)
-        self.amplitude_spinbox.setRange(-100, 100)
-        self.amplitude_spinbox.setSuffix(" %")
-        self.amplitude_spinbox.setSingleStep(1)
-        self.amplitude_spinbox.setToolTip("Command amplitude")
-        self.amplitude_spinbox.setValue(_amplitude)
+        self.amplitude_perc_spinbox = QDoubleSpinBox(self)
+        self.amplitude_perc_spinbox.setRange(_amplitude_perc_min, _amplitude_perc_max)
+        self.amplitude_perc_spinbox.setSuffix(" %")
+        self.amplitude_perc_spinbox.setSingleStep(1)
+        self.amplitude_perc_spinbox.setToolTip("Command amplitude")
+        self.amplitude_perc_spinbox.setValue(_amplitude_perc)
 
         n_steps_label = QLabel("Steps", self)
         n_steps_label.setFixedWidth(100)
 
         self.n_steps_spinbox = QSpinBox(self)
-        self.n_steps_spinbox.setRange(0, 9999)
+        self.n_steps_spinbox.setRange(_n_steps_min, _n_steps_max)
         self.n_steps_spinbox.setSingleStep(1)
         self.n_steps_spinbox.setToolTip("Number of steps")
         self.n_steps_spinbox.setValue(_n_steps)
@@ -83,8 +84,8 @@ class ProcessSettingsWidget(QWidget):
         self.center_yvalue_textbox.setText(f"{_center[1]:.0f}")
 
         self.move_pushbutton = IconButton(QIcon(ICON_CENTER), parent=self)
-        self.move_pushbutton.setFixedHeight(self.amplitude_spinbox.sizeHint().height())
-        self.move_pushbutton.setFixedWidth(self.amplitude_spinbox.sizeHint().height())
+        self.move_pushbutton.setFixedHeight(self.amplitude_perc_spinbox.sizeHint().height())
+        self.move_pushbutton.setFixedWidth(self.amplitude_perc_spinbox.sizeHint().height())
         self.move_pushbutton.setToolTip("Move to center")
         self.move_pushbutton.setEnabled(False)
 
@@ -94,7 +95,7 @@ class ProcessSettingsWidget(QWidget):
         col = 0
         widget_layout.addWidget(amplitude_label, row, col)
         col += 1
-        widget_layout.addWidget(self.amplitude_spinbox, row, col, 1, 3)
+        widget_layout.addWidget(self.amplitude_perc_spinbox, row, col, 1, 3)
 
         row += 1
         col = 0
@@ -124,8 +125,8 @@ class ProcessSettingsWidget(QWidget):
         self.speckles = np.full((_n_steps, 2, 2), np.nan)
 
     @property
-    def amplitude(self) -> float:
-        return FULL_STROKE_NM * self.amplitude_spinbox.value() / 100.0
+    def amplitude_nm(self) -> float:
+        return FULL_STROKE_NM * self.amplitude_perc_spinbox.value() / 100.0
 
     @property
     def n_steps(self) -> int:
@@ -282,7 +283,7 @@ class ProcessWindow(Window):
                 process_worker.stop()
                 return
 
-            process_worker = ProcessWorker(self.source, self.sink, self.settings_widget.amplitude, self.settings_widget.n_steps)
+            process_worker = ProcessWorker(self.source, self.sink, self.settings_widget.amplitude_nm, self.settings_widget.n_steps)
             process_worker.signals.progressTicked.connect(self.on_progress_tick)
             process_worker.signals.finished.connect(self.on_process_finished)
             process_worker.signals.error.connect(self.on_process_error)

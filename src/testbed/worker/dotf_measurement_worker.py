@@ -26,11 +26,11 @@ class ProcessWorker(Worker):
 
     wid = f"{testbed.DOTF_MEASUREMENT}_worker"
 
-    def __init__(self, source: Camera, sink: Modulator, probe_amplitude: float, probe_size: tuple[int, int], probe_directions: list[DOTFProbeDirection], n_reps: int = 0):
+    def __init__(self, source: Camera, sink: Modulator, probe_amplitude_nm: float, probe_size: tuple[int, int], probe_directions: list[DOTFProbeDirection], n_reps: int = 0):
         self.signals = ProcessWorkerSignals()
         self.source = source
         self.sink = sink
-        self.probe_amplitude = probe_amplitude
+        self.probe_amplitude_nm = probe_amplitude_nm
         self.probe_size = probe_size
         self.probe_directions = probe_directions
         self.dotf_measurements = {}
@@ -42,9 +42,9 @@ class ProcessWorker(Worker):
         else:
             super().__init__(0)
 
-    def measure_dotf(self, probe_amplitude: float, probe_size: tuple[int, int], direction: DOTFProbeDirection) -> NDArray[np.complex64]:
+    def measure_dotf(self, probe_amplitude_nm: float, probe_size: tuple[int, int], direction: DOTFProbeDirection) -> NDArray[np.complex64]:
         zero_cmd = np.zeros(self.sink.shape)
-        probe_command = probe_amplitude * dotf_probe(self.sink.shape, probe_size, direction)
+        probe_command = probe_amplitude_nm * dotf_probe(self.sink.shape, probe_size, direction)
 
         # -------------------------------------------------------------------------------------------------------------
         command_incl_probe = zero_cmd + probe_command
@@ -78,11 +78,11 @@ class ProcessWorker(Worker):
 
         return psf_to_otf(incl_probe_source_sample.capture) - psf_to_otf(excl_probe_source_sample.capture)
 
-    def measure_dotfs(self, amplitude: float, probe_size: tuple[int, int], directions: list[DOTFProbeDirection], n_reps: int):
+    def measure_dotfs(self, probe_amplitude_nm: float, probe_size: tuple[int, int], directions: list[DOTFProbeDirection], n_reps: int):
         i_rep = 0
         while ((n_reps is 0) or (n_reps > i_rep)) and self._running:
             for direction in directions:
-                self.dotf_measurements[direction] = self.dotf_measurements[direction] + self.measure_dotf(amplitude, probe_size, direction)
+                self.dotf_measurements[direction] = self.dotf_measurements[direction] + self.measure_dotf(probe_amplitude_nm, probe_size, direction)
                 self.signals.dotfMeasured.emit(direction, self.dotf_measurements[direction] / (i_rep + 1))
 
             i_rep = i_rep + 1
@@ -92,7 +92,7 @@ class ProcessWorker(Worker):
         super().run()
 
         try:
-            self.measure_dotfs(self.probe_amplitude, self.probe_size, self.probe_directions, self.n_reps)
+            self.measure_dotfs(self.probe_amplitude_nm, self.probe_size, self.probe_directions, self.n_reps)
         except AssertionError as e:
             self.signals.error.emit(str(e))
 
