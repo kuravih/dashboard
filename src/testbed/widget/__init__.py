@@ -829,6 +829,7 @@ class FileLoadWidget(QWidget):
 
     def __init__(self, caption: str = "", directory: str = ".", file_filter="", validator: Callable[[str], bool] = lambda _: True, parent=None):
         super().__init__(parent)
+        self._validator = validator
         self.filepath: str | None = None
 
         self.file_lineedit = QLineEdit(self)
@@ -860,10 +861,11 @@ class FileLoadWidget(QWidget):
                     self.file_lineedit.setText(filename)
                     self.file_browse_button.hide()
                     self.file_clear_button.show()
+                    self.fileChanged.emit()
                 else:
+                    self.filepath = None
                     message_dialog = MessageDialog("Invalid Calibration", "File invalid.", icon=QMessageBox.Icon.Information, buttons=QMessageBox.StandardButton.Ok)
                     message_dialog.exec()
-                self.fileChanged.emit()
 
         self.file_browse_button.clicked.connect(on_browse_clicked)
 
@@ -886,6 +888,8 @@ class FileLoadWidget(QWidget):
         self.setLayout(layout)
 
     def setFilepath(self, filepath: str | None):
+        if filepath is not None and not self._validator(filepath):
+            return
         self.filepath = filepath
         self.file_lineedit.setText(self.filepath)
         if self.filepath is None:

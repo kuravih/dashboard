@@ -1,3 +1,4 @@
+import black
 import numpy as np
 from numpy.typing import NDArray
 
@@ -55,7 +56,7 @@ def Image_Plot_Preset(capture: NDArray[np.uint16 | np.float64], cmap_norm: Norma
         figure.get_image().set_cmap_norm(cmap_norm)
 
     if alpha_mask is not None:
-        monkeypatch_AxesImage_alpha_mask_show(figure.get_image(), alpha_mask)
+        monkeypatch_AxesImage_alpha_mask_show(figure.get_image(), alpha_mask.astype(float), color='black')
         figure.get_image().set_alpha_mask_show(True)
 
     figure.get_imshow_axes().set_xlabel("px", size=10)
@@ -277,7 +278,7 @@ def Contrast_Evolution_Plot_Preset(contrast: np.ndarray, n_iteration: int, dark_
     plot_ax.set_xlabel("Iteration", size=10)
     plot_ax.set_xlim((0, n_iteration))
     plot_ax.set_yscale("log")
-    plot_ax.set_ylim(1, 2**12 - 1)
+    plot_ax.set_ylim(1, 2**16 - 1)
     plot_ax.set_ylabel("", size=10)
     plot_ax.set_yticklabels([])
     (data_plot,) = plot_ax.plot([], [], marker="+", linestyle="None")

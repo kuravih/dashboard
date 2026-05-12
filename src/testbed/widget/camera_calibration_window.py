@@ -139,7 +139,7 @@ class ProcessWindow(Window):
 
             timestamp = timestamp_string(frmt="%Y%m%d.%H%M%S", ms=None)
 
-            source_storage_worker = SourceStorageWorker(f"data/output/{timestamp}_{ProcessWorker.wid}_{self.source.name}.raw", self.settings_widget.exposure_times_array.size)
+            source_storage_worker = SourceStorageWorker(f"data/output/{timestamp}_{testbed.CAMERA_CALIBRATION}_{self.source.name}_dark.raw", self.settings_widget.exposure_times_array.size)
             process_worker.signals.srcSampled.connect(source_storage_worker.on_sampled)
             source_storage_worker.signals.finished.connect(self.on_source_storage_finished)
             testbed.data.workers[self.source.storage_worker_id] = source_storage_worker

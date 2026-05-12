@@ -17,6 +17,7 @@ class UpdateWorkerSignals(WorkerSignals):
 
 
 class UpdateWorker(Worker):
+
     def __init__(self, mirror: Mirror):
         super().__init__()
         self.signals = UpdateWorkerSignals()

@@ -142,7 +142,7 @@ class TestDevice(unittest.TestCase):
             time.sleep(0.01)
 
     def test_create_camera_memory_pupil(self):
-        pupil_camera_memory = create_camera_memory("pupil_camera", (512, 512), (512, 512), DataType.UINT16, "sim001", 2**12 - 1, 5001)
+        pupil_camera_memory = create_camera_memory("pupil_camera", (512, 512), (512, 512), DataType.UINT16, "sim001", 2**16 - 1, 5001)
         logger.info("pupil_camera.creation_time             : %s", pupil_camera_memory.creation_time)
         logger.info("pupil_camera.last_access_time          : %s", pupil_camera_memory.last_access_time)
         logger.info("pupil_camera.size                      : %s", pupil_camera_memory.size)
@@ -153,7 +153,7 @@ class TestDevice(unittest.TestCase):
         logger.info("pupil_camera.dtype                     : %s", pupil_camera_memory.ndarray.dtype)
 
     def test_create_camera_memory_image(self):
-        image_camera_memory = create_camera_memory("image_camera", (256, 256), (256, 256), DataType.UINT16, "sim002", 2**14 - 1, 5002)
+        image_camera_memory = create_camera_memory("image_camera", (256, 256), (256, 256), DataType.UINT16, "sim002", 2**16 - 1, 5002)
         logger.info("image_camera.creation_time             : %s", image_camera_memory.creation_time)
         logger.info("image_camera.last_access_time          : %s", image_camera_memory.last_access_time)
         logger.info("image_camera.size                      : %s", image_camera_memory.size)
@@ -164,7 +164,7 @@ class TestDevice(unittest.TestCase):
         logger.info("image_camera.dtype                     : %s", image_camera_memory.ndarray.dtype)
 
     def test_create_modulator_memory_pupil(self):
-        modulator_memory = create_modulator_memory("modulator", (360, 360), (180, 180), 180, DataType.UINT16, "sim003", 2**14 - 1, 5002)
+        modulator_memory = create_modulator_memory("modulator", (360, 360), (180, 180), 180, DataType.UINT16, "sim003", 2**16 - 1, 5002)
         logger.info("modulator.creation_time             : %s", modulator_memory.creation_time)
         logger.info("modulator.last_access_time          : %s", modulator_memory.last_access_time)
         logger.info("modulator.size                      : %s", modulator_memory.size)

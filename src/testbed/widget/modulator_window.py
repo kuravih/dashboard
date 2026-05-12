@@ -362,6 +362,9 @@ class SettingsWindow(Window):
         @Slot()
         def on_calibration_change():
             self.modulator.set_calibration(self.calibration_widget.filepath)
+            if testbed.data.is_window_alive(self.modulator.preview_window_id):
+                modulator_preview_window = cast(PreviewWindow, testbed.data.windows[self.modulator.preview_window_id])
+                modulator_preview_window.preview_figure_widget.figure.get_cbar_axes().set_title("nm" if self.modulator.calibration else "adu", size=10)
 
         self.calibration_widget.fileChanged.connect(on_calibration_change)
 

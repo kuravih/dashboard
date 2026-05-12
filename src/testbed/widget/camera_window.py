@@ -476,12 +476,11 @@ class SettingsWindow(Window):
 
         @Slot()
         def on_calibration_change():
-            self.camera.set_calibration(self.calibration_widget.filepath)
-            camera_preview_window_id = f"{self.camera.name}_preview_window"
-            if testbed.data.is_window_alive(camera_preview_window_id):
-                camera_preview_window = cast(PreviewWindow, testbed.data.windows[camera_preview_window_id])
+            self.camera.set_calibration(self.calibration_widget.filepath)            
+            if testbed.data.is_window_alive(self.camera.preview_window_id):
+                camera_preview_window = cast(PreviewWindow, testbed.data.windows[self.camera.preview_window_id])
                 camera_preview_window.preview_figure_widget.cmap_norm = Normalize(*self.camera.clim)
-                camera_preview_window.preview_figure_widget.figure.get_cbar_axes().set_title("count rate" if self.camera.calibration else "adu", size=10)
+                camera_preview_window.preview_figure_widget.figure.get_cbar_axes().set_title("intensity" if self.camera.calibration else "adu", size=10)
 
         self.calibration_widget.fileChanged.connect(on_calibration_change)
 

@@ -1,7 +1,7 @@
 from __future__ import annotations
 from typing import TYPE_CHECKING, cast
 
-import pickle
+import cloudpickle
 import numpy as np
 from matplotlib.lines import Line2D
 from numpy.typing import NDArray
@@ -282,7 +282,7 @@ class ProcessWindow(Window):
 
             with open(f"data/output/{timestamp}_{testbed.SPECKLE_CALIBRATION}_parameters.pkl", "wb") as wbfile:
                 parameters_dict = {"amplitudes": self.settings_widget.amplitude_nm, "frequencies": self.settings_widget.frequency_array, "angles": self.settings_widget.angle_deg_array, "phases": self.settings_widget.phase_deg_array}
-                pickle.dump(parameters_dict, wbfile, protocol=pickle.HIGHEST_PROTOCOL)
+                cloudpickle.dump(parameters_dict, wbfile)
 
             source_storage_worker = SourceStorageWorker(f"data/output/{timestamp}_{testbed.SPECKLE_CALIBRATION}_{self.source.name}.raw", process_worker.n_ticks)
             process_worker.signals.srcSampled.connect(source_storage_worker.on_sampled)

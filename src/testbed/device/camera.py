@@ -2,7 +2,7 @@ import numpy as np
 from datetime import datetime
 
 from . import Device, Stream, ZMQLink, SourceSample
-from ..function import read_camera_calibration_file, capture_to_countrate, countrate_limits
+from ..function import is_camera_calibration_file_valid, read_camera_calibration_file, capture_to_intensity, calculate_quantum_efficiency, intensity_limits
 
 from pykato.log import setup_logger
 
@@ -48,7 +48,8 @@ class Camera(Device):
     def clim(self) -> tuple[float, float]:
         limits = (0.0, self.pxmax)
         if self.calibration is not None:
-            limits = countrate_limits(limits, self.exposure_time_s, self.calibration["dark_rate"], self.calibration["bias"])
+            qe_perc = calculate_quantum_efficiency(630.0, *self.calibration["quantum_efficiency"])
+            limits = intensity_limits(limits, self.exposure_time_s, self.calibration["dark_rate"], self.calibration["bias"], qe_perc, self.calibration["gain"])
         return limits
 
     @property
@@ -94,16 +95,13 @@ class Camera(Device):
     def pull_capture(self) -> SourceSample:
         capture = self._stream.get_data().reshape(self.shape)
         if self.calibration is not None:
-            dark_rate_map = self.calibration["dark_rate"][self.roi["tl"][1] : self.roi["br"][1], self.roi["tl"][0] : self.roi["br"][0]]
-            bias_map = self.calibration["bias"][self.roi["tl"][1] : self.roi["br"][1], self.roi["tl"][0] : self.roi["br"][0]]
-            capture = capture_to_countrate(capture, self.exposure_time_s, dark_rate_map, bias_map)
+            qe_perc = calculate_quantum_efficiency(630.0, *self.calibration["quantum_efficiency"])
+            capture = capture_to_intensity(capture, self.exposure_time_s, self.calibration["dark_rate"], self.calibration["bias"], qe_perc, self.calibration["gain"])
         self._sample = SourceSample(self.last_access_time, self.exposure_time_s, self.gain, self.frame_rate_fps, self.temperature_c, self.roi, capture.copy())
         return self._sample
 
-    def set_capture(self, capture: np.ndarray) -> SourceSample:
+    def set_capture(self, capture: np.ndarray):
         self._stream.set_data(capture)
-        self._sample = SourceSample(self.last_access_time, self.exposure_time_s, self.gain, self.frame_rate_fps, self.temperature_c, self.roi, capture.copy())
-        return self._sample
 
     @property
     def exposure_time_s(self) -> int:
@@ -139,8 +137,8 @@ class Camera(Device):
 
     def set_calibration(self, calibration_file: str | None):
         self.calibration_file = calibration_file
-        if self.calibration_file is not None:
-            self.calibration = read_camera_calibration_file(self.calibration_file)
+        if self.calibration_file is not None and is_camera_calibration_file_valid(self.calibration_file, self.full_shape):
+            self.calibration = read_camera_calibration_file(self.calibration_file, self.roi)
         else:
             self.calibration = None
 

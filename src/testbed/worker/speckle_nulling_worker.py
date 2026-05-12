@@ -173,7 +173,7 @@ class ProcessWorker(Worker):
         self.signals.srcSampled.emit(_current_source_sample)
         time.sleep(0.2)
 
-        measure_map = _current_source_sample.capture / (2**12 - 1)
+        measure_map = _current_source_sample.capture / (2**16 - 1)
         measure_map_dark_hole = measure_map[self.dark_hole_mask]
         measure_array[0]["avg"], measure_array[0]["std"], measure_array[0]["min"], measure_array[0]["max"] = np.mean(measure_map_dark_hole), np.std(measure_map_dark_hole), np.min(measure_map_dark_hole), np.max(measure_map_dark_hole)
         self.signals.contrastMeasured.emit(np.array(measure_map, copy=True), measure_array)
@@ -216,7 +216,7 @@ class ProcessWorker(Worker):
             self.signals.srcSampled.emit(_current_source_sample)
             time.sleep(0.2)
 
-            measure_map = _current_source_sample.capture / (2**12 - 1)
+            measure_map = _current_source_sample.capture / (2**16 - 1)
             measure_map_dark_hole = measure_map[self.dark_hole_mask]
             measure_array[i_iteration + 1]["avg"], measure_array[i_iteration + 1]["std"], measure_array[i_iteration + 1]["min"], measure_array[i_iteration + 1]["max"] = np.mean(measure_map_dark_hole), np.std(measure_map_dark_hole), np.min(measure_map_dark_hole), np.max(measure_map_dark_hole)
             self.signals.contrastMeasured.emit(np.array(measure_map, copy=True), measure_array)
