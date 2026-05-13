@@ -3,7 +3,7 @@ from PySide6.QtCore import QThreadPool
 from .device.camera import Camera
 from .device.modulator import Modulator
 from .widget.camera_window import PreviewWindow as CameraPreviewWindow, InfoWindow as CameraInfoWindow, SettingsWindow as CameraSettingsWindow
-from .widget.modulator_window import PreviewWindow as ModulatorPreviewWindow, InfoWindow as ModulatorInfoWindow, SettingsWindow as ModulatorSettingsWindow
+from .widget.modulator_window import PreviewWindow as ModulatorPreviewWindow, InfoWindow as ModulatorInfoWindow, SettingsWindow as ModulatorSettingsWindow, PresetsWindow as ModulatorPresetsWindow
 
 SIMPLE_LOOP = "simple_loop"
 from .widget.simple_loop_window import ProcessWindow as SimpleLoopWindow
@@ -41,7 +41,7 @@ from .worker.storage_worker import SourceStorageWorker, SinkStorageWorker
 class Data:
     threadpool = QThreadPool.globalInstance()
     devices: dict[str, Camera | Modulator] = {}
-    windows: dict[str, CameraPreviewWindow | CameraInfoWindow | CameraSettingsWindow | ModulatorPreviewWindow | ModulatorInfoWindow | ModulatorSettingsWindow | SimpleLoopWindow | SpeckleCalibrationWindow | SpeckleNullingWindow | SpeckleNullingPreviewWindow | SpeckleNullingInfoWindow | RecenterWindow | CameraCalibrationWindow | DOTFMeasurementWindow | PairwiseFPWFSWindow] = {}
+    windows: dict[str, CameraPreviewWindow | CameraInfoWindow | CameraSettingsWindow | ModulatorPreviewWindow | ModulatorInfoWindow | ModulatorSettingsWindow | ModulatorPresetsWindow | SimpleLoopWindow | SpeckleCalibrationWindow | SpeckleNullingWindow | SpeckleNullingPreviewWindow | SpeckleNullingInfoWindow | RecenterWindow | CameraCalibrationWindow | DOTFMeasurementWindow | PairwiseFPWFSWindow] = {}
     workers: dict[str, CameraSamplingWorker | ModulatorSamplingWorker | SourceStorageWorker | SinkStorageWorker | SimpleLoopWorker | SpeckleCalibrationWorker | SpeckleNullingWorker | RecenterWorker | CameraCalibrationWorker | DOTFMeasurementWorker | PairwiseFPWFSWorker] = {}
 
     @classmethod

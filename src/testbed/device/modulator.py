@@ -35,6 +35,10 @@ class Modulator(Device):
         self._calibration: dict[str, np.ndarray] | None = None
 
     @property
+    def presets_window_id(self) -> str:
+        return f"{self.name}_presets_window"
+
+    @property
     def kind(self) -> Stream.Kind:
         return self._stream.kind
 

@@ -1,16 +1,20 @@
+from typing import cast
 import numpy as np
 
 from PySide6.QtWidgets import QWidget, QVBoxLayout, QLabel, QRadioButton, QSpacerItem, QButtonGroup, QSizePolicy, QGridLayout, QHBoxLayout, QPushButton, QComboBox
-from PySide6.QtCore import QTimer, Slot, Qt
+from PySide6.QtGui import QIcon
+from PySide6.QtCore import Slot, QTimer, Qt
 from matplotlib import colormaps
 
 from pykato.log import setup_logger
 
-from ..widget import Window, OrientationWidget, CenterWidget, DoubleValueSetWidget, FileLoadWidget
-from ..function import Flip, Rotation, flip_rotate_frame, is_modulator_calibration_file_valid
+import testbed
 from ..device.modulator import Modulator, SinkSample, FULL_STROKE_NM
-from ..widget.command_preset_widget import ConstantPresetWidget, GradientPresetWidget, CheckerPresetWidget, SinusoidPresetWidget, BoxPresetWidget, PolkaPresetWidget, RegisterPresetWidget, TextPresetWidget, DOTFProbePresetWidget, PairwiseProbePresetWidget
+from ..widget import Window, OrientationWidget, CenterWidget, DoubleValueSetWidget, FileLoadWidget, IconButton
 from ..widget.figure_widget import ModulatorFigureWidget, SinkHistFigureWidget
+from ..widget.command_preset_widget import ConstantPresetWidget, GradientPresetWidget, CheckerPresetWidget, SinusoidPresetWidget, BoxPresetWidget, PolkaPresetWidget, RegisterPresetWidget, TextPresetWidget, DOTFProbePresetWidget, PairwiseProbePresetWidget
+from ..widget.resource import ICON_EYE, ICON_PAPER_PLANE, ICON_PLUS, ICON_GEAR
+from ..function import Flip, Rotation, flip_rotate_frame, is_modulator_calibration_file_valid
 
 logger = setup_logger("modulator_window", terminator="\n")
 
@@ -305,7 +309,6 @@ class SettingsWindow(Window):
         layout = QVBoxLayout()
         layout.setContentsMargins(2, 2, 2, 2)
         layout.addWidget(self.setup_settings_widget())
-        layout.addWidget(self.setup_command_widget())
 
         self.setLayout(layout)
 
@@ -364,9 +367,34 @@ class SettingsWindow(Window):
             self.modulator.set_calibration(self.calibration_widget.filepath)
             if testbed.data.is_window_alive(self.modulator.preview_window_id):
                 modulator_preview_window = cast(PreviewWindow, testbed.data.windows[self.modulator.preview_window_id])
-                modulator_preview_window.preview_figure_widget.figure.get_cbar_axes().set_title("nm" if self.modulator.calibration else "adu", size=10)
+                modulator_preview_window.preview_figure_widget.figure.get_cbar_axes().set_title("m" if self.modulator.calibration else "adu", size=10)
+            if testbed.data.is_window_alive(self.modulator.presets_window_id):
+                modulator_presets_window = cast(PresetsWindow, testbed.data.windows[self.modulator.presets_window_id])
+                modulator_presets_window.preview_figure_widget.figure.get_cbar_axes().set_title("m" if self.modulator.calibration else "adu", size=10)
+                modulator_presets_window.preview_figure_widget.figure.canvas.draw_idle()
 
         self.calibration_widget.fileChanged.connect(on_calibration_change)
+
+        presets_label = QLabel("Presets", self)
+        presets_label.setFixedWidth(100)
+        presets_button = IconButton(QIcon(ICON_GEAR), parent=self)
+
+        @Slot()
+        def on_presets_clicked():
+
+            @Slot()
+            def on_window_closed():
+                testbed.data.windows.pop(self.modulator.presets_window_id, None)
+
+            if not testbed.data.is_window_alive(self.modulator.presets_window_id):
+                presets_window = PresetsWindow(self.modulator, parent=self)
+                presets_window.destroyed.connect(on_window_closed)
+                presets_window.show()
+                presets_window.raise_()
+                presets_window.activateWindow()
+                testbed.data.windows[self.modulator.presets_window_id] = presets_window
+
+        presets_button.clicked.connect(on_presets_clicked)
 
         row = 0
         col = 0
@@ -387,9 +415,97 @@ class SettingsWindow(Window):
         layout.addWidget(self.calibration_widget, row, col)
 
         row += 1
+        col = 0
+        layout.addWidget(presets_label, row, col)
+        col += 1
+        layout.addWidget(presets_button, row, col)
+
+        row += 1
         layout.setRowStretch(row, 1)
 
         return widget
+
+    def closeEvent(self, event):
+        self.deleteLater()
+        event.accept()
+
+
+# ==== PresetsWindow ===================================================================================================
+class PresetsWindow(Window):
+    """
+    Modulator settings window
+    """
+
+    def __init__(self, modulator: Modulator, parent: QWidget | None = None):
+        self.modulator = modulator
+        # self.modulator.sync_settings()
+        self.command = np.ma.copy(self.modulator.blank)
+
+        super().__init__(parent, Qt.WindowType.Dialog)
+
+        self.setWindowTitle(f"{self._modulator.name} Presets")
+
+        layout = QVBoxLayout()
+        layout.setContentsMargins(2, 2, 2, 2)
+        layout.addWidget(self.setup_preview_widget())
+        layout.addWidget(self.setup_command_widget())
+
+        self.setLayout(layout)
+
+        # self.update_timer = QTimer(self)
+        # self.update_timer.timeout.connect(self.on_update_timer_tick)
+        # self.update_timer.start(100)  # Update window every 100 ms
+
+    @property
+    def modulator(self) -> Modulator:
+        return self._modulator
+
+    @modulator.setter
+    def modulator(self, device: Modulator):
+        self._modulator = device
+
+    def setup_preview_widget(self) -> QWidget:
+        widget = QWidget(self)
+        layout = QVBoxLayout(widget)
+        layout.setContentsMargins(2, 2, 2, 2)
+        widget.setLayout(layout)
+
+        self._sample = self.modulator.sample
+        self.preview_figure_widget = ModulatorFigureWidget(self.modulator.blank, (-FULL_STROKE_NM / 2, FULL_STROKE_NM / 2), parent=self)
+        if self.preview_figure_widget.toolbar is not None:
+            self.preview_figure_widget.toolbar.settingsClicked.connect(self.on_preview_settings_clicked)
+
+        layout.addWidget(self.preview_figure_widget)
+
+        return widget
+
+    @Slot()
+    def on_preview_settings_clicked(self):
+        preview_settings_window = PreviewSettingsWindow(self.preview_figure_widget.cmap_name, self.preview_figure_widget.rotation, self.preview_figure_widget.flip, parent=self)
+        preview_settings_window.show()
+        preview_settings_window.raise_()
+        preview_settings_window.activateWindow()
+        preview_settings_window.cmap_combobox.currentTextChanged.connect(self.on_cmap_changed)
+        preview_settings_window.orientation_widget.rotationChanged.connect(self.on_rotation_changed)
+        preview_settings_window.orientation_widget.flipChanged.connect(self.on_flip_changed)
+
+    @Slot(str)
+    def on_cmap_changed(self, colormap: str):
+        self.preview_figure_widget.cmap_name = colormap
+        self.preview_figure_widget.figure.get_image().set_data(flip_rotate_frame(self.command, self.preview_figure_widget.flip, self.preview_figure_widget.rotation))
+        self.preview_figure_widget.figure.canvas.draw_idle()
+
+    @Slot(str)
+    def on_rotation_changed(self, rotation: Rotation):
+        self.preview_figure_widget.rotation = rotation
+        self.preview_figure_widget.figure.get_image().set_data(flip_rotate_frame(self.command, self.preview_figure_widget.flip, self.preview_figure_widget.rotation))
+        self.preview_figure_widget.figure.canvas.draw_idle()
+
+    @Slot(str)
+    def on_flip_changed(self, flip: Flip):
+        self.preview_figure_widget.flip = flip
+        self.preview_figure_widget.figure.get_image().set_data(flip_rotate_frame(self.command, self.preview_figure_widget.flip, self.preview_figure_widget.rotation))
+        self.preview_figure_widget.figure.canvas.draw_idle()
 
     def setup_command_widget(self):
         widget = QWidget(self)
@@ -402,23 +518,13 @@ class SettingsWindow(Window):
 
         @Slot()
         def on_add_clicked():
-            # current = self.modulator.pull_sample()
-            # self.modulator.push_command(np.clip(current.command + self.preset_widget.command - np.nanmean(self.preset_widget.command), 0, self.modulator.pxmax))
             pass
-
-        preset_figure_widget = ModulatorFigureWidget(self.modulator.blank, (-FULL_STROKE_NM / 2, FULL_STROKE_NM / 2), parent=self)
 
         @Slot(np.ndarray)
         def on_preset_changed(command):
-            # if np.any(command > self.modulator.pxmax):
-            #     raise ValueError(f"Command values too high {np.max(command)} (max is {self.modulator.pxmax})")
-            # elif np.any(command < 0):
-            #     raise ValueError(f"Command values too low {np.min(command)} (min is {0})")
-            image = np.ma.copy(self.modulator.blank)
-            image.data[:] = command[:]
-
-            preset_figure_widget.figure.get_image().set_data(image)
-            preset_figure_widget.figure.canvas.draw_idle()
+            self.command.data[:] = command[:]
+            self.preview_figure_widget.figure.get_image().set_data(flip_rotate_frame(self.command, self.preview_figure_widget.flip, self.preview_figure_widget.rotation))
+            self.preview_figure_widget.figure.canvas.draw_idle()
 
         preset_label = QLabel("Preset", self)
         preset_label.setFixedWidth(100)
@@ -428,9 +534,17 @@ class SettingsWindow(Window):
             preset_combobox.addItem(label)
         preset_combobox.setCurrentIndex(0)
 
+        send_button = IconButton(QIcon(ICON_PAPER_PLANE), parent=self)
+        send_button.clicked.connect(on_send_clicked)
+
+        add_button = IconButton(QIcon(ICON_PLUS), parent=self)
+        add_button.clicked.connect(on_add_clicked)
+
         preset_layout = QHBoxLayout()
         preset_layout.addWidget(preset_label)
         preset_layout.addWidget(preset_combobox)
+        preset_layout.addWidget(send_button)
+        preset_layout.addWidget(add_button)
 
         constant_preset_param_widget = ConstantPresetWidget(self.modulator.shape, FULL_STROKE_NM, self)
         constant_preset_param_widget.changed.connect(on_preset_changed)
@@ -471,18 +585,6 @@ class SettingsWindow(Window):
         pairwise_preset_param_widget.changed.connect(on_preset_changed)
         pairwise_preset_param_widget.hide()
 
-        send_cmd_button = QPushButton("Send", self)
-        send_cmd_button.clicked.connect(on_send_clicked)
-
-        add_cmd_button = QPushButton("Add to Current", self)
-        add_cmd_button.clicked.connect(on_add_clicked)
-
-        button_layout = QHBoxLayout()
-        button_layout.addWidget(send_cmd_button)
-
-        button_layout.addWidget(add_cmd_button)
-
-        layout.addWidget(preset_figure_widget)
         layout.addLayout(preset_layout)
         layout.addWidget(constant_preset_param_widget)
         layout.addWidget(gradient_preset_param_widget)
@@ -494,7 +596,6 @@ class SettingsWindow(Window):
         layout.addWidget(text_preset_param_widget)
         layout.addWidget(dotf_preset_param_widget)
         layout.addWidget(pairwise_preset_param_widget)
-        layout.addLayout(button_layout)
 
         preset_widgets = (constant_preset_param_widget, gradient_preset_param_widget, checker_preset_param_widget, sinusoid_preset_param_widget, box_preset_param_widget, polka_preset_param_widget, register_preset_param_widget, text_preset_param_widget, dotf_preset_param_widget, pairwise_preset_param_widget)
         self.preset_widget = preset_widgets[0]
@@ -518,7 +619,7 @@ class SettingsWindow(Window):
         event.accept()
 
 
-# ==== PreviewSettingsWindow ====================================================================================
+# ==== PreviewSettingsWindow ==========================================================================================
 class PreviewSettingsWindow(Window):
     """
     Settings for the simple preview window.
@@ -567,7 +668,7 @@ class PreviewSettingsWindow(Window):
         return widget
 
 
-# ==== PreviewWindow ============================================================================================
+# ==== PreviewWindow ==================================================================================================
 class PreviewWindow(Window):
     """
     Simple preview window.

@@ -8,7 +8,7 @@ from PySide6.QtGui import QIcon, QCursor, QPixmap, QPainter, QColor
 from ..device import Device
 from ..device.camera import Camera
 from ..device.modulator import Modulator
-from ..widget.resource import ICON_RUN, ICON_EYE, ICON_UP_ARROW, ICON_DOWN_ARROW, ICON_LEFT_ARROW, ICON_RIGHT_ARROW, ICON_INFO, ICON_GEAR, ICON_FOLDER, ICON_BACKSPACE
+from ..widget.resource import ICON_RUN, ICON_EYE, ICON_UP_ARROW, ICON_DOWN_ARROW, ICON_LEFT_ARROW, ICON_RIGHT_ARROW, ICON_INFO, ICON_GEAR, ICON_FOLDER, ICON_BACKSPACE, ICON_PLUS, ICON_MINUS
 from ..widget.dialog import MessageDialog
 from ..function import Rotation, Flip, DOTFProbeDirection, PairwiseProbeDirection
 
@@ -450,28 +450,16 @@ class ROIWidget(QWidget):
         Δ_spinbox.setFixedWidth(75)
 
         # --- directional buttons ---
-        up_button = QPushButton("", self)
-        up_button.setFixedWidth(Δ_spinbox.sizeHint().height())
-        up_button.setFixedHeight(Δ_spinbox.sizeHint().height())
-        up_button.setIcon(QIcon(ICON_UP_ARROW))
+        up_button = IconButton(QIcon(ICON_UP_ARROW), parent=self)
         up_button.setToolTip("Move ROI up")
 
-        down_button = QPushButton("", self)
-        down_button.setFixedWidth(Δ_spinbox.sizeHint().height())
-        down_button.setFixedHeight(Δ_spinbox.sizeHint().height())
-        down_button.setIcon(QIcon(ICON_DOWN_ARROW))
+        down_button = IconButton(QIcon(ICON_DOWN_ARROW), parent=self)
         down_button.setToolTip("Move ROI down")
 
-        left_button = QPushButton("", self)
-        left_button.setFixedWidth(Δ_spinbox.sizeHint().height())
-        left_button.setFixedHeight(Δ_spinbox.sizeHint().height())
-        left_button.setIcon(QIcon(ICON_LEFT_ARROW))
+        left_button = IconButton(QIcon(ICON_LEFT_ARROW), parent=self)
         left_button.setToolTip("Move ROI left")
 
-        right_button = QPushButton("", self)
-        right_button.setFixedWidth(Δ_spinbox.sizeHint().height())
-        right_button.setFixedHeight(Δ_spinbox.sizeHint().height())
-        right_button.setIcon(QIcon(ICON_RIGHT_ARROW))
+        right_button = IconButton(QIcon(ICON_RIGHT_ARROW), parent=self)
         right_button.setToolTip("Move ROI right")
 
         # --- ROI value label ---
@@ -540,28 +528,16 @@ class CenterWidget(QWidget):
         Δ_spinbox.setFixedWidth(75)
 
         # --- directional buttons ---
-        up_button = QPushButton("", self)
-        up_button.setFixedWidth(Δ_spinbox.sizeHint().height())
-        up_button.setFixedHeight(Δ_spinbox.sizeHint().height())
-        up_button.setIcon(QIcon(ICON_UP_ARROW))
+        up_button = IconButton(QIcon(ICON_UP_ARROW), parent=self)
         up_button.setToolTip("Move ROI up")
 
-        down_button = QPushButton("", self)
-        down_button.setFixedWidth(Δ_spinbox.sizeHint().height())
-        down_button.setFixedHeight(Δ_spinbox.sizeHint().height())
-        down_button.setIcon(QIcon(ICON_DOWN_ARROW))
+        down_button = IconButton(QIcon(ICON_DOWN_ARROW), parent=self)
         down_button.setToolTip("Move ROI down")
 
-        left_button = QPushButton("", self)
-        left_button.setFixedWidth(Δ_spinbox.sizeHint().height())
-        left_button.setFixedHeight(Δ_spinbox.sizeHint().height())
-        left_button.setIcon(QIcon(ICON_LEFT_ARROW))
+        left_button = IconButton(QIcon(ICON_LEFT_ARROW), parent=self)
         left_button.setToolTip("Move ROI left")
 
-        right_button = QPushButton("", self)
-        right_button.setFixedWidth(Δ_spinbox.sizeHint().height())
-        right_button.setFixedHeight(Δ_spinbox.sizeHint().height())
-        right_button.setIcon(QIcon(ICON_RIGHT_ARROW))
+        right_button = IconButton(QIcon(ICON_RIGHT_ARROW), parent=self)
         right_button.setToolTip("Move ROI right")
 
         # --- ROI value label ---
@@ -728,17 +704,18 @@ class ExposureTimeArrayWidget(QWidget):
         """
         for index, spinbox in enumerate(spinboxes):
             exp_time_label = QLabel(f"Exp Time Step {index + 1}", self)
-            button = QPushButton("", self)
-            button.setFixedWidth(button.sizeHint().height())
+            # button = QPushButton("", self)
+            button = IconButton(QIcon(ICON_PLUS), parent=self)
+            # button.setFixedWidth(button.sizeHint().height())
             step_layout = QHBoxLayout()
             step_layout.addWidget(exp_time_label)
             step_layout.addWidget(spinbox)
             step_layout.addWidget(button)
             if index == 0:
-                button.setText("+")
+                button.setIcon(QIcon(ICON_PLUS))
                 button.clicked.connect(lambda: self._on_add_step(2 * self._spinboxes[-1].value()))
             else:
-                button.setText("-")
+                button.setIcon(QIcon(ICON_MINUS))
                 button.clicked.connect(lambda: self._on_remove_step(index))
             parent_layout.addLayout(step_layout)
 
@@ -837,16 +814,10 @@ class FileLoadWidget(QWidget):
         self.file_lineedit.setText("")
         self.file_lineedit.setToolTip("File")
 
-        self.file_browse_button = QPushButton("", self)
-        self.file_browse_button.setFixedWidth(self.file_lineedit.sizeHint().height())
-        self.file_browse_button.setFixedHeight(self.file_lineedit.sizeHint().height())
-        self.file_browse_button.setIcon(QIcon(ICON_FOLDER))
+        self.file_browse_button = IconButton(QIcon(ICON_FOLDER), parent=self)
         self.file_browse_button.setToolTip("Browse")
 
-        self.file_clear_button = QPushButton("", self)
-        self.file_clear_button.setIcon(QIcon(ICON_BACKSPACE))
-        self.file_clear_button.setFixedWidth(self.file_lineedit.sizeHint().height())
-        self.file_clear_button.setFixedHeight(self.file_lineedit.sizeHint().height())
+        self.file_clear_button = IconButton(QIcon(ICON_BACKSPACE), parent=self)
         self.file_clear_button.setToolTip("Clear")
         self.file_clear_button.hide()
 

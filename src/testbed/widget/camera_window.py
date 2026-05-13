@@ -10,9 +10,9 @@ from pykato.log import setup_logger
 
 import testbed
 from ..device.camera import Camera, SourceSample
-from ..function import Flip, Rotation, flip_rotate_frame, is_camera_calibration_file_valid
 from ..widget import Window, OrientationWidget, ROIWidget, DoubleValueSetWidget, FileLoadWidget
 from ..widget.figure_widget import SourceFigureWidget, SourceHistFigureWidget
+from ..function import Flip, Rotation, flip_rotate_frame, is_camera_calibration_file_valid
 
 logger = setup_logger("camera_window", terminator="\n")
 
