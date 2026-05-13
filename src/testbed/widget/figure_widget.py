@@ -18,6 +18,7 @@ from testbed.function import Flip, Rotation, DOTFProbeDirection
 from testbed.plot.preset import Speckle_Modulation_Plot_Preset, Contrast_Evolution_Plot_Preset, DOTF_Measurement_Plot_Preset, Image_Plot_Preset, Wavefront_Plot_Preset, Histogram_Plot_Preset
 
 from .resource import ICON_HOUSE, ICON_MOVE, ICON_MAGNIFY, ICON_DISK, ICON_GEAR
+from . import IconButton
 
 
 logger = setup_logger("figure_widget", terminator="\n")
@@ -57,8 +58,18 @@ class NavigationToolbar(NavigationToolbar2QT):
                 action.setIcon(QIcon(ICON_DISK))
             elif action.text() == "Settings":
                 action.setIcon(QIcon(ICON_GEAR))
-            else:
-                pass
+
+        for action in list(self.actions()):
+            if action.isSeparator() or action.icon().isNull():
+                continue
+            btn = IconButton(action.icon(), flat=True, parent=self)
+            btn.setToolTip(action.toolTip())
+            btn.setCheckable(action.isCheckable())
+            btn.setChecked(action.isChecked())
+            btn.clicked.connect(action.trigger)
+            action.toggled.connect(btn.setChecked)
+            self.insertWidget(action, btn)
+            self.removeAction(action)
 
         self.toolitems = original_toolitems
 
