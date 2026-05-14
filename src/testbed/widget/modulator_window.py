@@ -1,7 +1,7 @@
 from typing import cast
 import numpy as np
 
-from PySide6.QtWidgets import QWidget, QVBoxLayout, QLabel, QRadioButton, QSpacerItem, QButtonGroup, QSizePolicy, QGridLayout, QHBoxLayout, QPushButton, QComboBox
+from PySide6.QtWidgets import QWidget, QVBoxLayout, QLabel, QRadioButton, QSpacerItem, QButtonGroup, QSizePolicy, QGridLayout, QHBoxLayout, QComboBox
 from PySide6.QtGui import QIcon
 from PySide6.QtCore import Slot, QTimer, Qt
 from matplotlib import colormaps
@@ -9,12 +9,12 @@ from matplotlib import colormaps
 from pykato.log import setup_logger
 
 import testbed
-from ..device.modulator import Modulator, SinkSample, FULL_STROKE_NM
+from ..device.modulator import Modulator, SinkSample
 from ..widget import Window, OrientationWidget, CenterWidget, DoubleValueSetWidget, FileLoadWidget, IconButton
 from ..widget.figure_widget import ModulatorFigureWidget, SinkHistFigureWidget
 from ..widget.command_preset_widget import ConstantPresetWidget, GradientPresetWidget, CheckerPresetWidget, SinusoidPresetWidget, BoxPresetWidget, PolkaPresetWidget, RegisterPresetWidget, TextPresetWidget, DOTFProbePresetWidget, PairwiseProbePresetWidget
-from ..widget.resource import ICON_EYE, ICON_PAPER_PLANE, ICON_PLUS, ICON_GEAR
-from ..function import Flip, Rotation, flip_rotate_frame, is_modulator_calibration_file_valid
+from ..widget.resource import ICON_PAPER_PLANE, ICON_PLUS, ICON_GEAR
+from ..function import Flip, Rotation, flip_rotate_frame, is_modulator_calibration_file_valid, command_to_deflection
 
 logger = setup_logger("modulator_window", terminator="\n")
 
@@ -365,13 +365,45 @@ class SettingsWindow(Window):
         @Slot()
         def on_calibration_change():
             self.modulator.set_calibration(self.calibration_widget.filepath)
+
+            vstr = 'adu'
+            vlim = [0, self.modulator.pxmax]
+            vrange = [0, 100]
+            if self.modulator.calibration:
+                vstr = 'm'
+                vlim[0] = np.min(command_to_deflection(vlim[0], self.modulator.calibration["slope"], self.modulator.calibration["flat"]))
+                vlim[1] = np.max(command_to_deflection(vlim[1], self.modulator.calibration["slope"], self.modulator.calibration["flat"]))
+                vrange = [-50, 50]
+
             if testbed.data.is_window_alive(self.modulator.preview_window_id):
                 modulator_preview_window = cast(PreviewWindow, testbed.data.windows[self.modulator.preview_window_id])
-                modulator_preview_window.preview_figure_widget.figure.get_cbar_axes().set_title("m" if self.modulator.calibration else "adu", size=10)
+                modulator_preview_window.preview_figure_widget.figure.get_image().set_clim(vlim)
+                modulator_preview_window.preview_figure_widget.figure.get_cbar_axes().set_title(vstr, size=10)
             if testbed.data.is_window_alive(self.modulator.presets_window_id):
                 modulator_presets_window = cast(PresetsWindow, testbed.data.windows[self.modulator.presets_window_id])
-                modulator_presets_window.preview_figure_widget.figure.get_cbar_axes().set_title("m" if self.modulator.calibration else "adu", size=10)
+                modulator_presets_window.preview_figure_widget.figure.get_image().set_clim(vlim)
+                modulator_presets_window.preview_figure_widget.figure.get_cbar_axes().set_title(vstr, size=10)
                 modulator_presets_window.preview_figure_widget.figure.canvas.draw_idle()
+                modulator_presets_window.constant_preset_param_widget.vlim = vlim
+                modulator_presets_window.constant_preset_param_widget.vrange = vrange
+                modulator_presets_window.gradient_preset_param_widget.vlim = vlim
+                modulator_presets_window.gradient_preset_param_widget.vrange = vrange
+                modulator_presets_window.checker_preset_param_widget.vlim = vlim
+                modulator_presets_window.checker_preset_param_widget.vrange = vrange
+                modulator_presets_window.sinusoid_preset_param_widget.vlim = vlim
+                modulator_presets_window.sinusoid_preset_param_widget.vrange = vrange
+                modulator_presets_window.box_preset_param_widget.vlim = vlim
+                modulator_presets_window.box_preset_param_widget.vrange = vrange
+                modulator_presets_window.polka_preset_param_widget.vlim = vlim
+                modulator_presets_window.polka_preset_param_widget.vrange = vrange
+                modulator_presets_window.register_preset_param_widget.vlim = vlim
+                modulator_presets_window.register_preset_param_widget.vrange = vrange
+                modulator_presets_window.text_preset_param_widget.vlim = vlim
+                modulator_presets_window.text_preset_param_widget.vrange = vrange
+                modulator_presets_window.dotf_preset_param_widget.vlim = vlim
+                modulator_presets_window.dotf_preset_param_widget.vrange = vrange
+                modulator_presets_window.pairwise_preset_param_widget.vlim = vlim
+                modulator_presets_window.pairwise_preset_param_widget.vrange = vrange
 
         self.calibration_widget.fileChanged.connect(on_calibration_change)
 
@@ -452,10 +484,6 @@ class PresetsWindow(Window):
 
         self.setLayout(layout)
 
-        # self.update_timer = QTimer(self)
-        # self.update_timer.timeout.connect(self.on_update_timer_tick)
-        # self.update_timer.start(100)  # Update window every 100 ms
-
     @property
     def modulator(self) -> Modulator:
         return self._modulator
@@ -471,7 +499,19 @@ class PresetsWindow(Window):
         widget.setLayout(layout)
 
         self._sample = self.modulator.sample
-        self.preview_figure_widget = ModulatorFigureWidget(self.modulator.blank, (-FULL_STROKE_NM / 2, FULL_STROKE_NM / 2), parent=self)
+
+        self.vstr = 'adu'
+        self.vlim = [0, self.modulator.pxmax]
+        self.vrange = [0, 100]
+        if self.modulator.calibration:
+            self.vstr = 'm'
+            self.vlim[0] = np.min(command_to_deflection(self.vlim[0], self.modulator.calibration["slope"], self.modulator.calibration["flat"]))
+            self.vlim[1] = np.max(command_to_deflection(self.vlim[1], self.modulator.calibration["slope"], self.modulator.calibration["flat"]))
+            self.vrange = [-50, 50]
+
+        self.preview_figure_widget = ModulatorFigureWidget(self.modulator.blank, (self.vlim[0], self.vlim[1]), parent=self)
+        self.preview_figure_widget.figure.get_cbar_axes().set_title(self.vstr, size=10)
+
         if self.preview_figure_widget.toolbar is not None:
             self.preview_figure_widget.toolbar.settingsClicked.connect(self.on_preview_settings_clicked)
 
@@ -546,58 +586,59 @@ class PresetsWindow(Window):
         preset_layout.addWidget(send_button)
         preset_layout.addWidget(add_button)
 
-        constant_preset_param_widget = ConstantPresetWidget(self.modulator.shape, FULL_STROKE_NM, self)
-        constant_preset_param_widget.changed.connect(on_preset_changed)
+        self.constant_preset_param_widget = ConstantPresetWidget(self.modulator.shape, self.vlim, self.vrange, self)
+        self.constant_preset_param_widget.changed.connect(on_preset_changed)
 
-        gradient_preset_param_widget = GradientPresetWidget(self.modulator.shape, FULL_STROKE_NM, self)
-        gradient_preset_param_widget.changed.connect(on_preset_changed)
-        gradient_preset_param_widget.hide()
+        self.gradient_preset_param_widget = GradientPresetWidget(self.modulator.shape, self.vlim, self.vrange, self)
+        self.gradient_preset_param_widget.changed.connect(on_preset_changed)
+        self.gradient_preset_param_widget.hide()
 
-        checker_preset_param_widget = CheckerPresetWidget(self.modulator.shape, FULL_STROKE_NM, self)
-        checker_preset_param_widget.changed.connect(on_preset_changed)
-        checker_preset_param_widget.hide()
+        self.checker_preset_param_widget = CheckerPresetWidget(self.modulator.shape, self.vlim, self.vrange, self)
+        self.checker_preset_param_widget.changed.connect(on_preset_changed)
+        self.checker_preset_param_widget.hide()
 
-        sinusoid_preset_param_widget = SinusoidPresetWidget(self.modulator.shape, FULL_STROKE_NM, self)
-        sinusoid_preset_param_widget.changed.connect(on_preset_changed)
-        sinusoid_preset_param_widget.hide()
+        self.sinusoid_preset_param_widget = SinusoidPresetWidget(self.modulator.shape, self.vlim, self.vrange, self)
+        self.sinusoid_preset_param_widget.changed.connect(on_preset_changed)
+        self.sinusoid_preset_param_widget.hide()
 
-        box_preset_param_widget = BoxPresetWidget(self.modulator.shape, FULL_STROKE_NM, self)
-        box_preset_param_widget.changed.connect(on_preset_changed)
-        box_preset_param_widget.hide()
+        self.box_preset_param_widget = BoxPresetWidget(self.modulator.shape, self.vlim, self.vrange, self)
+        self.box_preset_param_widget.changed.connect(on_preset_changed)
+        self.box_preset_param_widget.hide()
 
-        polka_preset_param_widget = PolkaPresetWidget(self.modulator.shape, FULL_STROKE_NM, self)
-        polka_preset_param_widget.changed.connect(on_preset_changed)
-        polka_preset_param_widget.hide()
+        self.polka_preset_param_widget = PolkaPresetWidget(self.modulator.shape, self.vlim, self.vrange, self)
+        self.polka_preset_param_widget.changed.connect(on_preset_changed)
+        self.polka_preset_param_widget.hide()
 
-        register_preset_param_widget = RegisterPresetWidget(self.modulator.shape, FULL_STROKE_NM, self)
-        register_preset_param_widget.changed.connect(on_preset_changed)
-        register_preset_param_widget.hide()
+        self.register_preset_param_widget = RegisterPresetWidget(self.modulator.shape, self.vlim, self.vrange, self)
+        self.register_preset_param_widget.changed.connect(on_preset_changed)
+        self.register_preset_param_widget.hide()
 
-        text_preset_param_widget = TextPresetWidget(self.modulator.shape, FULL_STROKE_NM, self)
-        text_preset_param_widget.changed.connect(on_preset_changed)
-        text_preset_param_widget.hide()
+        self.text_preset_param_widget = TextPresetWidget(self.modulator.shape, self.vlim, self.vrange, self)
+        self.text_preset_param_widget.changed.connect(on_preset_changed)
+        self.text_preset_param_widget.hide()
 
-        dotf_preset_param_widget = DOTFProbePresetWidget(self.modulator.shape, FULL_STROKE_NM, self)
-        dotf_preset_param_widget.changed.connect(on_preset_changed)
-        dotf_preset_param_widget.hide()
+        self.dotf_preset_param_widget = DOTFProbePresetWidget(self.modulator.shape, self.vlim, self.vrange, self)
+        self.dotf_preset_param_widget.changed.connect(on_preset_changed)
+        self.dotf_preset_param_widget.hide()
 
-        pairwise_preset_param_widget = PairwiseProbePresetWidget(self.modulator.shape, FULL_STROKE_NM, self)
-        pairwise_preset_param_widget.changed.connect(on_preset_changed)
-        pairwise_preset_param_widget.hide()
+        self.pairwise_preset_param_widget = PairwiseProbePresetWidget(self.modulator.shape, self.vlim, self.vrange, self)
+        self.pairwise_preset_param_widget.changed.connect(on_preset_changed)
+        self.pairwise_preset_param_widget.hide()
 
         layout.addLayout(preset_layout)
-        layout.addWidget(constant_preset_param_widget)
-        layout.addWidget(gradient_preset_param_widget)
-        layout.addWidget(checker_preset_param_widget)
-        layout.addWidget(sinusoid_preset_param_widget)
-        layout.addWidget(box_preset_param_widget)
-        layout.addWidget(polka_preset_param_widget)
-        layout.addWidget(register_preset_param_widget)
-        layout.addWidget(text_preset_param_widget)
-        layout.addWidget(dotf_preset_param_widget)
-        layout.addWidget(pairwise_preset_param_widget)
+        layout.addWidget(self.constant_preset_param_widget)
+        layout.addWidget(self.gradient_preset_param_widget)
+        layout.addWidget(self.checker_preset_param_widget)
+        layout.addWidget(self.sinusoid_preset_param_widget)
+        layout.addWidget(self.box_preset_param_widget)
+        layout.addWidget(self.polka_preset_param_widget)
+        layout.addWidget(self.register_preset_param_widget)
+        layout.addWidget(self.text_preset_param_widget)
+        layout.addWidget(self.dotf_preset_param_widget)
+        layout.addWidget(self.pairwise_preset_param_widget)
 
-        preset_widgets = (constant_preset_param_widget, gradient_preset_param_widget, checker_preset_param_widget, sinusoid_preset_param_widget, box_preset_param_widget, polka_preset_param_widget, register_preset_param_widget, text_preset_param_widget, dotf_preset_param_widget, pairwise_preset_param_widget)
+        preset_widgets = (self.constant_preset_param_widget, self.gradient_preset_param_widget, self.checker_preset_param_widget, self.sinusoid_preset_param_widget, self.box_preset_param_widget, self.polka_preset_param_widget, self.register_preset_param_widget, self.text_preset_param_widget, self.dotf_preset_param_widget, self.pairwise_preset_param_widget)
+
         self.preset_widget = preset_widgets[0]
 
         @Slot(int)
@@ -715,8 +756,16 @@ class PreviewWindow(Window):
         layout.setContentsMargins(2, 2, 2, 2)
         widget.setLayout(layout)
 
-        self._sample = self.modulator.sample
-        self.preview_figure_widget = ModulatorFigureWidget(self.modulator.blank, (-FULL_STROKE_NM / 2, FULL_STROKE_NM / 2), parent=self)
+        vstr = 'adu'
+        vlim = [0, self.modulator.pxmax]
+        if self.modulator.calibration:
+            vstr = 'm'
+            vlim[0] = np.min(command_to_deflection(vlim[0], self.modulator.calibration["slope"], self.modulator.calibration["flat"]))
+            vlim[1] = np.max(command_to_deflection(vlim[1], self.modulator.calibration["slope"], self.modulator.calibration["flat"]))
+
+        self.preview_figure_widget = ModulatorFigureWidget(self.modulator.blank, (vlim[0], vlim[1]), parent=self)
+        self.preview_figure_widget.figure.get_cbar_axes().set_title(vstr, size=10)
+
         if self.preview_figure_widget.toolbar is not None:
             self.preview_figure_widget.toolbar.settingsClicked.connect(self.on_preview_settings_clicked)
 

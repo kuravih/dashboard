@@ -18,7 +18,7 @@ import testbed
 if TYPE_CHECKING:
     from dashboard import MainWindow
 from ..device.camera import Camera
-from ..device.modulator import Modulator, FULL_STROKE_NM
+from ..device.modulator import Modulator
 from ..function import is_speckle_calibration_file_valid, read_speckle_calibration_file, constrained_sin_fit_fn, quadratic_fit_fn
 from ..worker.speckle_nulling_worker import ProcessWorker
 from ..worker.storage_worker import SinkStorageWorker, SourceStorageWorker
@@ -170,7 +170,7 @@ class ProcessSettingsWidget(QWidget):
 
     @property
     def amplitude_nm_array(self) -> np.ndarray:
-        return FULL_STROKE_NM * self.amplitude_perc_steps_linspace.value() / 100.0
+        return self.amplitude_perc_steps_linspace.value() / 100.0
 
     @property
     def dark_hole_mask(self) -> NDArray[np.bool] | None:

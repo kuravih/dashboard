@@ -161,7 +161,7 @@ class ProcessWorker(Worker):
         #  Inject test speckle
         current_cmd = np.zeros(self.sink.shape)
         # test_amp_perc = 0.01
-        # test_amplitude = FULL_STROKE_NM * test_amp_perc / 100.0
+        # test_amplitude = test_amp_perc / 100.0
         # test_command = test_amplitude * sinusoid(self.sink.shape, 1.0 / 0.035, 0, np.pi / 6)
         # current_cmd = current_cmd + test_command
 

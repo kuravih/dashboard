@@ -18,14 +18,35 @@ class CommandPresetWidget(QWidget):
 
     changed = Signal(np.ndarray)
 
-    def __init__(self, shape: tuple[int, int], full_stoke: float, parent=None):
+    def __init__(self, shape: tuple[int, int], vlim: list[float], vrange: list[float], parent=None):
         super().__init__(parent)
-        self._full_stroke = full_stoke  # nm
-        self._command = np.zeros(shape)
+        self.vlim = vlim
+        self.vrange = vrange
+        self.command = np.zeros(shape)
         self.setup_main_widget()
 
     def setup_main_widget(self):
-        pass
+        raise NotImplementedError
+
+    @property
+    def vrange(self) -> list[float]:
+        return self._vrange
+
+    @vrange.setter
+    def vrange(self, values: list[float]):
+        self._vrange = values
+
+    @property
+    def vlim(self) -> list[float]:
+        return self._vlim
+
+    @vlim.setter
+    def vlim(self, values: list[float]):
+        self._vlim = values
+
+    @property
+    def vlim_range(self) -> float:
+        return (self.vlim[1] - self.vlim[0])
 
     @property
     def command(self) -> np.ndarray:
@@ -43,8 +64,7 @@ class ConstantPresetWidget(CommandPresetWidget):
 
     @Slot(float)
     def on_const_value_changed(self, const_perc: float):
-        const = self._full_stroke * const_perc / 100.0
-        self.command = np.zeros_like(self.command) + const
+        self.command = np.zeros_like(self.command) + self.vlim_range * const_perc / 100.0
         self.changed.emit(self.command)
 
     def setup_main_widget(self):
@@ -54,7 +74,7 @@ class ConstantPresetWidget(CommandPresetWidget):
 
         self.const_spinbox = QDoubleSpinBox(self)
         self.const_spinbox.setFixedWidth(100)
-        self.const_spinbox.setRange(-50, 50)
+        self.const_spinbox.setRange(*self.vrange)
         self.const_spinbox.setSuffix(" %")
         self.const_spinbox.setSingleStep(1)
         self.const_spinbox.setValue(0)
@@ -70,6 +90,11 @@ class ConstantPresetWidget(CommandPresetWidget):
 
         self.setLayout(layout)
 
+    @CommandPresetWidget.vrange.setter
+    def vrange(self, values: list[float]):
+        self._vrange = values
+        if hasattr(self, 'const_spinbox'):
+            self.const_spinbox.setRange(*values)
 
 class GradientPresetWidget(CommandPresetWidget):
     """
@@ -78,9 +103,10 @@ class GradientPresetWidget(CommandPresetWidget):
 
     @Slot(float, float)
     def on_values_changed(self, peak_valley_perc: float, angle: float):
-        peak_valley = self._full_stroke * peak_valley_perc / 100.0
+        peak_valley = self.vlim_range * peak_valley_perc / 100.0
+        mean = np.mean(self.vlim)
         grad_max = abs(np.cos(angle)) * self.command.shape[0] / 2 + abs(np.sin(angle)) * self.command.shape[1] / 2
-        self.command = (gradient(self.command.shape, angle) / (2 * grad_max)) * peak_valley
+        self.command = (gradient(self.command.shape, angle) / (2 * grad_max)) * peak_valley + mean
         self.changed.emit(self.command)
 
     def setup_main_widget(self):
@@ -90,7 +116,7 @@ class GradientPresetWidget(CommandPresetWidget):
 
         self.grad_spinbox = QDoubleSpinBox(self)
         self.grad_spinbox.setFixedWidth(100)
-        self.grad_spinbox.setRange(-50, 50)
+        self.grad_spinbox.setRange(*self.vrange)
         self.grad_spinbox.setSuffix(" %")
         self.grad_spinbox.setSingleStep(1)
         self.grad_spinbox.setValue(0)
@@ -122,6 +148,11 @@ class GradientPresetWidget(CommandPresetWidget):
 
         self.setLayout(layout)
 
+    @CommandPresetWidget.vrange.setter
+    def vrange(self, values: list[float]):
+        self._vrange = values
+        if hasattr(self, 'grad_spinbox'):
+            self.grad_spinbox.setRange(*values)
 
 class CheckerPresetWidget(CommandPresetWidget):
     """
@@ -130,8 +161,8 @@ class CheckerPresetWidget(CommandPresetWidget):
 
     @Slot(float, float, tuple, tuple)
     def on_values_changed(self, color1_perc: float, color2_perc: float, size: tuple[int, int], offset: tuple[int, int]):
-        color1 = self._full_stroke * color1_perc / 100.0
-        color2 = self._full_stroke * color2_perc / 100.0
+        color1 = self.vlim_range * color1_perc / 100.0
+        color2 = self.vlim_range * color2_perc / 100.0
         mask = checkers(self.command.shape, size, offset)
         self.command = mask * color1 + (1 - mask) * color2
         self.changed.emit(self.command)
@@ -143,7 +174,7 @@ class CheckerPresetWidget(CommandPresetWidget):
 
         self.color1_spinbox = QDoubleSpinBox(self)
         self.color1_spinbox.setFixedWidth(100)
-        self.color1_spinbox.setRange(-50, 50)
+        self.color1_spinbox.setRange(*self.vrange)
         self.color1_spinbox.setSuffix(" %")
         self.color1_spinbox.setSingleStep(1)
         self.color1_spinbox.setToolTip("Checker Color 1")
@@ -154,7 +185,7 @@ class CheckerPresetWidget(CommandPresetWidget):
 
         self.color2_spinbox = QDoubleSpinBox(self)
         self.color2_spinbox.setFixedWidth(100)
-        self.color2_spinbox.setRange(-50, 50)
+        self.color2_spinbox.setRange(*self.vrange)
         self.color2_spinbox.setSuffix(" %")
         self.color2_spinbox.setSingleStep(1)
         self.color2_spinbox.setToolTip("Checker Color 2")
@@ -211,6 +242,12 @@ class CheckerPresetWidget(CommandPresetWidget):
 
         self.setLayout(layout)
 
+    @CommandPresetWidget.vrange.setter
+    def vrange(self, values: list[float]):
+        self._vrange = values
+        if hasattr(self, 'color1_spinbox'):
+            self.color1_spinbox.setRange(*values)
+            self.color2_spinbox.setRange(*values)
 
 class SinusoidPresetWidget(CommandPresetWidget):
     """
@@ -219,10 +256,9 @@ class SinusoidPresetWidget(CommandPresetWidget):
 
     @Slot(float, float, float, float, float)
     def on_values_changed(self, amp_perc: float, period: float, phase: float, angle: float, mean_perc: float):
-        amp = self._full_stroke * amp_perc / 100.0
-        mean = self._full_stroke * mean_perc / 100.0
-        self.command = amp * sinusoid(self.command.shape, period, np.deg2rad(phase), np.deg2rad(angle)) + mean
-        # logger.info("amp = %s, mean = %s", amp, mean)
+        amp = self.vlim_range * amp_perc / 100.0
+        mean = self.vlim_range * mean_perc / 100.0
+        self.command = amp * sinusoid(self.command.shape, period, angle=np.deg2rad(angle), phase=np.deg2rad(phase)) + mean
         self.period_spinbox.setToolTip(f"Period of the sinusoid (Frequency = {1.0/period:.4f})")
         self.changed.emit(self.command)
 
@@ -232,7 +268,7 @@ class SinusoidPresetWidget(CommandPresetWidget):
 
         self.amplitude_spinbox = QDoubleSpinBox(self)
         self.amplitude_spinbox.setFixedWidth(100)
-        self.amplitude_spinbox.setRange(-50, 50)
+        self.amplitude_spinbox.setRange(*self.vrange)
         self.amplitude_spinbox.setSuffix(" %")
         self.amplitude_spinbox.setSingleStep(1)
         self.amplitude_spinbox.setToolTip("Amplitude of the sinusoid")
@@ -243,7 +279,7 @@ class SinusoidPresetWidget(CommandPresetWidget):
 
         self.mean_spinbox = QDoubleSpinBox(self)
         self.mean_spinbox.setFixedWidth(100)
-        self.mean_spinbox.setRange(-50, 50)
+        self.mean_spinbox.setRange(*self.vrange)
         self.mean_spinbox.setSuffix(" %")
         self.mean_spinbox.setSingleStep(1)
         self.mean_spinbox.setToolTip("Mean of the sinusoid")
@@ -316,6 +352,12 @@ class SinusoidPresetWidget(CommandPresetWidget):
 
         self.setLayout(layout)
 
+    @CommandPresetWidget.vrange.setter
+    def vrange(self, values: list[float]):
+        self._vrange = values
+        if hasattr(self, 'amplitude_spinbox'):
+            self.amplitude_spinbox.setRange(*values)
+            self.mean_spinbox.setRange(*values)
 
 class BoxPresetWidget(CommandPresetWidget):
     """
@@ -324,8 +366,8 @@ class BoxPresetWidget(CommandPresetWidget):
 
     @Slot(float, float, tuple, tuple)
     def on_values_changed(self, color1_perc: float, color2_perc: float, size: tuple[int, int], center: tuple[int, int]):
-        color1 = self._full_stroke * color1_perc / 100.0
-        color2 = self._full_stroke * color2_perc / 100.0
+        color1 = self.vlim_range * color1_perc / 100.0
+        color2 = self.vlim_range * color2_perc / 100.0
         mask = box(self.command.shape, size, center)
         self.command = mask * color1 + (1 - mask) * color2
         self.changed.emit(self.command)
@@ -337,7 +379,7 @@ class BoxPresetWidget(CommandPresetWidget):
 
         self.color1_spinbox = QDoubleSpinBox(self)
         self.color1_spinbox.setFixedWidth(100)
-        self.color1_spinbox.setRange(-50, 50)
+        self.color1_spinbox.setRange(*self.vrange)
         self.color1_spinbox.setSuffix(" %")
         self.color1_spinbox.setSingleStep(1)
         self.color1_spinbox.setToolTip("Box Color 1")
@@ -348,7 +390,7 @@ class BoxPresetWidget(CommandPresetWidget):
 
         self.color2_spinbox = QDoubleSpinBox(self)
         self.color2_spinbox.setFixedWidth(100)
-        self.color2_spinbox.setRange(-50, 50)
+        self.color2_spinbox.setRange(*self.vrange)
         self.color2_spinbox.setSuffix(" %")
         self.color2_spinbox.setSingleStep(1)
         self.color2_spinbox.setToolTip("Box Color 2")
@@ -405,6 +447,12 @@ class BoxPresetWidget(CommandPresetWidget):
 
         self.setLayout(layout)
 
+    @CommandPresetWidget.vrange.setter
+    def vrange(self, values: list[float]):
+        self._vrange = values
+        if hasattr(self, 'color1_spinbox'):
+            self.color1_spinbox.setRange(*values)
+            self.color2_spinbox.setRange(*values)
 
 class PolkaPresetWidget(CommandPresetWidget):
     """
@@ -413,8 +461,8 @@ class PolkaPresetWidget(CommandPresetWidget):
 
     @Slot(float, float, float, tuple, tuple)
     def on_values_changed(self, color1_perc: float, color2_perc: float, radius: float, spacing: tuple[int, int], offset: tuple[int, int]):
-        color1 = self._full_stroke * color1_perc / 100.0
-        color2 = self._full_stroke * color2_perc / 100.0
+        color1 = self.vlim_range * color1_perc / 100.0
+        color2 = self.vlim_range * color2_perc / 100.0
         mask = polka(self.command.shape, radius, spacing, offset)
         self.command = mask * color1 + (1 - mask) * color2
         self.changed.emit(self.command)
@@ -426,7 +474,7 @@ class PolkaPresetWidget(CommandPresetWidget):
 
         self.color1_spinbox = QDoubleSpinBox(self)
         self.color1_spinbox.setFixedWidth(100)
-        self.color1_spinbox.setRange(-50, 50)
+        self.color1_spinbox.setRange(*self.vrange)
         self.color1_spinbox.setSuffix(" %")
         self.color1_spinbox.setSingleStep(1)
         self.color1_spinbox.setToolTip("Polka dot color 1")
@@ -437,7 +485,7 @@ class PolkaPresetWidget(CommandPresetWidget):
 
         self.color2_spinbox = QDoubleSpinBox(self)
         self.color2_spinbox.setFixedWidth(100)
-        self.color2_spinbox.setRange(-50, 50)
+        self.color2_spinbox.setRange(*self.vrange)
         self.color2_spinbox.setSuffix(" %")
         self.color2_spinbox.setSingleStep(1)
         self.color2_spinbox.setToolTip("Polka dot color 2")
@@ -515,8 +563,8 @@ class RegisterPresetWidget(CommandPresetWidget):
 
     @Slot(float, tuple, float, tuple, tuple, float)
     def on_values_changed(self, amp_perc: float, count: tuple[int, int], radius: float, spacing: tuple[int, int], center: tuple[int, int], mean_perc: float):
-        amp = self._full_stroke * amp_perc / 100.0
-        mean = self._full_stroke * mean_perc / 100.0
+        amp = self.vlim_range * amp_perc / 100.0
+        mean = self.vlim_range * mean_perc / 100.0
         self.command = amp * register(self.command.shape, count, radius, spacing, center) + mean
         self.changed.emit(self.command)
 
@@ -527,7 +575,7 @@ class RegisterPresetWidget(CommandPresetWidget):
 
         self.amplitude_spinbox = QSpinBox(self)
         self.amplitude_spinbox.setFixedWidth(100)
-        self.amplitude_spinbox.setRange(-50, 50)
+        self.amplitude_spinbox.setRange(*self.vrange)
         self.amplitude_spinbox.setSuffix(" %")
         self.amplitude_spinbox.setSingleStep(1)
         self.amplitude_spinbox.setToolTip("Register pattern amplitude")
@@ -538,7 +586,7 @@ class RegisterPresetWidget(CommandPresetWidget):
 
         self.mean_spinbox = QDoubleSpinBox(self)
         self.mean_spinbox.setFixedWidth(100)
-        self.mean_spinbox.setRange(-50, 50)
+        self.mean_spinbox.setRange(*self.vrange)
         self.mean_spinbox.setSuffix(" %")
         self.mean_spinbox.setSingleStep(1)
         self.mean_spinbox.setToolTip("Mean of the sinusoid")
@@ -625,6 +673,12 @@ class RegisterPresetWidget(CommandPresetWidget):
 
         self.setLayout(layout)
 
+    @CommandPresetWidget.vrange.setter
+    def vrange(self, values: list[float]):
+        self._vrange = values
+        if hasattr(self, 'amplitude_spinbox'):
+            self.amplitude_spinbox.setRange(int(values[0]), int(values[1]))
+            self.mean_spinbox.setRange(*values)
 
 class TextPresetWidget(CommandPresetWidget):
     """
@@ -633,8 +687,8 @@ class TextPresetWidget(CommandPresetWidget):
 
     @Slot(float, str, tuple, int, float)
     def on_values_changed(self, fg_perc: float, stringdata: str, position: tuple[int, int], font_size: int, bg_perc: float):
-        fg = self._full_stroke * fg_perc / 100.0
-        bg = self._full_stroke * bg_perc / 100.0
+        fg = self.vlim_range * fg_perc / 100.0
+        bg = self.vlim_range * bg_perc / 100.0
         mask = text(self.command.shape, stringdata, position, font_size)
         self.command = mask * fg + (1 - mask) * bg
         self.changed.emit(self.command)
@@ -646,7 +700,7 @@ class TextPresetWidget(CommandPresetWidget):
 
         self.foreground_spinbox = QDoubleSpinBox(self)
         self.foreground_spinbox.setFixedWidth(100)
-        self.foreground_spinbox.setRange(-50, 50)
+        self.foreground_spinbox.setRange(*self.vrange)
         self.foreground_spinbox.setSuffix(" %")
         self.foreground_spinbox.setSingleStep(1)
         self.foreground_spinbox.setToolTip("Text amplitude")
@@ -657,7 +711,7 @@ class TextPresetWidget(CommandPresetWidget):
 
         self.background_spinbox = QDoubleSpinBox(self)
         self.background_spinbox.setFixedWidth(100)
-        self.background_spinbox.setRange(-50, 50)
+        self.background_spinbox.setRange(*self.vrange)
         self.background_spinbox.setSuffix(" %")
         self.background_spinbox.setSingleStep(1)
         self.background_spinbox.setToolTip("Mean of the sinusoid")
@@ -724,6 +778,12 @@ class TextPresetWidget(CommandPresetWidget):
 
         self.setLayout(layout)
 
+    @CommandPresetWidget.vrange.setter
+    def vrange(self, values: list[float]):
+        self._vrange = values
+        if hasattr(self, 'foreground_spinbox'):
+            self.foreground_spinbox.setRange(*values)
+            self.background_spinbox.setRange(*values)
 
 class DOTFProbePresetWidget(CommandPresetWidget):
     """
@@ -732,7 +792,7 @@ class DOTFProbePresetWidget(CommandPresetWidget):
 
     @Slot(float, tuple, DOTFProbeDirection)
     def on_values_changed(self, amp_perc: float, size: tuple[int, int], direction: DOTFProbeDirection):
-        amp = self._full_stroke * amp_perc / 100.0
+        amp = self.vlim_range * amp_perc / 100.0
         self.command = amp * dotf_probe(self.command.shape, size, direction)
         self.changed.emit(self.command)
 
@@ -743,7 +803,7 @@ class DOTFProbePresetWidget(CommandPresetWidget):
 
         self.amplitude_spinbox = QSpinBox(self)
         self.amplitude_spinbox.setFixedWidth(100)
-        self.amplitude_spinbox.setRange(-50, 50)
+        self.amplitude_spinbox.setRange(*self.vrange)
         self.amplitude_spinbox.setSuffix(" %")
         self.amplitude_spinbox.setSingleStep(1)
         self.amplitude_spinbox.setToolTip("Probe amplitude")
@@ -788,6 +848,11 @@ class DOTFProbePresetWidget(CommandPresetWidget):
 
         self.setLayout(layout)
 
+    @CommandPresetWidget.vrange.setter
+    def vrange(self, values: list[float]):
+        self._vrange = values
+        if hasattr(self, 'amplitude_spinbox'):
+            self.amplitude_spinbox.setRange(int(values[0]), int(values[1]))
 
 class PairwiseProbePresetWidget(CommandPresetWidget):
     """
@@ -796,7 +861,7 @@ class PairwiseProbePresetWidget(CommandPresetWidget):
 
     @Slot(float, float, float, float, float, PairwiseProbeDirection)
     def on_values_changed(self, amp_perc: float, dξ: float, dη: float, ξc: float, θ: float, direction: PairwiseProbeDirection):
-        amp = self._full_stroke * amp_perc / 100.0
+        amp = self.vlim_range * amp_perc / 100.0
         self.command = amp * pairwise_probe(self.command.shape, dξ, dη, ξc, θ, direction)
         self.changed.emit(self.command)
 
@@ -806,7 +871,7 @@ class PairwiseProbePresetWidget(CommandPresetWidget):
 
         self.amplitude_spinbox = QDoubleSpinBox(self)
         self.amplitude_spinbox.setFixedWidth(100)
-        self.amplitude_spinbox.setRange(-10000, 10000)
+        self.amplitude_spinbox.setRange(*self.vrange)
         self.amplitude_spinbox.setSuffix(" %")
         self.amplitude_spinbox.setSingleStep(1)
         self.amplitude_spinbox.setToolTip("Probe amplitude")
@@ -901,3 +966,9 @@ class PairwiseProbePresetWidget(CommandPresetWidget):
         layout.addWidget(self.probe_dir_checkboxes, row, col)
 
         self.setLayout(layout)
+
+    @CommandPresetWidget.vrange.setter
+    def vrange(self, values: list[float]):
+        self._vrange = values
+        if hasattr(self, 'amplitude_spinbox'):
+            self.amplitude_spinbox.setRange(*values)

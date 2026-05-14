@@ -12,7 +12,7 @@ import testbed
 if TYPE_CHECKING:
     from dashboard import MainWindow
 from ..device.camera import Camera
-from ..device.modulator import Modulator, FULL_STROKE_NM
+from ..device.modulator import Modulator
 from ..worker.simple_loop_worker import ProcessWorker
 from ..worker.storage_worker import SinkStorageWorker, SourceStorageWorker
 from .camera_window import PreviewWindow as CameraPreviewWindow
@@ -125,7 +125,7 @@ class ProcessSettingsWidget(QWidget):
 
     @property
     def amplitude_nm(self) -> float:
-        return FULL_STROKE_NM * self.amplitude_perc_spinbox.value() / 100.0
+        return self.amplitude_perc_spinbox.value() / 100.0
 
     @property
     def continuous(self) -> bool:

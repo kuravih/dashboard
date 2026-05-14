@@ -8,8 +8,6 @@ from pykato.log import setup_logger
 
 logger = setup_logger("Modulator", terminator="\n")
 
-FULL_STROKE_NM = 5
-
 
 class Modulator(Device):
     """
@@ -87,14 +85,14 @@ class Modulator(Device):
         return self._stream.last_access_time
 
     def push_command(self, command: np.ndarray) -> SinkSample:
-        command_nm_float = command.astype(float)
+        command_float = command.astype(float)
         if self.calibration is not None:
-            command_adu_float = deflection_to_command(command_nm_float, self.calibration["slope"], self.calibration["flat"])
+            command_adu_float = deflection_to_command(command_float, self.calibration["slope"], self.calibration["flat"])
         else:
-            command_adu_float = self.pxmax * (command_nm_float / FULL_STROKE_NM + 0.5)
+            command_adu_float = command_float
         command_adu_uint16 = np.clip(command_adu_float, 0, self.pxmax).astype(np.uint16)
         self._stream.set_data(command_adu_uint16)
-        self._sample = SinkSample(self.last_access_time, self.frame_rate_fps, self.center, self.radius, command_nm_float.copy())
+        self._sample = SinkSample(self.last_access_time, self.frame_rate_fps, self.center, self.radius, command_float.copy())
         return self._sample
 
     def get_command(self) -> SinkSample:

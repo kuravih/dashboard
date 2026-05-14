@@ -15,7 +15,7 @@ if TYPE_CHECKING:
 from ..function import DOTFProbeDirection
 from ..widget import NSpinBoxesWidget, DOTFProbeDirectionWidget
 from ..device.camera import Camera
-from ..device.modulator import Modulator, FULL_STROKE_NM
+from ..device.modulator import Modulator
 from ..worker.dotf_measurement_worker import ProcessWorker
 from .camera_window import PreviewWindow as CameraPreviewWindow
 from .modulator_window import PreviewWindow as ModulatorPreviewWindow
@@ -140,7 +140,7 @@ class ProcessSettingsWidget(QWidget):
 
     @property
     def probe_amplitude_nm(self) -> float:  # nm
-        return FULL_STROKE_NM * self.probe_amplitude_perc_spinbox.value() / 100.0
+        return  self.probe_amplitude_perc_spinbox.value() / 100.0
 
     @property
     def probe_size(self) -> tuple[int, int]:
