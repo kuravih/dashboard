@@ -29,7 +29,6 @@ class ProcessWorker(Worker):
         self.signals = ProcessWorkerSignals()
         self.source = source
         self.sink = sink
-        self.vlim = np.min(command_to_deflection(vlim[0], self.sink.calibration["slope"], self.sink.calibration["flat"])), np.max(command_to_deflection(vlim[1], self.sink.calibration["slope"], self.sink.calibration["flat"]))
         self.amplitude_perc = amplitude_perc
         self.frequency_array = frequency_array
         self.angle_rad_array = angle_rad_array
@@ -98,7 +97,8 @@ class ProcessWorker(Worker):
         super().run()
 
         try:
-            self.speckle_frequency_angle_sweep(self.amplitude_perc, self.frequency_array, self.angle_rad_array, self.phase_rad_array)
+            amplitude = self.sink.vrange * self.amplitude_perc
+            self.speckle_frequency_angle_sweep(amplitude, self.frequency_array, self.angle_rad_array, self.phase_rad_array)
         except AssertionError as e:
             self.signals.error.emit(str(e))
 
