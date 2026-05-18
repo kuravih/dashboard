@@ -4,8 +4,8 @@ from typing import TYPE_CHECKING, cast
 from pykato.function import timestamp_string
 from pykato.log import setup_logger
 from PySide6.QtCore import Qt, Slot
-from PySide6.QtGui import QIcon
-from PySide6.QtWidgets import QCheckBox, QDoubleSpinBox, QGridLayout, QHBoxLayout, QLabel, QSpinBox, QVBoxLayout, QWidget, QMessageBox
+from PySide6.QtGui import QIcon, QCursor
+from PySide6.QtWidgets import QCheckBox, QDoubleSpinBox, QGridLayout, QHBoxLayout, QLabel, QSpinBox, QVBoxLayout, QWidget, QMessageBox, QPushButton, QToolTip
 
 import testbed
 
@@ -46,6 +46,11 @@ class ProcessSettingsWidget(QWidget):
         self.amplitude_perc_spinbox.setSingleStep(1)
         self.amplitude_perc_spinbox.setToolTip("Command amplitude")
         self.amplitude_perc_spinbox.setValue(_amplitude_perc)
+
+        self.help_button = QPushButton("?", self)
+        self.help_button.setFixedWidth(self.amplitude_perc_spinbox.sizeHint().height())
+        self.help_button.setFixedHeight(self.amplitude_perc_spinbox.sizeHint().height())
+        self.help_button.clicked.connect(lambda: QToolTip.showText(QCursor.pos(), f"test {1}"))
 
         n_steps_label = QLabel("Steps", self)
         n_steps_label.setFixedWidth(100)
@@ -101,7 +106,9 @@ class ProcessSettingsWidget(QWidget):
         col = 0
         widget_layout.addWidget(amplitude_label, row, col)
         col += 1
-        widget_layout.addWidget(self.amplitude_perc_spinbox, row, col, 1, 3)
+        widget_layout.addWidget(self.amplitude_perc_spinbox, row, col)
+        col += 1
+        widget_layout.addWidget(self.help_button, row, col)
 
         row += 1
         col = 0
@@ -124,7 +131,7 @@ class ProcessSettingsWidget(QWidget):
         self.setLayout(widget_layout)
 
     @property
-    def amplitude_nm(self) -> float:
+    def amplitude_perc(self) -> float:
         return self.amplitude_perc_spinbox.value() / 100.0
 
     @property
@@ -260,7 +267,7 @@ class ProcessWindow(Window):
                 process_worker.stop()
                 return
 
-            process_worker = ProcessWorker(self.source, self.sink, self.settings_widget.amplitude_nm, self.settings_widget.n_steps)
+            process_worker = ProcessWorker(self.source, self.sink, self.settings_widget.amplitude_perc, self.settings_widget.n_steps)
             process_worker.signals.progressTicked.connect(self.on_progress_tick)
             process_worker.signals.finished.connect(self.on_process_finished)
             process_worker.signals.error.connect(self.on_process_error)

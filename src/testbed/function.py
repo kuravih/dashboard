@@ -15,6 +15,7 @@ from skimage.feature import peak_local_max
 from skimage.morphology import disk, dilation
 from skimage.measure import label, regionprops
 from astropy.io import fits
+from hcipy.util import large_poisson
 
 logger = setup_logger("function", terminator="\n")
 
@@ -819,57 +820,61 @@ def capture_to_intensity(capture: np.ndarray | float | int, exp_time_s: float, d
     return ((capture - bias) - dark_rate * exp_time_s) / (gain * qe * exp_time_s)
 
 
-def intensity_to_capture(intensity: np.ndarray, exp_time_s: float, dark_rate: np.ndarray, bias: np.ndarray, qe: float, gain:float, full_well_capacity: float, bit_depth: int, read_noise: float | np.ndarray) -> np.ndarray:
+def power_to_capture(power: np.ndarray, exp_time_s: float, dark_rate: np.ndarray | float = 0, bias: np.ndarray | float = 0, qe: float = 1, flat_field: float | np.ndarray = 1, gain: float = 1, full_well_capacity: float | None = None, bit_depth: int | None = None, read_noise: float | np.ndarray = 0, photon_noise: bool = False) -> np.ndarray:
     """
     Parameters:
-        intensity: np.ndarray
+        power: np.ndarray
             Intensity in photons/s
         exp_time_s: float
             Exposure time in seconds
-        dark_rate: np.ndarray
+        dark_rate: np.ndarray | float = 0
             Dark current rate in adu/s
-        bias: np.ndarray
+        bias: np.ndarray | float = 0
             Bias in adu
-        qe: float
+        qe: float = 1
             Quantum efficiency (%)
-        gain: float
+        flat_field: float | np.ndarray = 1
             Electron count to adu conversion gain (ADU/e)
-        full_well_capacity: float
+        gain: float = 1
+            Electron count to adu conversion gain (ADU/e)
+        full_well_capacity: float | None = None
             Full well capacity in e
-        bit_depth: int
+        bit_depth: int | None = None
             Bit depth for digitization
-        read_noise: float or np.ndarray
-            RMS read noise in adu. Default: 0.
+        read_noise: float | np.ndarray = 0
+            RMS read noise in adu
+        photon_noise: bool = False
+            Enable photon noise
 
     Returns: np.ndarray
-        Capture in adu
+        Capture (in photon_count/electron_count/adu)
     """
 
-    dark_rate_e = dark_rate * gain
-    bias_e = bias * gain
-    read_noise_e = read_noise * gain
+    # dark current
+    dark_e = exp_time_s * dark_rate / gain
 
-    # Signal accumulation in electrons
-    signal_e = intensity * qe * exp_time_s
+    # signal in photo-electrons
+    signal_e = power * exp_time_s * qe * flat_field + dark_e
 
-    # Photon shot noise (Poisson, applied in electron space)
-    signal_e = np.random.poisson(np.maximum(signal_e, 0)).astype(float)
+    # Photon noise
+    if photon_noise:
+        signal_e = large_poisson(np.clip(signal_e, 0, None), thresh=1e6)
 
-    # Read noise (Gaussian, in electrons)
-    signal_e += np.random.normal(loc=0, scale=read_noise_e)
+    # Saturate well
+    if full_well_capacity is not None:
+        signal_e = np.clip(signal_e, 0, full_well_capacity)
+ 
+    # photo-electrons to adu conversion
+    capture = signal_e * gain + bias
 
-    # Add dark current and bias in electron counts
-    accumulated_e = signal_e + dark_rate_e * exp_time_s + bias_e
+    # Add read noise
+    capture = capture + np.random.normal(loc=0, scale=read_noise, size=capture.shape)
 
-    # Clip to full well capacity
-    accumulated_e = np.clip(accumulated_e, 0, full_well_capacity)
+    # Saturate digitizer
+    if bit_depth is not None:
+        capture = np.clip(np.round(capture), 0, 2**bit_depth - 1).astype(int)
 
-    # Convert to edu
-    accumulated_adu = accumulated_e * gain
-
-    adu_max = 2**bit_depth - 1
-    # Clip to adu_max
-    return np.clip(np.round(accumulated_adu), 0, adu_max)
+    return capture
 
 
 class DOTFProbeDirection(IntEnum):

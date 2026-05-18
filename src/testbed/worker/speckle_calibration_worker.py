@@ -25,17 +25,18 @@ class ProcessWorker(Worker):
 
     wid = f"{testbed.SPECKLE_CALIBRATION}_worker"
 
-    def __init__(self, source: Camera, sink: Modulator, amplitude_nm: float, frequency_array: np.ndarray, angle_rad_array: np.ndarray, phase_rad_array: np.ndarray):
+    def __init__(self, source: Camera, sink: Modulator, amplitude_perc: float, frequency_array: np.ndarray, angle_rad_array: np.ndarray, phase_rad_array: np.ndarray):
         self.signals = ProcessWorkerSignals()
         self.source = source
         self.sink = sink
-        self.amplitude_nm = amplitude_nm
+        self.vlim = np.min(command_to_deflection(vlim[0], self.sink.calibration["slope"], self.sink.calibration["flat"])), np.max(command_to_deflection(vlim[1], self.sink.calibration["slope"], self.sink.calibration["flat"]))
+        self.amplitude_perc = amplitude_perc
         self.frequency_array = frequency_array
         self.angle_rad_array = angle_rad_array
         self.phase_rad_array = phase_rad_array
         super().__init__(self.frequency_array.size * self.angle_rad_array.size * (self.phase_rad_array.size + 1) + 1)  # blanks for subtraction
 
-    def speckle_phase_sweep(self, speckle_amplitude_nm: float, speckle_frequency: float, speckle_angle_rad: float, speckle_phase_rad_array: np.ndarray) -> list[tuple[float, float]]:
+    def speckle_phase_sweep(self, speckle_amplitude_perc: float, speckle_frequency: float, speckle_angle_rad: float, speckle_phase_rad_array: np.ndarray) -> list[tuple[float, float]]:
 
         # ---- zero ---------------------------------------------------------------------------------------------------
         zero_cmd = np.zeros(self.sink.shape)
@@ -56,7 +57,7 @@ class ProcessWorker(Worker):
         sum_probe_capture = np.zeros_like(self.source.blank, dtype=float)
         while (speckle_phase_rad_array.size > i_phs) and self._running:
 
-            probe = speckle_amplitude_nm * sinusoid(self.sink.shape, 1.0 / speckle_frequency, angle=speckle_angle_rad, phase=speckle_phase_rad_array[i_phs])
+            probe = speckle_amplitude_perc * sinusoid(self.sink.shape, 1.0 / speckle_frequency, angle=speckle_angle_rad, phase=speckle_phase_rad_array[i_phs])
             probe_cmd = zero_cmd + probe
 
             probe_sink_sample = self.sink.push_command(probe_cmd)
@@ -80,13 +81,13 @@ class ProcessWorker(Worker):
 
         return speckles
 
-    def speckle_frequency_angle_sweep(self, speckle_amplitude_nm: float, speckle_frequency_array: np.ndarray, speckle_angle_rad_array: np.ndarray, speckle_phase_rad_array: np.ndarray) -> np.ndarray:
+    def speckle_frequency_angle_sweep(self, speckle_amplitude_perc: float, speckle_frequency_array: np.ndarray, speckle_angle_rad_array: np.ndarray, speckle_phase_rad_array: np.ndarray) -> np.ndarray:
         speckles = np.full((speckle_frequency_array.size, speckle_angle_rad_array.size, 2, 2), np.nan)
         i_freq = 0
         while (speckle_frequency_array.size > i_freq) and self._running:
             i_ang = 0
             while (speckle_angle_rad_array.size > i_ang) and self._running:
-                speckles[i_freq, i_ang] = self.speckle_phase_sweep(speckle_amplitude_nm, speckle_frequency_array[i_freq], speckle_angle_rad_array[i_ang], speckle_phase_rad_array)
+                speckles[i_freq, i_ang] = self.speckle_phase_sweep(speckle_amplitude_perc, speckle_frequency_array[i_freq], speckle_angle_rad_array[i_ang], speckle_phase_rad_array)
                 self.signals.specklesLocated.emit(speckles)
                 i_ang = i_ang + 1
             i_freq = i_freq + 1
@@ -97,7 +98,7 @@ class ProcessWorker(Worker):
         super().run()
 
         try:
-            self.speckle_frequency_angle_sweep(self.amplitude_nm, self.frequency_array, self.angle_rad_array, self.phase_rad_array)
+            self.speckle_frequency_angle_sweep(self.amplitude_perc, self.frequency_array, self.angle_rad_array, self.phase_rad_array)
         except AssertionError as e:
             self.signals.error.emit(str(e))
 

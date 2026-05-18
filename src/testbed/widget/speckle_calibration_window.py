@@ -38,7 +38,7 @@ class ProcessSettingsWidget(QWidget):
     """
 
     def __init__(self, parent=None):
-        _amplitude_perc_min, _amplitude_perc_max, _amplitude_perc = -100.0, 100.0, 10.0
+        _amplitude_perc_min, _amplitude_perc_max, _amplitude_perc = -10.0, 10.0, 1.0
         _angle_deg_start, _angle_deg_stop, _angle_deg_steps = 0, 170, 18
         _frequency_start, _frequency_stop, _frequency_steps = 0.06, 0.02, 9
         _phase_deg_start, _phase_deg_stop, _phase_deg_steps = 0, 180, 2
@@ -109,7 +109,7 @@ class ProcessSettingsWidget(QWidget):
         self.speckles = np.full((self.frequency_array.size, self.angle_rad_array.size, 2, 2), np.nan)
 
     @property
-    def amplitude_nm(self) -> float:
+    def amplitude_perc(self) -> float:
         return self.amplitude_perc_spinbox.value() / 100.0
 
     @property
@@ -270,7 +270,7 @@ class ProcessWindow(Window):
                 process_worker.stop()
                 return
 
-            process_worker = ProcessWorker(self.source, self.sink, self.settings_widget.amplitude_nm, self.settings_widget.frequency_array, self.settings_widget.angle_rad_array, self.settings_widget.phase_rad_array)
+            process_worker = ProcessWorker(self.source, self.sink, self.settings_widget.amplitude_perc, self.settings_widget.frequency_array, self.settings_widget.angle_rad_array, self.settings_widget.phase_rad_array)
             process_worker.signals.progressTicked.connect(self.on_progress_tick)
             process_worker.signals.finished.connect(self.on_process_finished)
             process_worker.signals.error.connect(self.on_process_error)
@@ -281,7 +281,7 @@ class ProcessWindow(Window):
             timestamp = timestamp_string(frmt="%Y%m%d.%H%M%S", ms=None)
 
             with open(f"data/output/{timestamp}_{testbed.SPECKLE_CALIBRATION}_parameters.pkl", "wb") as wbfile:
-                parameters_dict = {"amplitudes": self.settings_widget.amplitude_nm, "frequencies": self.settings_widget.frequency_array, "angles": self.settings_widget.angle_deg_array, "phases": self.settings_widget.phase_deg_array}
+                parameters_dict = {"amplitudes": self.settings_widget.amplitude_perc, "frequencies": self.settings_widget.frequency_array, "angles": self.settings_widget.angle_deg_array, "phases": self.settings_widget.phase_deg_array}
                 cloudpickle.dump(parameters_dict, wbfile)
 
             source_storage_worker = SourceStorageWorker(f"data/output/{timestamp}_{testbed.SPECKLE_CALIBRATION}_{self.source.name}.raw", process_worker.n_ticks)

@@ -2,7 +2,7 @@ import numpy as np
 from datetime import datetime
 
 from . import Device, Stream, ZMQLink, SinkSample
-from ..function import read_modulator_calibration_file, deflection_to_command
+from ..function import read_modulator_calibration_file, deflection_to_command, command_to_deflection
 
 from pykato.log import setup_logger
 
@@ -47,6 +47,18 @@ class Modulator(Device):
     @property
     def pxmax(self) -> float | int:
         return self._stream.pxmax
+    
+    @property
+    def vlim(self) -> tuple[float, float] | tuple[int, int]:
+        _vlim = (0, self.pxmax)
+        if self.calibration is not None:
+            return (np.min(command_to_deflection(_vlim[0], self.calibration["slope"], self.calibration["flat"])), np.max(command_to_deflection(_vlim[1], self.calibration["slope"], self.calibration["flat"])))
+        return _vlim
+    
+    @property
+    def vrange(self) -> float | int:
+        _vlim = self.vlim
+        return (_vlim[1] - _vlim[0])
 
     @property
     def full_shape(self) -> tuple[int, int]:

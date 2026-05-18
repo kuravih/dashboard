@@ -14,7 +14,7 @@ from ..widget import Window, OrientationWidget, CenterWidget, DoubleValueSetWidg
 from ..widget.figure_widget import ModulatorFigureWidget, SinkHistFigureWidget
 from ..widget.command_preset_widget import ConstantPresetWidget, GradientPresetWidget, CheckerPresetWidget, SinusoidPresetWidget, BoxPresetWidget, PolkaPresetWidget, RegisterPresetWidget, TextPresetWidget, DOTFProbePresetWidget, PairwiseProbePresetWidget
 from ..widget.resource import ICON_PAPER_PLANE, ICON_PLUS, ICON_GEAR
-from ..function import Flip, Rotation, flip_rotate_frame, is_modulator_calibration_file_valid, command_to_deflection
+from ..function import Flip, Rotation, flip_rotate_frame, is_modulator_calibration_file_valid
 
 logger = setup_logger("modulator_window", terminator="\n")
 
@@ -366,44 +366,71 @@ class SettingsWindow(Window):
         def on_calibration_change():
             self.modulator.set_calibration(self.calibration_widget.filepath)
 
-            vstr = 'adu'
-            vlim = [0, self.modulator.pxmax]
-            vrange = [0, 100]
+            pstr = 'adu'
+            plim = [0, 100] # soft range
             if self.modulator.calibration:
-                vstr = 'm'
-                vlim[0] = np.min(command_to_deflection(vlim[0], self.modulator.calibration["slope"], self.modulator.calibration["flat"]))
-                vlim[1] = np.max(command_to_deflection(vlim[1], self.modulator.calibration["slope"], self.modulator.calibration["flat"]))
-                vrange = [-50, 50]
+                pstr = 'm'
+                plim = [-50, 50]
 
             if testbed.data.is_window_alive(self.modulator.preview_window_id):
                 modulator_preview_window = cast(PreviewWindow, testbed.data.windows[self.modulator.preview_window_id])
-                modulator_preview_window.preview_figure_widget.figure.get_image().set_clim(vlim)
-                modulator_preview_window.preview_figure_widget.figure.get_cbar_axes().set_title(vstr, size=10)
+                modulator_preview_window.preview_figure_widget.figure.get_image().set_clim(self.modulator.vlim)
+                modulator_preview_window.preview_figure_widget.figure.get_cbar_axes().set_title(pstr, size=10)
             if testbed.data.is_window_alive(self.modulator.presets_window_id):
                 modulator_presets_window = cast(PresetsWindow, testbed.data.windows[self.modulator.presets_window_id])
-                modulator_presets_window.preview_figure_widget.figure.get_image().set_clim(vlim)
-                modulator_presets_window.preview_figure_widget.figure.get_cbar_axes().set_title(vstr, size=10)
+                modulator_presets_window.preview_figure_widget.figure.get_image().set_clim(self.modulator.vlim)
+                modulator_presets_window.preview_figure_widget.figure.get_cbar_axes().set_title(pstr, size=10)
                 modulator_presets_window.preview_figure_widget.figure.canvas.draw_idle()
-                modulator_presets_window.constant_preset_param_widget.vlim = vlim
-                modulator_presets_window.constant_preset_param_widget.vrange = vrange
-                modulator_presets_window.gradient_preset_param_widget.vlim = vlim
-                modulator_presets_window.gradient_preset_param_widget.vrange = vrange
-                modulator_presets_window.checker_preset_param_widget.vlim = vlim
-                modulator_presets_window.checker_preset_param_widget.vrange = vrange
-                modulator_presets_window.sinusoid_preset_param_widget.vlim = vlim
-                modulator_presets_window.sinusoid_preset_param_widget.vrange = vrange
-                modulator_presets_window.box_preset_param_widget.vlim = vlim
-                modulator_presets_window.box_preset_param_widget.vrange = vrange
-                modulator_presets_window.polka_preset_param_widget.vlim = vlim
-                modulator_presets_window.polka_preset_param_widget.vrange = vrange
-                modulator_presets_window.register_preset_param_widget.vlim = vlim
-                modulator_presets_window.register_preset_param_widget.vrange = vrange
-                modulator_presets_window.text_preset_param_widget.vlim = vlim
-                modulator_presets_window.text_preset_param_widget.vrange = vrange
-                modulator_presets_window.dotf_preset_param_widget.vlim = vlim
-                modulator_presets_window.dotf_preset_param_widget.vrange = vrange
-                modulator_presets_window.pairwise_preset_param_widget.vlim = vlim
-                modulator_presets_window.pairwise_preset_param_widget.vrange = vrange
+
+                modulator_presets_window.constant_preset_param_widget.plim = plim
+                modulator_presets_window.constant_preset_param_widget.vlim = self.modulator.vlim
+                modulator_presets_window.constant_preset_param_widget.const_spinbox.setValue(0)
+
+                modulator_presets_window.gradient_preset_param_widget.plim = plim
+                modulator_presets_window.gradient_preset_param_widget.vlim = self.modulator.vlim
+                modulator_presets_window.gradient_preset_param_widget.grad_spinbox.setValue(0)
+
+                modulator_presets_window.checker_preset_param_widget.plim = plim
+                modulator_presets_window.checker_preset_param_widget.vlim = self.modulator.vlim
+                modulator_presets_window.checker_preset_param_widget.color1_spinbox.setValue(0)
+                modulator_presets_window.checker_preset_param_widget.color2_spinbox.setValue(0)
+
+                modulator_presets_window.sinusoid_preset_param_widget.plim = plim
+                modulator_presets_window.sinusoid_preset_param_widget.vlim = self.modulator.vlim
+                modulator_presets_window.sinusoid_preset_param_widget.amplitude_spinbox.setValue(0)
+                modulator_presets_window.sinusoid_preset_param_widget.mean_spinbox.setValue(0)
+
+                modulator_presets_window.box_preset_param_widget.plim = plim
+                modulator_presets_window.box_preset_param_widget.vlim = self.modulator.vlim
+                modulator_presets_window.box_preset_param_widget.color1_spinbox.setValue(0)
+                modulator_presets_window.box_preset_param_widget.color2_spinbox.setValue(0)
+
+                modulator_presets_window.polka_preset_param_widget.plim = plim
+                modulator_presets_window.polka_preset_param_widget.vlim = self.modulator.vlim
+                modulator_presets_window.polka_preset_param_widget.color1_spinbox.setValue(0)
+                modulator_presets_window.polka_preset_param_widget.color2_spinbox.setValue(0)
+
+                modulator_presets_window.register_preset_param_widget.plim = plim
+                modulator_presets_window.register_preset_param_widget.vlim = self.modulator.vlim
+                modulator_presets_window.register_preset_param_widget.amplitude_spinbox.setValue(0)
+                modulator_presets_window.register_preset_param_widget.mean_spinbox.setValue(0)
+
+                modulator_presets_window.text_preset_param_widget.plim = plim
+                modulator_presets_window.text_preset_param_widget.vlim = self.modulator.vlim
+                modulator_presets_window.text_preset_param_widget.foreground_spinbox.setValue(0)
+                modulator_presets_window.text_preset_param_widget.background_spinbox.setValue(0)
+
+                modulator_presets_window.dotf_preset_param_widget.plim = plim
+                modulator_presets_window.dotf_preset_param_widget.vlim = self.modulator.vlim
+                modulator_presets_window.dotf_preset_param_widget.amplitude_spinbox.setValue(0)
+
+                modulator_presets_window.pairwise_preset_param_widget.plim = plim
+                modulator_presets_window.pairwise_preset_param_widget.vlim = self.modulator.vlim
+                modulator_presets_window.pairwise_preset_param_widget.amplitude_spinbox.setValue(0)
+                modulator_presets_window.pairwise_preset_param_widget.dη_spinbox.setValue(0.017)
+                modulator_presets_window.pairwise_preset_param_widget.dξ_spinbox.setValue(0.008)
+                modulator_presets_window.pairwise_preset_param_widget.ξc_spinbox.setValue(35.0)
+                modulator_presets_window.pairwise_preset_param_widget.θ_spinbox.setValue(0.0)
 
         self.calibration_widget.fileChanged.connect(on_calibration_change)
 
@@ -500,17 +527,14 @@ class PresetsWindow(Window):
 
         self._sample = self.modulator.sample
 
-        self.vstr = 'adu'
-        self.vlim = [0, self.modulator.pxmax]
-        self.vrange = [0, 100]
+        self.pstr = 'adu'
+        self.plim = [0, 100]
         if self.modulator.calibration:
-            self.vstr = 'm'
-            self.vlim[0] = np.min(command_to_deflection(self.vlim[0], self.modulator.calibration["slope"], self.modulator.calibration["flat"]))
-            self.vlim[1] = np.max(command_to_deflection(self.vlim[1], self.modulator.calibration["slope"], self.modulator.calibration["flat"]))
-            self.vrange = [-50, 50]
+            self.pstr = 'm'
+            self.plim = [-50, 50]
 
-        self.preview_figure_widget = ModulatorFigureWidget(self.modulator.blank, (self.vlim[0], self.vlim[1]), parent=self)
-        self.preview_figure_widget.figure.get_cbar_axes().set_title(self.vstr, size=10)
+        self.preview_figure_widget = ModulatorFigureWidget(self.modulator.blank, self.modulator.vlim, parent=self)
+        self.preview_figure_widget.figure.get_cbar_axes().set_title(self.pstr, size=10)
 
         if self.preview_figure_widget.toolbar is not None:
             self.preview_figure_widget.toolbar.settingsClicked.connect(self.on_preview_settings_clicked)
@@ -586,42 +610,42 @@ class PresetsWindow(Window):
         preset_layout.addWidget(send_button)
         preset_layout.addWidget(add_button)
 
-        self.constant_preset_param_widget = ConstantPresetWidget(self.modulator.shape, self.vlim, self.vrange, self)
+        self.constant_preset_param_widget = ConstantPresetWidget(self.modulator.shape, self.plim, self.modulator.vlim, self)
         self.constant_preset_param_widget.changed.connect(on_preset_changed)
 
-        self.gradient_preset_param_widget = GradientPresetWidget(self.modulator.shape, self.vlim, self.vrange, self)
+        self.gradient_preset_param_widget = GradientPresetWidget(self.modulator.shape, self.plim, self.modulator.vlim, self)
         self.gradient_preset_param_widget.changed.connect(on_preset_changed)
         self.gradient_preset_param_widget.hide()
 
-        self.checker_preset_param_widget = CheckerPresetWidget(self.modulator.shape, self.vlim, self.vrange, self)
+        self.checker_preset_param_widget = CheckerPresetWidget(self.modulator.shape, self.plim, self.modulator.vlim, self)
         self.checker_preset_param_widget.changed.connect(on_preset_changed)
         self.checker_preset_param_widget.hide()
 
-        self.sinusoid_preset_param_widget = SinusoidPresetWidget(self.modulator.shape, self.vlim, self.vrange, self)
+        self.sinusoid_preset_param_widget = SinusoidPresetWidget(self.modulator.shape, self.plim, self.modulator.vlim, self)
         self.sinusoid_preset_param_widget.changed.connect(on_preset_changed)
         self.sinusoid_preset_param_widget.hide()
 
-        self.box_preset_param_widget = BoxPresetWidget(self.modulator.shape, self.vlim, self.vrange, self)
+        self.box_preset_param_widget = BoxPresetWidget(self.modulator.shape, self.plim, self.modulator.vlim, self)
         self.box_preset_param_widget.changed.connect(on_preset_changed)
         self.box_preset_param_widget.hide()
 
-        self.polka_preset_param_widget = PolkaPresetWidget(self.modulator.shape, self.vlim, self.vrange, self)
+        self.polka_preset_param_widget = PolkaPresetWidget(self.modulator.shape, self.plim, self.modulator.vlim, self)
         self.polka_preset_param_widget.changed.connect(on_preset_changed)
         self.polka_preset_param_widget.hide()
 
-        self.register_preset_param_widget = RegisterPresetWidget(self.modulator.shape, self.vlim, self.vrange, self)
+        self.register_preset_param_widget = RegisterPresetWidget(self.modulator.shape, self.plim, self.modulator.vlim, self)
         self.register_preset_param_widget.changed.connect(on_preset_changed)
         self.register_preset_param_widget.hide()
 
-        self.text_preset_param_widget = TextPresetWidget(self.modulator.shape, self.vlim, self.vrange, self)
+        self.text_preset_param_widget = TextPresetWidget(self.modulator.shape, self.plim, self.modulator.vlim, self)
         self.text_preset_param_widget.changed.connect(on_preset_changed)
         self.text_preset_param_widget.hide()
 
-        self.dotf_preset_param_widget = DOTFProbePresetWidget(self.modulator.shape, self.vlim, self.vrange, self)
+        self.dotf_preset_param_widget = DOTFProbePresetWidget(self.modulator.shape, self.plim, self.modulator.vlim, self)
         self.dotf_preset_param_widget.changed.connect(on_preset_changed)
         self.dotf_preset_param_widget.hide()
 
-        self.pairwise_preset_param_widget = PairwiseProbePresetWidget(self.modulator.shape, self.vlim, self.vrange, self)
+        self.pairwise_preset_param_widget = PairwiseProbePresetWidget(self.modulator.shape, self.plim, self.modulator.vlim, self)
         self.pairwise_preset_param_widget.changed.connect(on_preset_changed)
         self.pairwise_preset_param_widget.hide()
 
@@ -757,13 +781,10 @@ class PreviewWindow(Window):
         widget.setLayout(layout)
 
         vstr = 'adu'
-        vlim = [0, self.modulator.pxmax]
         if self.modulator.calibration:
             vstr = 'm'
-            vlim[0] = np.min(command_to_deflection(vlim[0], self.modulator.calibration["slope"], self.modulator.calibration["flat"]))
-            vlim[1] = np.max(command_to_deflection(vlim[1], self.modulator.calibration["slope"], self.modulator.calibration["flat"]))
 
-        self.preview_figure_widget = ModulatorFigureWidget(self.modulator.blank, (vlim[0], vlim[1]), parent=self)
+        self.preview_figure_widget = ModulatorFigureWidget(self.modulator.blank, self.modulator.vlim, parent=self)
         self.preview_figure_widget.figure.get_cbar_axes().set_title(vstr, size=10)
 
         if self.preview_figure_widget.toolbar is not None:
