@@ -60,7 +60,8 @@ class ProcessWorker(Worker):
         super().run()
 
         try:
-            self.count_sweep(self.amplitude_perc, self.n_steps)
+            amplitude = self.sink.vrange * self.amplitude_perc
+            self.count_sweep(amplitude, self.n_steps)
         except AssertionError as e:
             self.signals.error.emit(str(e))
 

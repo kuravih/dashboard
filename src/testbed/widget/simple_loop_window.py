@@ -33,7 +33,7 @@ class ProcessSettingsWidget(QWidget):
 
     def __init__(self, parent=None):
         _n_steps_min, _n_steps_max, _n_steps = 0, 9999, 9
-        _amplitude_perc_min, _amplitude_perc_max, _amplitude_perc = -100.0, 100.0, 10.0
+        _amplitude_perc_min, _amplitude_perc_max, _amplitude_perc = -10.0, 10.0, 1.0
         _sleep_s = 0.1
         super().__init__(parent)
 
@@ -46,11 +46,6 @@ class ProcessSettingsWidget(QWidget):
         self.amplitude_perc_spinbox.setSingleStep(1)
         self.amplitude_perc_spinbox.setToolTip("Command amplitude")
         self.amplitude_perc_spinbox.setValue(_amplitude_perc)
-
-        self.help_button = QPushButton("?", self)
-        self.help_button.setFixedWidth(self.amplitude_perc_spinbox.sizeHint().height())
-        self.help_button.setFixedHeight(self.amplitude_perc_spinbox.sizeHint().height())
-        self.help_button.clicked.connect(lambda: QToolTip.showText(QCursor.pos(), f"test {1}"))
 
         n_steps_label = QLabel("Steps", self)
         n_steps_label.setFixedWidth(100)
@@ -106,9 +101,7 @@ class ProcessSettingsWidget(QWidget):
         col = 0
         widget_layout.addWidget(amplitude_label, row, col)
         col += 1
-        widget_layout.addWidget(self.amplitude_perc_spinbox, row, col)
-        col += 1
-        widget_layout.addWidget(self.help_button, row, col)
+        widget_layout.addWidget(self.amplitude_perc_spinbox, row, col, 1, 3)
 
         row += 1
         col = 0
