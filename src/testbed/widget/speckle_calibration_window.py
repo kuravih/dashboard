@@ -280,7 +280,7 @@ class ProcessWindow(Window):
 
             timestamp = timestamp_string(frmt="%Y%m%d.%H%M%S", ms=None)
 
-            with open(f"data/output/{timestamp}_{testbed.SPECKLE_CALIBRATION}_parameters.pkl", "wb") as wbfile:
+            with open(f"data/output/{timestamp}_{testbed.SPECKLE_CALIBRATION}_variables.pkl", "wb") as wbfile:
                 parameters_dict = {"amplitudes": self.settings_widget.amplitude_perc, "frequencies": self.settings_widget.frequency_array, "angles": self.settings_widget.angle_deg_array, "phases": self.settings_widget.phase_deg_array}
                 cloudpickle.dump(parameters_dict, wbfile)
 
@@ -352,10 +352,10 @@ class ProcessWindow(Window):
         if testbed.data.is_worker_alive(ProcessWorker.wid):
             process_worker = cast(ProcessWorker, testbed.data.workers[ProcessWorker.wid])
             process_worker.stop()
-        if testbed.data.is_worker_alive(self.source.storage_worker_id):
+        if self.source is not None and testbed.data.is_worker_alive(self.source.storage_worker_id):
             source_storage_worker = cast(SourceStorageWorker, testbed.data.workers[self.source.storage_worker_id])
             source_storage_worker.stop()
-        if testbed.data.is_worker_alive(self.sink.storage_worker_id):
+        if self.sink is not None and testbed.data.is_worker_alive(self.sink.storage_worker_id):
             sink_storage_worker = cast(SinkStorageWorker, testbed.data.workers[self.sink.storage_worker_id])
             sink_storage_worker.stop()
         self.deleteLater()

@@ -325,7 +325,7 @@ class ContrastFigureWidget(FigureWidget):
     Contrast Figure widget
     """
 
-    def __init__(self, contrast: np.ndarray, n_iteration: int, dark_hole_mask: NDArray[np.bool], toolitems: list[str] | None = None, parent: QWidget | None = None):
+    def __init__(self, contrast: np.ndarray, n_iteration: int, dark_hole_mask: NDArray[np.float64], toolitems: list[str] | None = None, parent: QWidget | None = None):
         super().__init__(Contrast_Evolution_Plot_Preset(contrast, n_iteration, dark_hole_mask), toolitems, parent)
         self.setMinimumHeight(512)
 

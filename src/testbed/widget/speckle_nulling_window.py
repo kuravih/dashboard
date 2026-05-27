@@ -32,6 +32,8 @@ from . import DevicesSetupWidget, LinspaceWidget, TaskControlsWidget, Window, Fi
 
 logger = setup_logger(f"{testbed.SPECKLE_NULLING}_window", terminator="\n")
 
+RADIUS = 0.347798
+PORTION = 0.68
 
 # ==== ProcessSettingsWidget ==========================================================================================
 class ProcessSettingsWidget(QWidget):
@@ -41,7 +43,7 @@ class ProcessSettingsWidget(QWidget):
 
     def __init__(self, parent=None):
         _phase_deg_start, _phase_deg_stop, _phase_deg_steps = 0, 300, 6
-        _amplitude_perc_min, _amplitude_perc_max, _amplitude_perc_start, _amplitude_perc_stop, _amplitude_perc_steps = -100.0, 100.0, 0.0, 50.0, 11
+        _amplitude_perc_min, _amplitude_perc_max, _amplitude_perc_start, _amplitude_perc_stop, _amplitude_perc_steps = -100.0, 100.0, 0.0, 5.0, 11
         _n_iterations_min, _n_iterations_max, _n_iterations = 0, 9999, 10
         super().__init__(parent)
         self.dark_hole_mask = None  # chord(self.source.shape, self.source.shape[0] * 5 / 16, 0.6)
@@ -169,7 +171,7 @@ class ProcessSettingsWidget(QWidget):
         return np.deg2rad(self.phase_deg_array)
 
     @property
-    def amplitude_nm_array(self) -> np.ndarray:
+    def amplitude_perc_array(self) -> np.ndarray:
         return self.amplitude_perc_steps_linspace.value() / 100.0
 
     @property
@@ -197,7 +199,7 @@ class ProcessInfoWindow(Window):
 
     wid = f"{testbed.SPECKLE_NULLING}_info_window"
 
-    def __init__(self, phase_deg_lim: tuple[float, float], phase_deg_array: np.ndarray, amplitude_nm_lim: tuple[float, float], amplitude_nm_array: np.ndarray, parent: QWidget | None = None):
+    def __init__(self, phase_deg_lim: tuple[float, float], phase_deg_array: np.ndarray, amplitude_perc_lim: tuple[float, float], amplitude_perc_array: np.ndarray, parent: QWidget | None = None):
         super().__init__(parent, Qt.WindowType.Dialog)
 
         self.phase_deg_lim = phase_deg_lim
@@ -209,14 +211,14 @@ class ProcessInfoWindow(Window):
         self.phase_deg_intensity_fit_y_data = np.ones_like(self.phase_deg_intensity_fit_x_data) * np.nan
         self.phase_deg_solve = np.nan
 
-        self.amplitude_nm_lim = amplitude_nm_lim
-        self.amplitude_nm_array = amplitude_nm_array
-        self.amplitude_nm_intensity_data_array = np.ones_like(amplitude_nm_array) * np.nan
+        self.amplitude_perc_lim = amplitude_perc_lim
+        self.amplitude_perc_array = amplitude_perc_array
+        self.amplitude_perc_intensity_data_array = np.ones_like(amplitude_perc_array) * np.nan
 
-        self.amplitude_nm_intensity_fit = None, None, None
-        self.amplitude_nm_intensity_fit_x_data = np.linspace(amplitude_nm_lim[0], amplitude_nm_lim[-1], 101)
-        self.amplitude_nm_intensity_fit_y_data = np.ones_like(self.amplitude_nm_intensity_fit_x_data) * np.nan
-        self.amplitude_nm_solve = np.nan
+        self.amplitude_perc_intensity_fit = None, None, None
+        self.amplitude_perc_intensity_fit_x_data = np.linspace(amplitude_perc_lim[0], amplitude_perc_lim[-1], 101)
+        self.amplitude_perc_intensity_fit_y_data = np.ones_like(self.amplitude_perc_intensity_fit_x_data) * np.nan
+        self.amplitude_perc_solve = np.nan
 
         self.setWindowTitle("Speckle Nulling")
 
@@ -246,24 +248,24 @@ class ProcessInfoWindow(Window):
 
     @Slot(np.ndarray)
     def on_amplitude_swept(self, intensity: np.ndarray):
-        self.amplitude_nm_intensity_data_array[:] = intensity[:]
+        self.amplitude_perc_intensity_data_array[:] = intensity[:]
         self.process_info_figure.amp_ax.relim()
         self.process_info_figure.amp_ax.autoscale_view(scalex=False, scaley=True)
 
     @Slot(float, float, float)
     def on_amplitude_fitted(self, fit_a: float, fit_x0: float, fit_c: float):
-        self.amplitude_nm_intensity_fit_y_data = quadratic_fit_fn(self.amplitude_nm_intensity_fit_x_data, fit_a, fit_x0, fit_c)
+        self.amplitude_perc_intensity_fit_y_data = quadratic_fit_fn(self.amplitude_perc_intensity_fit_x_data, fit_a, fit_x0, fit_c)
 
     @Slot(float)
     def on_amplitude_solved(self, solve: float):
-        self.amplitude_nm_solve = solve
+        self.amplitude_perc_solve = solve
 
     def setup_info_widget(self) -> QWidget:
         widget = QWidget(self)
         layout = QVBoxLayout(widget)
         layout.setContentsMargins(2, 2, 2, 2)
         widget.setLayout(layout)
-        self.process_info_figure = SpeckleNullingFigureWidget(self.phase_deg_lim, self.amplitude_nm_lim, ["Home", "Pan", "Zoom", "Save"], parent=self)
+        self.process_info_figure = SpeckleNullingFigureWidget(self.phase_deg_lim, self.amplitude_perc_lim, ["Home", "Pan", "Zoom", "Save"], parent=self)
         layout.addWidget(self.process_info_figure)
         return widget
 
@@ -272,9 +274,9 @@ class ProcessInfoWindow(Window):
         self.process_info_figure.set_phs_data_plot(self.phase_deg_array, self.phase_deg_intensity_data_array)
         self.process_info_figure.set_phs_fit_plot(self.phase_deg_intensity_fit_x_data, self.phase_deg_intensity_fit_y_data)
         self.process_info_figure.set_phs_solve(self.phase_deg_solve)
-        self.process_info_figure.set_amp_data_plot(self.amplitude_nm_array, self.amplitude_nm_intensity_data_array)
-        self.process_info_figure.set_amp_fit_plot(self.amplitude_nm_intensity_fit_x_data, self.amplitude_nm_intensity_fit_y_data)
-        self.process_info_figure.set_amp_solve(self.amplitude_nm_solve)
+        self.process_info_figure.set_amp_data_plot(self.amplitude_perc_array, self.amplitude_perc_intensity_data_array)
+        self.process_info_figure.set_amp_fit_plot(self.amplitude_perc_intensity_fit_x_data, self.amplitude_perc_intensity_fit_y_data)
+        self.process_info_figure.set_amp_solve(self.amplitude_perc_solve)
         self.process_info_figure.figure.canvas.draw_idle()
 
     def closeEvent(self, event):
@@ -396,7 +398,7 @@ class ProcessPreviewWindow(Window):
         layout = QVBoxLayout(widget)
         layout.setContentsMargins(2, 2, 2, 2)
         widget.setLayout(layout)
-        self.process_preview_figure_widget = ContrastFigureWidget(self.measure_map, self.n_iterations, dark_hole_mask=self.dark_hole_mask, parent=self)
+        self.process_preview_figure_widget = ContrastFigureWidget(self.measure_map, self.n_iterations, dark_hole_mask=np.where(self.dark_hole_mask, 0.0, 0.5), parent=self)
         if self.process_preview_figure_widget.toolbar is not None:
             self.process_preview_figure_widget.toolbar.settingsClicked.connect(self.on_preview_settings_clicked)
         layout.addWidget(self.process_preview_figure_widget)
@@ -519,7 +521,8 @@ class ProcessWindow(Window):
     def on_source_changed(self, device: Camera):
         self.source = device
         if self.source is not None:
-            self.settings_widget.dark_hole_mask = chord(self.source.shape, self.source.shape[0] * 5 / 16, 0.6)
+            self.settings_widget.dark_hole_mask = chord(self.source.shape, self.source.shape[0] * RADIUS, PORTION)
+
         self.update_process_controls()
         if testbed.data.is_window_alive(ProcessInfoWindow.wid):
             process_info_window = cast(ProcessInfoWindow, testbed.data.windows.pop(ProcessInfoWindow.wid))
@@ -608,7 +611,7 @@ class ProcessWindow(Window):
                 process_worker.stop()
                 return
 
-            process_worker = ProcessWorker(self.source, self.sink, self.settings_widget.dark_hole_mask, self.speckle_calibration, self.settings_widget.phase_rad_array, self.settings_widget.amplitude_nm_array, self.settings_widget.n_iterations)
+            process_worker = ProcessWorker(self.source, self.sink, self.settings_widget.dark_hole_mask, self.speckle_calibration, self.settings_widget.phase_rad_array, self.settings_widget.amplitude_perc_array, self.settings_widget.n_iterations)
             process_worker.signals.progressTicked.connect(self.on_progress_tick)
             process_worker.signals.finished.connect(self.on_process_finished)
             process_worker.signals.error.connect(self.on_process_error)
@@ -668,7 +671,7 @@ class ProcessWindow(Window):
             testbed.data.windows.pop(ProcessInfoWindow.wid, None)
 
         if not testbed.data.is_window_alive(ProcessInfoWindow.wid) and self.source is not None and self.sink is not None:
-            process_info_window = ProcessInfoWindow([0, 360], self.settings_widget.phase_deg_array, [self.settings_widget.amplitude_nm_array[0], self.settings_widget.amplitude_nm_array[-1]], self.settings_widget.amplitude_nm_array, parent=self)
+            process_info_window = ProcessInfoWindow([0, 360], self.settings_widget.phase_deg_array, [self.settings_widget.amplitude_perc_array[0], self.settings_widget.amplitude_perc_array[-1]], self.settings_widget.amplitude_perc_array, parent=self)
             process_info_window.destroyed.connect(on_window_closed)
             process_info_window.show()
             process_info_window.raise_()

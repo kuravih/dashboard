@@ -14,13 +14,13 @@ import matplotlib.patches as patches
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 
 from pykato.plotfunction.gridspec_layout import GridSpec_Layout
-from pykato.plotfunction.preset import monkeypatch_AxesImage_alpha_mask_show, monkeypatch_AxesImage_cmap_name, monkeypatch_AxesImage_cmap_norm, Imshow_Colorbar_Preset, Complex_ImageGrid_TwoColorbars_Preset, Complex_Imshow_TwoColorbars_Preset, Histogram_Colorbar_Preset
+from pykato.plotfunction.preset import monkeypatch_Axes_mask_image, monkeypatch_AxesImage_alpha_mask_show, monkeypatch_AxesImage_cmap_name, monkeypatch_AxesImage_cmap_norm, Imshow_Colorbar_Preset, Complex_ImageGrid_TwoColorbars_Preset, Complex_Imshow_TwoColorbars_Preset, Histogram_Colorbar_Preset
 from pykato.log import setup_logger
 
 logger = setup_logger("preset", terminator="\n")
 
 
-def Image_Plot_Preset(capture: NDArray[np.uint16 | np.float64], cmap_norm: Normalize | None = None, cmap_name: str | None = None, alpha_mask: NDArray[np.bool] | None = None, figure: Figure | None = None) -> Figure:
+def Image_Plot_Preset(capture: NDArray[np.uint16 | np.float64], cmap_norm: Normalize | None = None, cmap_name: str | None = None, alpha_mask: NDArray[float] | None = None, figure: Figure | None = None) -> Figure:
     """
     Plot preset used to display source images.
 
@@ -64,7 +64,7 @@ def Image_Plot_Preset(capture: NDArray[np.uint16 | np.float64], cmap_norm: Norma
     return figure
 
 
-def Wavefront_Plot_Preset(wavefront: NDArray[np.complex64], abs_min: float | None = None, abs_max: float | None = None, figure: Figure | None = None) -> Figure:
+def Wavefront_Plot_Preset(wavefront: NDArray[np.complex128], abs_min: float | None = None, abs_max: float | None = None, figure: Figure | None = None) -> Figure:
     """
     Plot preset used to illustrate wavefronts.
 
@@ -72,7 +72,7 @@ def Wavefront_Plot_Preset(wavefront: NDArray[np.complex64], abs_min: float | Non
         figure = Wavefront_Plot_Preset(wavefront)
     """
 
-    figure = Complex_Imshow_TwoColorbars_Preset(wavefront, abs_min, abs_max)
+    figure = Complex_Imshow_TwoColorbars_Preset(wavefront, abs_min, abs_max, figure)
     figure.get_imshow_axes().set_xlabel("px", size=10)
     figure.get_imshow_axes().set_ylabel("px", size=10)
 
@@ -219,7 +219,7 @@ def Speckle_Modulation_Plot_Preset(phs_lim: tuple[float, float], amp_lim: tuple[
     return figure
 
 
-def Contrast_Evolution_Plot_Preset(contrast: np.ndarray, n_iteration: int, dark_hole_mask: NDArray[np.bool], figure: Figure | None = None) -> Figure:
+def Contrast_Evolution_Plot_Preset(contrast: np.ndarray, n_iteration: int, dark_hole_mask: NDArray[np.float64], figure: Figure | None = None) -> Figure:
     """
     Plot preset used to illustrate contrast evolution.
     Consists of and Imshow axis and corresponding colorbar for contrast and a plot for change in contrast with iteration.
@@ -330,8 +330,8 @@ def Contrast_Evolution_Plot_Preset(contrast: np.ndarray, n_iteration: int, dark_
     monkeypatch_AxesImage_cmap_norm(imshow_image)
     imshow_image.set_cmap_norm(LogNorm(1, 1e-5))
 
-    # monkeypatch_AxesImage_alpha_mask_show(imshow_image, dark_hole_mask, 'black')
-    # imshow_image.set_alpha_mask_show(True)
+    monkeypatch_Axes_mask_image(image_ax, dark_hole_mask)
+    image_ax.get_mask().set_cmap("gray")
 
     return figure
 

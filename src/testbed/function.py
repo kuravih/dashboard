@@ -489,7 +489,7 @@ def is_camera_calibration_file_valid(filename: str, shape: tuple[int, int]) -> b
         return True
 
 
-def read_camera_calibration_file(filename: str, roi: dict[str, tuple[int, int]] | None = None) -> dict:
+def read_camera_calibration_file(filename: str, roi: dict[str, tuple[int, int]] | None = None) -> dict[str, np.ndarray | float | int]:
     """
     Load dark_rate, bias, read_noise, quantum_efficiency, full_well_capacity, and bit_depth from a camera calibration FITS file.
 
@@ -978,92 +978,6 @@ def pairwise_probe(shape: tuple[int, int], dξ: float, dη: float, ξc: float, �
         return np.rot90(_pairwise_probe(shape, dξ, dη, ξc, θ))
 
 
-def pairwise_estimation_matrices(Δp_1: NDArray[np.complex64], Δp_2: NDArray[np.complex64]) -> tuple[float | np.ndarray, float | np.ndarray, float | np.ndarray, float | np.ndarray]:
-    """
-    Compute the inversion matrices for pairwise wavefront estimation from two complex probe fields.
-
-    Parameters:
-        Δp_1: NDArray[np.complex64]
-            Complex probe field for probe pair 1.
-        Δp_2: NDArray[np.complex64]
-            Complex probe field for probe pair 2.
-
-    Returns: tuple[NDArray, NDArray, NDArray, NDArray]
-        Inversion matrix elements (p, q, r, s).
-    """
-    return invert_2x2_arrays(-2 * np.imag(Δp_1), 2 * np.real(Δp_1), -2 * np.imag(Δp_2), 2 * np.real(Δp_2))
-
-
-def pairwise_estimate(intensity_p1: NDArray[np.float64], intensity_m1: NDArray[np.float64], intensity_p2: NDArray[np.float64], intensity_m2: NDArray[np.float64], pqrs: tuple[NDArray[np.float64], NDArray[np.float64], NDArray[np.float64], NDArray[np.float64]]) -> NDArray[np.complex64]:
-    """
-    Estimate the complex electric field from pairwise intensity differences using the inversion matrices.
-
-    Parameters:
-        intensity_p1: NDArray[np.float64]
-            Positive-probe intensity for pair 1.
-        intensity_m1: NDArray[np.float64]
-            Negative-probe intensity for pair 1.
-        intensity_p2: NDArray[np.float64]
-            Positive-probe intensity for pair 2.
-        intensity_m2: NDArray[np.float64]
-            Negative-probe intensity for pair 2.
-        pqrs: tuple[NDArray, NDArray, NDArray, NDArray]
-            Inversion matrix elements (p, q, r, s) from pairwise_estimation_matrices.
-
-    Returns: NDArray[np.complex64]
-        Estimated complex electric field.
-    """
-    p, q, r, s = pqrs
-    δ1 = (intensity_p1 - intensity_m1) / 2
-    δ2 = (intensity_p2 - intensity_m2) / 2
-    re_field = p * δ1 + q * δ2
-    im_field = r * δ1 + s * δ2
-    return re_field + 1j * im_field
-
-
-def pairwise_estimation_matrices_2(φ_1: NDArray[np.complex64], φ_2: NDArray[np.complex64]) -> tuple[float | np.ndarray, float | np.ndarray, float | np.ndarray, float | np.ndarray]:
-    """
-    Compute the inversion matrices for pairwise estimation using the imaginary-probe formulation.
-
-    Parameters:
-        φ_1: NDArray[np.complex64]
-            Complex probe field for pair 1.
-        φ_2: NDArray[np.complex64]
-            Complex probe field for pair 2.
-
-    Returns: tuple[NDArray, NDArray, NDArray, NDArray]
-        Inversion matrix elements (p, q, r, s).
-    """
-    return invert_2x2_arrays(4 * np.real(1j * φ_1), 4 * np.imag(1j * φ_1), 4 * np.real(1j * φ_2), 4 * np.imag(1j * φ_2))
-
-
-def pairwise_estimate_2(intensity_p1: NDArray[np.float64], intensity_m1: NDArray[np.float64], intensity_p2: NDArray[np.float64], intensity_m2: NDArray[np.float64], pqrs: tuple[NDArray[np.float64], NDArray[np.float64], NDArray[np.float64], NDArray[np.float64]]) -> NDArray[np.complex64]:
-    """
-    Estimate the complex electric field using the imaginary-probe pairwise formulation.
-
-    Parameters:
-        intensity_p1: NDArray[np.float64]
-            Positive-probe intensity for pair 1.
-        intensity_m1: NDArray[np.float64]
-            Negative-probe intensity for pair 1.
-        intensity_p2: NDArray[np.float64]
-            Positive-probe intensity for pair 2.
-        intensity_m2: NDArray[np.float64]
-            Negative-probe intensity for pair 2.
-        pqrs: tuple[NDArray, NDArray, NDArray, NDArray]
-            Inversion matrix elements (p, q, r, s) from pairwise_estimation_matrices_2.
-
-    Returns: NDArray[np.complex64]
-        Estimated complex electric field.
-    """
-    p, q, r, s = pqrs
-    δ1 = intensity_p1 - intensity_m1
-    δ2 = intensity_p2 - intensity_m2
-    re_field = p * δ1 + q * δ2
-    im_field = r * δ1 + s * δ2
-    return re_field + 1j * im_field
-
-
 def is_pairwise_calibration_file_valid(filename: str) -> bool:
     """
     Return True if the pairwise calibration pickle file contains entries for both probes 1 and 2.
@@ -1084,7 +998,7 @@ def is_pairwise_calibration_file_valid(filename: str) -> bool:
     return True
 
 
-def read_pairwise_calibration_file(filename: str) -> tuple[dict[int, NDArray[np.float64 | np.complex64]], float, float, float, float]:
+def read_pairwise_calibration_file(filename: str) -> tuple[dict[int, NDArray[np.complex128]], float, float, float, float]:
     """
     Load and return pairwise calibration data from a pickle file.
 
@@ -1092,14 +1006,14 @@ def read_pairwise_calibration_file(filename: str) -> tuple[dict[int, NDArray[np.
         filename: str
             Path to the pairwise calibration pickle file.
 
-    Returns: tuple[dict[int, NDArray], float, float, float, float]
+    Returns: tuple[dict[int, NDArray[np.complex128]], float, float, float, float]
         Calibration dict keyed by probe index, amplitude_m, ξc, dξ, dη.
     """
     with open(filename, "rb") as rbfile:
         return cloudpickle.load(rbfile)
 
 
-def write_pairwise_calibration_file(pairwise_calibration_dict: tuple[dict[int, NDArray[np.float64 | np.complex64]], float, float, float, float], filename: str):
+def write_pairwise_calibration_file(pairwise_calibration_dict: tuple[dict[int, NDArray[np.complex128]], float, float, float, float], filename: str):
     """
     Serialize pairwise calibration data to a pickle file.
 
@@ -1111,3 +1025,46 @@ def write_pairwise_calibration_file(pairwise_calibration_dict: tuple[dict[int, N
     """
     with open(filename, "wb") as wbfile:
         cloudpickle.dump(pairwise_calibration_dict, wbfile)
+
+
+def pairwise_estimate(I_p1: NDArray[np.float64], I_m1: NDArray[np.float64], I_p2: NDArray[np.float64], I_m2: NDArray[np.float64], pqrs: tuple[NDArray[np.float64], NDArray[np.float64], NDArray[np.float64], NDArray[np.float64]]) -> NDArray[np.complex128]:
+    """
+    Estimate the complex electric field using the imaginary-probe pairwise formulation.
+
+    Parameters:
+        I_p1: NDArray[np.float64]
+            Intensity for positive probe 1.
+        I_m1: NDArray[np.float64]
+            Intensity for negative probe 1.
+        I_p2: NDArray[np.float64]
+            Intensity for positive probe 2.
+        I_m2: NDArray[np.float64]
+            Intensity for negative probe 2.
+        pqrs: tuple[NDArray, NDArray, NDArray, NDArray]
+            Inversion matrix elements (p, q, r, s) from pairwise_estimation_matrices.
+
+    Returns: NDArray[np.complex64]
+        Estimated complex electric field.
+    """
+    p, q, r, s = pqrs
+    δ1 = I_p1 - I_m1
+    δ2 = I_p2 - I_m2
+    re_field = p * δ1 + q * δ2
+    im_field = r * δ1 + s * δ2
+    return re_field + 1j * im_field
+
+
+def pairwise_estimation_matrices(iCAψ_1: NDArray[np.complex128], iCAψ_2: NDArray[np.complex128]) -> tuple[NDArray[float], NDArray[float], NDArray[float], NDArray[float]]:
+    """
+    Compute the inversion matrices for pairwise wavefront estimation from two complex probe fields.
+
+    Parameters:
+        iCAψ_1: NDArray[np.complex64]
+            Complex probe field for probe 1.
+        iCAψ_2: NDArray[np.complex64]
+            Complex probe field for probe 2.
+
+    Returns: tuple[NDArray, NDArray, NDArray, NDArray]
+        Inversion matrix elements (p, q, r, s).
+    """
+    return invert_2x2_arrays(np.real(iCAψ_1), np.imag(iCAψ_1), np.real(iCAψ_2), np.imag(iCAψ_2))

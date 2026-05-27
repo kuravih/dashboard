@@ -27,7 +27,7 @@ class TestPlotPreset(unittest.TestCase):
         n_iteration = 100
         dark_hole_mask = np.zeros_like(contrast, dtype=np.bool)
 
-        contrast_evolution_figure = Contrast_Evolution_Plot_Preset(contrast, n_iteration, dark_hole_mask)
+        contrast_evolution_figure = Contrast_Evolution_Plot_Preset(contrast, n_iteration, np.where(dark_hole_mask, 0.0, 0.5))
         self.assertIsInstance(contrast_evolution_figure, Figure, "Figure not created by gridspec_layout.GridSpec_Layout")
         contrast_evolution_figure.set_figwidth(10)
 

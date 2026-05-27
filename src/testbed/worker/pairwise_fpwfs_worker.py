@@ -6,7 +6,7 @@ from numpy.typing import NDArray
 from pykato.log import setup_logger
 
 import testbed
-from ..function import pairwise_probe, PairwiseProbeDirection, pairwise_estimation_matrices, pairwise_estimate
+from ..function import pairwise_probe, PairwiseProbeDirection
 from ..device import SourceSample, SinkSample
 from ..device.camera import Camera
 from ..device.modulator import Modulator
