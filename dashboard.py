@@ -17,6 +17,8 @@ from testbed.widget.modulator_window import PreviewWindow as ModulatorPreviewWin
 from testbed.worker.modulator_worker import ProcessWorker as ModulatorSamplingWorker
 
 from testbed.widget.simple_loop_window import ProcessWindow as SimpleLoopWindow
+from testbed.widget.capture_loop_window import ProcessWindow as CaptureLoopWindow
+from testbed.widget.speckle_capture_window import ProcessWindow as SpeckleCaptureWindow
 from testbed.widget.speckle_calibration_window import ProcessWindow as SpeckleCalibrationWindow
 from testbed.widget.speckle_nulling_window import ProcessWindow as SpeckleNullingWindow
 from testbed.widget.recenter_window import ProcessWindow as RecenterWindow
@@ -65,6 +67,12 @@ class MainWindow(QMainWindow):
         simple_loop_button = QPushButton("Simple Process")
         simple_loop_button.clicked.connect(self.on_simple_loop_clicked)
 
+        capture_loop_button = QPushButton("Capture Process")
+        capture_loop_button.clicked.connect(self.on_capture_loop_clicked)
+
+        speckle_capture_button = QPushButton("Speckle Capture Process")
+        speckle_capture_button.clicked.connect(self.on_speckle_capture_clicked)
+
         speckle_calibration_button = QPushButton("Speckle Calibration Process")
         speckle_calibration_button.clicked.connect(self.on_open_speckle_calibration_clicked)
 
@@ -93,6 +101,8 @@ class MainWindow(QMainWindow):
         layout.addWidget(self.table)
         layout.addLayout(device_button_layout)
         layout.addWidget(simple_loop_button)
+        layout.addWidget(capture_loop_button)
+        layout.addWidget(speckle_capture_button)
         layout.addWidget(speckle_calibration_button)
         layout.addWidget(speckle_nulling_button)
         layout.addWidget(recenter_button)
@@ -347,6 +357,36 @@ class MainWindow(QMainWindow):
             simple_loop_window.raise_()
             simple_loop_window.activateWindow()
             testbed.data.windows[SimpleLoopWindow.wid] = simple_loop_window
+
+    @Slot()
+    def on_capture_loop_clicked(self):
+
+        @Slot()
+        def on_window_closed():
+            testbed.data.windows.pop(CaptureLoopWindow.wid, None)
+
+        if not testbed.data.is_window_alive(CaptureLoopWindow.wid):
+            capture_window = CaptureLoopWindow(self)
+            capture_window.destroyed.connect(on_window_closed)
+            capture_window.show()
+            capture_window.raise_()
+            capture_window.activateWindow()
+            testbed.data.windows[CaptureLoopWindow.wid] = capture_window
+
+    @Slot()
+    def on_speckle_capture_clicked(self):
+
+        @Slot()
+        def on_window_closed():
+            testbed.data.windows.pop(SpeckleCaptureWindow.wid, None)
+
+        if not testbed.data.is_window_alive(SpeckleCaptureWindow.wid):
+            speckle_capture_window = SpeckleCaptureWindow(self)
+            speckle_capture_window.destroyed.connect(on_window_closed)
+            speckle_capture_window.show()
+            speckle_capture_window.raise_()
+            speckle_capture_window.activateWindow()
+            testbed.data.windows[SpeckleCaptureWindow.wid] = speckle_capture_window
 
     @Slot()
     def on_open_speckle_calibration_clicked(self):

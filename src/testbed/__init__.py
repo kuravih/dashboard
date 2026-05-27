@@ -9,6 +9,14 @@ SIMPLE_LOOP = "simple_loop"
 from .widget.simple_loop_window import ProcessWindow as SimpleLoopWindow
 from .worker.simple_loop_worker import ProcessWorker as SimpleLoopWorker
 
+CAPTURE_LOOP = "capture_loop"
+from .widget.capture_loop_window import ProcessWindow as CaptureLoopWindow
+from .worker.capture_loop_worker import ProcessWorker as CaptureLoopWorker
+
+SPECKLE_CAPTURE_LOOP = "speckle_capture_loop"
+from .widget.speckle_capture_window import ProcessWindow as SpeckleCaptureLoopWindow
+from .worker.speckle_capture_worker import ProcessWorker as SpeckleCaptureLoopWorker
+
 SPECKLE_CALIBRATION = "speckle_calibration"
 from .widget.speckle_calibration_window import ProcessWindow as SpeckleCalibrationWindow
 from .worker.speckle_calibration_worker import ProcessWorker as SpeckleCalibrationWorker
@@ -41,8 +49,8 @@ from .worker.storage_worker import SourceStorageWorker, SinkStorageWorker
 class Data:
     threadpool = QThreadPool.globalInstance()
     devices: dict[str, Camera | Modulator] = {}
-    windows: dict[str, CameraPreviewWindow | CameraInfoWindow | CameraSettingsWindow | ModulatorPreviewWindow | ModulatorInfoWindow | ModulatorSettingsWindow | ModulatorPresetsWindow | SimpleLoopWindow | SpeckleCalibrationWindow | SpeckleNullingWindow | SpeckleNullingPreviewWindow | SpeckleNullingInfoWindow | RecenterWindow | CameraCalibrationWindow | DOTFMeasurementWindow | PairwiseFPWFSWindow] = {}
-    workers: dict[str, CameraSamplingWorker | ModulatorSamplingWorker | SourceStorageWorker | SinkStorageWorker | SimpleLoopWorker | SpeckleCalibrationWorker | SpeckleNullingWorker | RecenterWorker | CameraCalibrationWorker | DOTFMeasurementWorker | PairwiseFPWFSWorker] = {}
+    windows: dict[str, CameraPreviewWindow | CameraInfoWindow | CameraSettingsWindow | ModulatorPreviewWindow | ModulatorInfoWindow | ModulatorSettingsWindow | ModulatorPresetsWindow | SimpleLoopWindow | CaptureLoopWindow | SpeckleCaptureLoopWindow | SpeckleCalibrationWindow | SpeckleNullingWindow | SpeckleNullingPreviewWindow | SpeckleNullingInfoWindow | RecenterWindow | CameraCalibrationWindow | DOTFMeasurementWindow | PairwiseFPWFSWindow] = {}
+    workers: dict[str, CameraSamplingWorker | ModulatorSamplingWorker | SourceStorageWorker | SinkStorageWorker | SimpleLoopWorker | CaptureLoopWorker | SpeckleCaptureLoopWorker | SpeckleCalibrationWorker | SpeckleNullingWorker | RecenterWorker | CameraCalibrationWorker | DOTFMeasurementWorker | PairwiseFPWFSWorker] = {}
 
     @classmethod
     def is_device_alive(cls, name: str) -> bool:
