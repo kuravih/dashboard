@@ -8,7 +8,7 @@ from PySide6.QtGui import QIcon, QCursor, QPixmap, QPainter, QColor
 from ..device import Device
 from ..device.camera import Camera
 from ..device.modulator import Modulator
-from ..widget.resource import ICON_RUN, ICON_EYE, ICON_UP_ARROW, ICON_DOWN_ARROW, ICON_LEFT_ARROW, ICON_RIGHT_ARROW, ICON_INFO, ICON_GEAR, ICON_FOLDER, ICON_BACKSPACE, ICON_PLUS, ICON_MINUS
+from ..widget.resource import ICON_FOLDER_OPEN, ICON_RUN, ICON_EYE, ICON_UP_ARROW, ICON_DOWN_ARROW, ICON_LEFT_ARROW, ICON_RIGHT_ARROW, ICON_INFO, ICON_BACKSPACE, ICON_PLUS, ICON_MINUS
 from ..widget.dialog import MessageDialog
 from ..function import Rotation, Flip, DOTFProbeDirection, PairwiseProbeDirection
 
@@ -814,7 +814,7 @@ class FileLoadWidget(QWidget):
         self.file_lineedit.setText("")
         self.file_lineedit.setToolTip("File")
 
-        self.file_browse_button = IconButton(QIcon(ICON_FOLDER), parent=self)
+        self.file_browse_button = IconButton(QIcon(ICON_FOLDER_OPEN), parent=self)
         self.file_browse_button.setToolTip("Browse")
 
         self.file_clear_button = IconButton(QIcon(ICON_BACKSPACE), parent=self)

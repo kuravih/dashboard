@@ -8,7 +8,7 @@ from ..device import SourceSample, SinkSample
 from ..device.camera import Camera
 from . import Worker, WorkerSignals
 
-logger = setup_logger(f"{testbed.SIMPLE_LOOP}_worker", terminator="\n")
+logger = setup_logger(f"{testbed.CAPTURE_LOOP}_worker", terminator="\n")
 
 
 class ProcessWorkerSignals(WorkerSignals):
@@ -18,16 +18,13 @@ class ProcessWorkerSignals(WorkerSignals):
 
 class ProcessWorker(Worker):
 
-    wid = f"{testbed.SIMPLE_LOOP}_worker"
+    wid = f"{testbed.CAPTURE_LOOP}_worker"
 
     def __init__(self, source: Camera, n_steps: int = 0):
         self.signals = ProcessWorkerSignals()
         self.source = source
         self.n_steps = n_steps
-        if self.n_steps:
-            super().__init__(self.n_steps + 1)  # blank at the end
-        else:
-            super().__init__(0)
+        super().__init__(self.n_steps + 1)  # blank at the end
 
     def count_sweep(self, n_steps: int = 0):
         i_step = 0
@@ -60,6 +57,6 @@ class ProcessWorker(Worker):
         self.signals.progressTicked.emit(self.i_tick, time.time() - self.t_start)
         # ---- zero ---------------------------------------------------------------------------------------------------
 
-        logger.info("simple_loop_worker.py - ProcessWorker() finished")
+        logger.info("capture_loop_worker.py - ProcessWorker() finished")
         self.stop()
         self.signals.finished.emit()

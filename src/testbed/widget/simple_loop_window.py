@@ -4,8 +4,8 @@ from typing import TYPE_CHECKING, cast
 from pykato.function import timestamp_string
 from pykato.log import setup_logger
 from PySide6.QtCore import Qt, Slot
-from PySide6.QtGui import QIcon, QCursor
-from PySide6.QtWidgets import QCheckBox, QDoubleSpinBox, QGridLayout, QHBoxLayout, QLabel, QSpinBox, QVBoxLayout, QWidget, QMessageBox, QPushButton, QToolTip
+from PySide6.QtGui import QIcon
+from PySide6.QtWidgets import QCheckBox, QDoubleSpinBox, QGridLayout, QHBoxLayout, QLabel, QSpinBox, QVBoxLayout, QWidget, QMessageBox
 
 import testbed
 

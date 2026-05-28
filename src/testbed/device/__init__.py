@@ -84,15 +84,15 @@ class Device:
     @property
     def info_window_id(self) -> str:
         return f"{self.name}_info_window"
-    
+
     @property
     def settings_window_id(self) -> str:
         return f"{self.name}_settings_window"
-    
+
     @property
     def sampling_worker_id(self) -> str:
         return f"{self.name}_sampling_worker"
-    
+
     @property
     def storage_worker_id(self) -> str:
         return f"{self.name}_storage_worker"

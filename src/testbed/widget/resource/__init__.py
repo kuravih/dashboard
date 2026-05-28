@@ -40,4 +40,4 @@ ICON_SUN = get_path("sun-solid-full.svg")
 ICON_PAPER_PLANE = get_path("paper-plane-solid-full.svg")
 ICON_PLUS = get_path("plus-solid-full.svg")
 ICON_MINUS = get_path("minus-solid-full.svg")
-
+ICON_FOLDER_OPEN = get_path("folder-open-solid.svg")

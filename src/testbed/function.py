@@ -2,6 +2,7 @@ import cloudpickle
 from enum import Enum, IntEnum, auto
 import struct
 import numpy as np
+import toml
 from datetime import datetime
 
 from numpy.typing import NDArray
@@ -863,7 +864,7 @@ def power_to_capture(power: np.ndarray, exp_time_s: float, dark_rate: np.ndarray
     # Saturate well
     if full_well_capacity is not None:
         signal_e = np.clip(signal_e, 0, full_well_capacity)
- 
+
     # photo-electrons to adu conversion
     capture = signal_e * gain + bias
 
@@ -1043,7 +1044,7 @@ def pairwise_estimate(I_p1: NDArray[np.float64], I_m1: NDArray[np.float64], I_p2
         pqrs: tuple[NDArray, NDArray, NDArray, NDArray]
             Inversion matrix elements (p, q, r, s) from pairwise_estimation_matrices.
 
-    Returns: NDArray[np.complex64]
+    Returns: NDArray[np.complex128]
         Estimated complex electric field.
     """
     p, q, r, s = pqrs
@@ -1059,12 +1060,33 @@ def pairwise_estimation_matrices(iCAψ_1: NDArray[np.complex128], iCAψ_2: NDArr
     Compute the inversion matrices for pairwise wavefront estimation from two complex probe fields.
 
     Parameters:
-        iCAψ_1: NDArray[np.complex64]
+        iCAψ_1: NDArray[np.complex128]
             Complex probe field for probe 1.
-        iCAψ_2: NDArray[np.complex64]
+        iCAψ_2: NDArray[np.complex128]
             Complex probe field for probe 2.
 
     Returns: tuple[NDArray, NDArray, NDArray, NDArray]
         Inversion matrix elements (p, q, r, s).
     """
     return invert_2x2_arrays(np.real(iCAψ_1), np.imag(iCAψ_1), np.real(iCAψ_2), np.imag(iCAψ_2))
+
+
+def speckle_preset_validator(filepath: str) -> dict | None:
+    try:
+        with open(filepath, "r") as f:
+            data = toml.load(f)
+    except (OSError, toml.TomlDecodeError):
+        return None
+    try:
+        amplitude = data["amplitude"]
+        angle = data["angle"]
+        frequency = data["frequency"]
+        phase = data["phase"]
+        _ = float(amplitude["perc"])
+        _ = float(angle["start_deg"]), float(angle["stop_deg"]), int(angle["steps"])
+        _ = float(frequency["start"]), float(frequency["stop"]), int(frequency["steps"])
+        _ = float(phase["start_deg"]), float(phase["stop_deg"]), int(phase["steps"])
+        _ = int(data["repetitions"])
+    except (KeyError, TypeError, ValueError):
+        return None
+    return data
