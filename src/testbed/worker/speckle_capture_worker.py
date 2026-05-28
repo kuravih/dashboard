@@ -34,7 +34,7 @@ class ProcessWorker(Worker):
         self.angle_rad_array = angle_rad_array
         self.phase_rad_array = phase_rad_array
         self.n_reps = n_reps
-        super().__init__(self.frequency_array.size * self.angle_rad_array.size * (self.phase_rad_array.size + 1) + 1)  # blanks for subtraction
+        super().__init__(self.frequency_array.size * self.angle_rad_array.size * (self.phase_rad_array.size + 1))  # blanks for subtraction
 
     def speckle_phase_sweep(self, speckle_amplitude: float, speckle_frequency: float, speckle_angle_rad: float, speckle_phase_rad_array: np.ndarray) -> list[tuple[float, float]]:
 
@@ -77,7 +77,7 @@ class ProcessWorker(Worker):
 
         delta_probes = np.clip(sum_probe_capture / speckle_phase_rad_array.size - zero_source_sample.capture.astype(float), min=0)
 
-        speckles, _ = find_speckles(delta_probes, 2, 5, 50)
+        speckles, _ = find_speckles(delta_probes, 2, 5, 25)
 
         return speckles
 
@@ -102,21 +102,6 @@ class ProcessWorker(Worker):
             self.speckle_frequency_angle_sweep(amplitude, self.frequency_array, self.angle_rad_array, self.phase_rad_array)
         except AssertionError as e:
             self.signals.error.emit(str(e))
-
-        # ---- zero ---------------------------------------------------------------------------------------------------
-        zero_cmd = np.zeros(self.sink.shape)
-
-        zero_sink_sample = self.sink.push_command(zero_cmd)
-        self.signals.snkSampled.emit(zero_sink_sample)
-        time.sleep(0.1)
-
-        zero_source_sample = self.source.pull_capture()
-        self.signals.srcSampled.emit(zero_source_sample)
-        time.sleep(0.2)
-
-        self.i_tick = self.i_tick + 1
-        self.signals.progressTicked.emit(self.i_tick, time.time() - self.t_start)
-        # ---- zero ---------------------------------------------------------------------------------------------------
 
         logger.info("speckle_calibration_worker.py - ProcessWorker() finished")
         self.stop()
