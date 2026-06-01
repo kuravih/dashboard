@@ -84,13 +84,13 @@ class ProcessSettingsWidget(QWidget):
         self.phase_deg_steps_linspace.stop_spinbox.setSuffix(" °")
         self.phase_deg_steps_linspace.num_spinbox.setMinimumWidth(100)
 
-        repetitions_label = QLabel("Repetitions", self)
-        repetitions_label.setFixedWidth(100)
+        n_reps_label = QLabel("Repetitions", self)
+        n_reps_label.setFixedWidth(100)
 
-        self.repetitions_spinbox = QSpinBox(self)
-        self.repetitions_spinbox.setMinimum(1)
-        self.repetitions_spinbox.setToolTip("Number of repetitions")
-        self.repetitions_spinbox.setValue(_repetitions)
+        self.n_reps_spinbox = QSpinBox(self)
+        self.n_reps_spinbox.setMinimum(1)
+        self.n_reps_spinbox.setToolTip("Number of repetitions")
+        self.n_reps_spinbox.setValue(_repetitions)
 
         @Slot()
         def on_load_preset_clicked():
@@ -110,7 +110,7 @@ class ProcessSettingsWidget(QWidget):
                     self.phase_deg_steps_linspace.start_spinbox.setValue(float(data["phase"]["start_deg"]))
                     self.phase_deg_steps_linspace.stop_spinbox.setValue(float(data["phase"]["stop_deg"]))
                     self.phase_deg_steps_linspace.num_spinbox.setValue(int(data["phase"]["steps"]))
-                    self.repetitions_spinbox.setValue(int(data["repetitions"]))
+                    self.n_reps_spinbox.setValue(int(data["repetitions"]))
                 else:
                     MessageDialog("Invalid Preset", "File is missing required fields or is not a valid preset.", icon=QMessageBox.Icon.Information, buttons=QMessageBox.StandardButton.Ok).exec()
 
@@ -130,7 +130,7 @@ class ProcessSettingsWidget(QWidget):
                     "angle": {"start_deg": self.angle_deg_steps_linspace.start_spinbox.value(), "stop_deg": self.angle_deg_steps_linspace.stop_spinbox.value(), "steps": self.angle_deg_steps_linspace.num_spinbox.value()},
                     "frequency": {"start": self.frequency_steps_linspace.start_spinbox.value(), "stop": self.frequency_steps_linspace.stop_spinbox.value(), "steps": self.frequency_steps_linspace.num_spinbox.value()},
                     "phase": {"start_deg": self.phase_deg_steps_linspace.start_spinbox.value(), "stop_deg": self.phase_deg_steps_linspace.stop_spinbox.value(), "steps": self.phase_deg_steps_linspace.num_spinbox.value()},
-                    "repetitions": self.repetitions_spinbox.value(),
+                    "repetitions": self.n_reps_spinbox.value(),
                 }
                 try:
                     with open(dialog_filename, "w") as f:
@@ -170,9 +170,9 @@ class ProcessSettingsWidget(QWidget):
 
         row += 1
         col = 0
-        widget_layout.addWidget(repetitions_label, row, col)
+        widget_layout.addWidget(n_reps_label, row, col)
         col += 1
-        widget_layout.addWidget(self.repetitions_spinbox, row, col, 1, 3)
+        widget_layout.addWidget(self.n_reps_spinbox, row, col, 1, 3)
 
         row += 1
         col = 0
@@ -187,8 +187,8 @@ class ProcessSettingsWidget(QWidget):
         self.speckles = np.full((self.frequency_array.size, self.angle_rad_array.size, 2, 2), np.nan)
 
     @property
-    def repetitions(self) -> int:
-        return self.repetitions_spinbox.value()
+    def n_reps(self) -> int:
+        return self.n_reps_spinbox.value()
 
     @property
     def amplitude_perc(self) -> float:
@@ -352,7 +352,7 @@ class ProcessWindow(Window):
                 process_worker.stop()
                 return
 
-            process_worker = ProcessWorker(self.source, self.sink, self.settings_widget.amplitude_perc, self.settings_widget.frequency_array, self.settings_widget.angle_rad_array, self.settings_widget.phase_rad_array, self.settings_widget.repetitions)
+            process_worker = ProcessWorker(self.source, self.sink, self.settings_widget.amplitude_perc, self.settings_widget.n_reps, self.settings_widget.frequency_array, self.settings_widget.angle_rad_array, self.settings_widget.phase_rad_array)
             process_worker.signals.progressTicked.connect(self.on_progress_tick)
             process_worker.signals.finished.connect(self.on_process_finished)
             process_worker.signals.error.connect(self.on_process_error)
@@ -363,7 +363,7 @@ class ProcessWindow(Window):
             timestamp = timestamp_string(frmt="%Y%m%d.%H%M%S", ms=None)
 
             with open(f"data/output/{timestamp}_{testbed.SPECKLE_CAPTURE}_variables.pkl", "wb") as wbfile:
-                parameters_dict = {"amplitudes": self.settings_widget.amplitude_perc, "frequencies": self.settings_widget.frequency_array, "angles": self.settings_widget.angle_deg_array, "phases": self.settings_widget.phase_deg_array}
+                parameters_dict = {"amplitudes": self.settings_widget.amplitude_perc, "repetitions": self.settings_widget.n_reps, "frequencies": self.settings_widget.frequency_array, "angles": self.settings_widget.angle_deg_array, "phases": self.settings_widget.phase_deg_array}
                 cloudpickle.dump(parameters_dict, wbfile)
 
             source_storage_worker = SourceStorageWorker(f"data/output/{timestamp}_{testbed.SPECKLE_CAPTURE}_{self.source.name}.raw", process_worker.n_ticks)
