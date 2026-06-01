@@ -1052,7 +1052,7 @@ def pairwise_estimate(I_p1: NDArray[np.float64], I_m1: NDArray[np.float64], I_p2
     δ2 = I_p2 - I_m2
     re_field = p * δ1 + q * δ2
     im_field = r * δ1 + s * δ2
-    return re_field + 1j * im_field
+    return 0.25 * (re_field + 1j * im_field)
 
 
 def pairwise_estimation_matrices(iCAψ_1: NDArray[np.complex128], iCAψ_2: NDArray[np.complex128]) -> tuple[NDArray[float], NDArray[float], NDArray[float], NDArray[float]]:
