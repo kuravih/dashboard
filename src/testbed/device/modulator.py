@@ -99,11 +99,12 @@ class Modulator(ModulatorStream):
     Modulator
     """
 
-    __slots__ = "_link"
+    __slots__ = ("_link", "_settings")
 
     def __init__(self, stream: Stream):
         super().__init__(stream)
         self._link: ZMQLink | None = None
+        self._settings: dict[str, float | dict[str, float]] | None = None
         if self.stream.port != -1:
             self._link = ZMQLink(port=self.stream.port)
             self._link.connect()
@@ -113,25 +114,41 @@ class Modulator(ModulatorStream):
     def link(self) -> ZMQLink | None:
         return self._link
 
-    def sync_settings(self) -> dict:
-        return self.link.sync_settings()
+    @property
+    def settings(self) -> dict[str, float | dict[str, float]] | None:
+        return self._settings
 
-    def move_center(self, x: int, y: int) -> dict:
+    def sync_settings(self):
+        self._settings = self.link.sync_settings()
+        logger.info("self._settings : %s", self._settings)
+
+    def move_center(self, x: int, y: int):
         """
         Move roi by x y amount
+
+        Parameters:
+            x: float
+                move horizontally
+            y: float
+                move vertically
         """
-        logger.info("nudge center by (%d, %d)", x, y)
         command = {"settings": {"nudge": {"x": x, "y": y}}}
         reply = self.link.send_command(command)
-        return reply["settings"]["center"]
+        self._settings["center"] = reply["settings"]["center"]
+        logger.info("self._settings : %s", self._settings)
 
-    def set_radius(self, radius: float) -> float:
+    def set_radius(self, radius: float):
         """
         Change radius
+
+        Parameter:
+            radius: float
+                radius
         """
         command = {"settings": {"radius": radius}}
         reply = self.link.send_command(command)
-        return reply["settings"]["radius"]
+        self._settings["radius"] = reply["settings"]["radius"]
+        logger.info("self._settings : %s", self._settings)
 
     def __del__(self):
         logger.info("Modulator object %s removed", self.name)

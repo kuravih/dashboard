@@ -96,7 +96,7 @@ class Camera(CameraStream):
     def __init__(self, stream: Stream):
         super().__init__(stream)
         self._link: ZMQLink | None = None
-        self._settings: dict[str, float | dict[str, tuple[tuple[int, int], tuple[int, int]]]] | None = None
+        self._settings: dict[str, tuple[tuple[int, int], tuple[int, int]] | float] | None = None
         if self.stream.port != -1:
             self._link = ZMQLink(port=self.stream.port)
             self._link.connect()
@@ -107,69 +107,66 @@ class Camera(CameraStream):
         return self._link
 
     @property
-    def settings(self) -> dict[str, float | dict[str, tuple[tuple[int, int], tuple[int, int]]]] | None:
+    def settings(self) -> dict[str, tuple[tuple[int, int], tuple[int, int]] | float] | None:
         return self._settings
 
     def sync_settings(self):
         self._settings = self.link.sync_settings()
+        logger.info("self._settings : %s", self._settings)
 
-    def set_exposure_time_s(self, exposure_time_s: float) -> int:
+    def set_exposure_time_s(self, exposure_time_s: float):
         """
         Set the exposure time of the camera
 
-        Parameters:
+        Parameter:
             exposure_time_s: float
                 Exposure time in s
-
-        Returns: int
-            Exposure time response from camera
         """
         command = {"settings": {"exposureTime_s": exposure_time_s}}
         reply = self.link.send_command(command)
-        self._settings = reply["settings"]
-        return self._settings["exposureTime_s"]
+        self._settings["exposureTime_s"] = reply["settings"]["exposureTime_s"]
+        logger.info("self._settings : %s", self._settings)
 
-    def set_gain(self, gain: float) -> float:
+    def set_gain(self, gain: float):
         """
         Set the gain of the camera
 
-        Parameters:
+        Parameter:
             gain: int
                 gain
-
-        Returns: int
-            Gain response from camera
         """
         command = {"settings": {"gain": gain}}
         reply = self.link.send_command(command)
-        self._settings = reply["settings"]
-        return self._settings["gain"]
+        self._settings["gain"] = reply["settings"]["gain"]
+        logger.info("self._settings : %s", self._settings)
 
-    def set_temperature_c(self, temperature_c: float) -> float:
+    def set_temperature_c(self, temperature_c: float):
         """
         Set the temperature of the camera
 
-        Parameters:
+        Parameter:
             temperature_c: float
                 temperature in c
-
-        Returns: int
-            Temperature response from camera
         """
         command = {"settings": {"temperature_C": temperature_c}}
         reply = self.link.send_command(command)
-        self._settings = reply["settings"]
-        return self._settings["temperature_C"]
+        self._settings["temperature_C"] = reply["settings"]["temperature_C"]
+        logger.info("self._settings : %s", self._settings)
 
     def move_roi(self, x: int, y: int):
         """
         Move roi by x y amount
+
+        Parameters:
+            x: float
+                move horizontally
+            y: float
+                move vertically
         """
-        logger.info("nudge roi by (%d, %d)", x, y)
         command = {"settings": {"nudge": {"x": x, "y": y}}}
         reply = self.link.send_command(command)
-        self._settings = reply["settings"]
-        return self._settings["roi"]
+        self._settings["roi"] = reply["settings"]["roi"]
+        logger.info("self._settings : %s", self._settings)
 
     def __del__(self):
         logger.info("Camera object %s removed", self.name)

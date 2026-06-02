@@ -377,8 +377,7 @@ class SettingsWindow(Window):
                 # ---- temperature setting --------------------------------------------------------------------------------
                 @Slot(float)
                 def on_temperature_set_clicked(temperature: float):
-                    reply = self.camera.set_temperature_c(temperature)
-                    logger.info("reply = %s", reply)
+                    self.camera.set_temperature_c(temperature)
                     temperature_widget.setValue(self.camera.temperature_c)
 
                 temperature_label = QLabel("Temperature", self)
@@ -402,8 +401,7 @@ class SettingsWindow(Window):
                 # ---- exposure time setting ------------------------------------------------------------------------------
                 @Slot(int)
                 def on_exposure_time_set_clicked(expTime: float):
-                    reply = self.camera.set_exposure_time_s(expTime)
-                    logger.info("reply = %s", reply)
+                    self.camera.set_exposure_time_s(expTime)
                     expTime_widget.setValue(self.camera.exposure_time_s)
 
                 expTime_label = QLabel("Exposure Time", self)
@@ -428,8 +426,7 @@ class SettingsWindow(Window):
                 # ---- gain setting ---------------------------------------------------------------------------------------
                 @Slot(int)
                 def on_gain_set_clicked(gain: float):
-                    reply = self.camera.set_gain(gain)
-                    logger.info("reply = %s", reply)
+                    self.camera.set_gain(gain)
                     gain_widget.setValue(self.camera.gain)
 
                 gain_label = QLabel("Gain", self)
@@ -454,8 +451,7 @@ class SettingsWindow(Window):
                 # ---- roi setting --------------------------------------------------------------------------------------------
                 @Slot(int, int)
                 def on_roi_move_clicked(x: int, y: int):
-                    reply = self.camera.move_roi(x, y)
-                    logger.info("reply = %s", reply)
+                    self.camera.move_roi(x, y)
                     roi_widget.set_roi(self.camera.roi)
 
                 roi_label = QLabel("Move ROI", self)

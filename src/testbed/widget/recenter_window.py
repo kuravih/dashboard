@@ -341,8 +341,7 @@ class ProcessWindow(Window):
         else:
             delta = [int(self.source.shape[0] / 2 - self.settings_widget.center[0]), int(self.source.shape[1] / 2 - self.settings_widget.center[1])]
             logger.info("delta %s", delta)
-            reply = self.source.move_roi(-delta[0], -delta[1])
-            logger.info("reply = %s", reply)
+            self.source.move_roi(-delta[0], -delta[1])
 
     def setup_main_widget(self) -> QWidget:
         widget = QWidget(self)

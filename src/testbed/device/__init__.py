@@ -1,8 +1,8 @@
 from dataclasses import dataclass
 from enum import Enum, auto
-from venv import logger
 import zmq
 import toml
+import ast
 import numpy as np
 from datetime import datetime
 
@@ -282,7 +282,11 @@ class ZMQLink:
 
     def send_command(self, command: dict) -> dict:
         self.send(toml.dumps(command))
-        return toml.loads(self.receive())
+        reply = toml.loads(self.receive())
+        if 'settings' in reply:
+            if 'roi' in reply['settings']:
+                reply['settings']['roi'] = ast.literal_eval(reply['settings']['roi'])
+        return reply
 
     def sync_settings(self):
         command = {"settings": "sync"}

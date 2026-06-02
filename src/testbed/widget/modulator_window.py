@@ -328,8 +328,7 @@ class SettingsWindow(Window):
         # ---- radius setting -----------------------------------------------------------------------------------------
         @Slot(int)
         def on_set_radius_clicked(radius: int):
-            reply = self.modulator.set_radius(radius)
-            logger.info("reply = %s", reply)
+            self.modulator.set_radius(radius)
             radius_widget.setValue(self.modulator.radius)
 
         radius_label = QLabel("Radius", self)
@@ -347,8 +346,7 @@ class SettingsWindow(Window):
         # ---- center setting -----------------------------------------------------------------------------------------
         @Slot(int, int)
         def on_center_move_clicked(x: int, y: int):
-            reply = self.modulator.move_center(x, y)
-            logger.info("reply = %s", reply)
+            self.modulator.move_center(x, y)
             center_widget.set_center(self.modulator.center)
 
         center_label = QLabel("Move Center", self)
