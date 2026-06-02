@@ -61,6 +61,9 @@ def Image_Plot_Preset(capture: NDArray[np.uint16 | np.float64], cmap_norm: Norma
     figure.get_imshow_axes().set_xlabel("px", size=10)
     figure.get_imshow_axes().set_ylabel("px", size=10)
 
+    figure.cbar_min_line = figure.get_cbar_axes().axhline(np.min(capture), color='cyan', linewidth=1)
+    figure.cbar_max_line = figure.get_cbar_axes().axhline(np.max(capture), color='cyan', linewidth=1)
+
     return figure
 
 

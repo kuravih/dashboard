@@ -476,7 +476,7 @@ class SettingsWindow(Window):
 
         @Slot()
         def on_calibration_change():
-            self.camera.set_calibration(self.calibration_widget.filepath)            
+            self.camera.calibration_file = self.calibration_widget.filepath
             if testbed.data.is_window_alive(self.camera.preview_window_id):
                 camera_preview_window = cast(PreviewWindow, testbed.data.windows[self.camera.preview_window_id])
                 camera_preview_window.preview_figure_widget.cmap_norm = Normalize(*self.camera.clim)
@@ -666,6 +666,9 @@ class PreviewWindow(Window):
     @Slot()
     def on_update_timer_tick(self):
         self.preview_figure_widget.figure.get_image().set_data(flip_rotate_frame(self.sample.capture, self.preview_figure_widget.flip, self.preview_figure_widget.rotation))
+        vmin, vmax = float(self.sample.capture.min()), float(self.sample.capture.max())
+        self.preview_figure_widget.figure.cbar_min_line.set_ydata([vmin, vmin])
+        self.preview_figure_widget.figure.cbar_max_line.set_ydata([vmax, vmax])
         self.preview_figure_widget.figure.canvas.draw_idle()
         # logger.info("camera_window.py - PreviewWindow.on_update_timer_tick()")
 
