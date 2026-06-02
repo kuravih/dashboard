@@ -14,13 +14,14 @@ class Modulator(Device):
     Modulator
     """
 
-    __slots__ = ("_stream", "_shape", "_max_radius", "_link", "_sample", "post_request", "wait_for_response", "_calibration_file", "_calibration")
+    __slots__ = ("_stream", "_shape", "_blank", "_max_radius", "_link", "_sample", "post_request", "wait_for_response", "_calibration_file", "_calibration")
 
     def __init__(self, stream: Stream):
         super().__init__(stream.name)
         self._stream = stream
         self._max_radius = self._stream.keywords["RADMAX"].value
         self._shape = (int(2 * np.ceil(self.radius)), int(2 * np.ceil(self.radius)))
+        self._blank = np.zeros(self._shape)
         self._link = None
         if self._stream.port != -1:
             self._link = ZMQLink(port=self._stream.port)
@@ -82,7 +83,7 @@ class Modulator(Device):
 
     @property
     def blank(self) -> np.ndarray:
-        return np.zeros(self.shape)
+        return self._blank
 
     @property
     def sample(self) -> SinkSample:
@@ -105,11 +106,6 @@ class Modulator(Device):
         command_adu_uint16 = np.clip(command_adu_float, 0, self.pxmax).astype(np.uint16)
         self._stream.set_data(command_adu_uint16)
         self._sample = SinkSample(self.last_access_time, self.frame_rate_fps, self.center, self.radius, command_float.copy())
-        return self._sample
-
-    def get_command(self) -> SinkSample:
-        command = self._stream.get_data().reshape(self.shape)
-        self._sample = SinkSample(self.last_access_time, self.frame_rate_fps, self.center, self.radius, command.copy())
         return self._sample
 
     @property

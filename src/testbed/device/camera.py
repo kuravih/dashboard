@@ -14,12 +14,13 @@ class Camera(Device):
     Camera
     """
 
-    __slots__ = ("_stream", "_shape", "_link", "_sample", "wait_for_request", "post_response", "_settings", "_calibration_file", "_calibration")
+    __slots__ = ("_stream", "_shape", "_blank", "_link", "_sample", "wait_for_request", "post_response", "_settings", "_calibration_file", "_calibration")
 
     def __init__(self, stream: Stream):
         super().__init__(stream.name)
         self._stream = stream
         self._shape = (self._stream.keywords["HEIGHT"].value, self._stream.keywords["WIDTH"].value)
+        self._blank = np.zeros(self._shape)
         self._link: ZMQLink | None = None
         self._settings: dict[str, float | dict[str, tuple[tuple[int, int], tuple[int, int]]]] | None = None
         if self._stream.port != -1:
@@ -78,7 +79,7 @@ class Camera(Device):
 
     @property
     def blank(self) -> np.ndarray:
-        return np.zeros(self.shape)
+        return self._blank
 
     @property
     def sample(self) -> SourceSample:
@@ -99,9 +100,6 @@ class Camera(Device):
             capture = capture_to_intensity(capture, self.exposure_time_s, self.calibration["dark_rate"], self.calibration["bias"], qe_perc, self.calibration["gain"])
         self._sample = SourceSample(self.last_access_time, self.exposure_time_s, self.gain, self.frame_rate_fps, self.temperature_c, self.roi, capture.copy())
         return self._sample
-
-    def set_capture(self, capture: np.ndarray):
-        self._stream.set_data(capture)
 
     @property
     def exposure_time_s(self) -> int:
