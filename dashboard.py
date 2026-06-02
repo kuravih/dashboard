@@ -208,8 +208,8 @@ class MainWindow(QMainWindow):
             simple_loop_window = cast(SimpleLoopWindow, testbed.data.windows[SimpleLoopWindow.wid])
             if simple_loop_window.source == device or simple_loop_window.sink == device:
                 simple_loop_window.update_process_controls()
-        if testbed.data.is_window_alive(SpeckleCalibrationWindow.wid):
-            speckle_calibration_window = cast(SpeckleCalibrationWindow, testbed.data.windows[SpeckleCalibrationWindow.wid])
+        if testbed.data.is_window_alive(SpeckleCaptureWindow.wid):
+            speckle_calibration_window = cast(SpeckleCaptureWindow, testbed.data.windows[SpeckleCaptureWindow.wid])
             if speckle_calibration_window.source == device or speckle_calibration_window.sink == device:
                 speckle_calibration_window.update_process_controls()
         if testbed.data.is_window_alive(SpeckleNullingWindow.wid):
@@ -240,8 +240,8 @@ class MainWindow(QMainWindow):
         if testbed.data.is_window_alive(SimpleLoopWindow.wid):
             simple_loop_window = cast(SimpleLoopWindow, testbed.data.windows[SimpleLoopWindow.wid])
             simple_loop_window.update_process_controls()
-        if testbed.data.is_window_alive(SpeckleCalibrationWindow.wid):
-            speckle_calibration_window = cast(SpeckleCalibrationWindow, testbed.data.windows[SpeckleCalibrationWindow.wid])
+        if testbed.data.is_window_alive(SpeckleCaptureWindow.wid):
+            speckle_calibration_window = cast(SpeckleCaptureWindow, testbed.data.windows[SpeckleCaptureWindow.wid])
             speckle_calibration_window.update_process_controls()
         if testbed.data.is_window_alive(SpeckleNullingWindow.wid):
             speckle_nulling_window = cast(SpeckleNullingWindow, testbed.data.windows[SpeckleNullingWindow.wid])

@@ -9,8 +9,6 @@ from datetime import datetime
 from pyshmio import SharedMemory, Keyword, KeywordType, DataType
 from pykato.log import setup_logger
 
-device_logger = setup_logger("Device", terminator="\n")
-
 
 def create_camera_memory(name: str, full_shape: tuple[int, int], roi_shape: tuple[int, int], dtype: DataType, serial: str, pxmax: int, port: int) -> SharedMemory:
     # ---- constants ----
@@ -51,6 +49,9 @@ def create_modulator_memory(name: str, full_shape: tuple[int, int], center: tupl
     kw_frmrate = Keyword("FRMRATE", KeywordType.DOUBLE, float(0), "Frame rate (fps)")
 
     return SharedMemory.create(name, 2 * radius * 2 * radius, dtype, [kw_kind, kw_sn, kw_pxmax, kw_full_w, kw_full_h, kw_port, kw_radmax, kw_radius, kw_center_x, kw_center_y, kw_frmrate])
+
+
+device_logger = setup_logger("Device", terminator="\n")
 
 
 class Device:
@@ -99,9 +100,6 @@ class Device:
 
     def __del__(self):
         device_logger.info("Device object %s removed", self.name)
-
-
-stream_logger = setup_logger("Stream", terminator="\n")
 
 
 class Stream(SharedMemory):
@@ -194,7 +192,51 @@ class Stream(SharedMemory):
         self.post_response()
 
 
-zmqlink_logger = setup_logger("ZMQLink", terminator="\n")
+class DeviceStream(Device):
+    """
+    StreamDevice to wrap a Stream
+    """
+
+    __slots__ = ("_stream",)
+
+    def __init__(self, stream: Stream):
+        super().__init__(stream.name)
+        self._stream = stream
+
+    @property
+    def stream(self) -> Stream:
+        return self._stream
+
+    @property
+    def kind(self) -> Stream.Kind:
+        return self._stream.kind
+
+    @property
+    def sn(self) -> str:
+        return self._stream.sn
+
+    @property
+    def pxmax(self) -> float | int:
+        return self._stream.pxmax
+
+    @property
+    def full_shape(self) -> tuple[int, int]:
+        return self._stream.full_shape
+
+    @property
+    def port(self) -> int:
+        return self._stream.port
+
+    @property
+    def creation_time(self) -> datetime:
+        return self._stream.creation_time
+
+    @property
+    def last_access_time(self) -> datetime:
+        return self._stream.last_access_time
+
+    def update_keywords(self):
+        self._stream.update_keywords()
 
 
 class ZMQLink:
