@@ -26,17 +26,17 @@ class ProcessWorker(Worker):
 
     wid = f"{testbed.RECENTER}_worker"
 
-    def __init__(self, source: Camera, sink: Modulator, amplitude_nm: float, n_steps: int):
+    def __init__(self, source: Camera, sink: Modulator, amplitude_perc: float, n_steps: int):
         self.signals = ProcessWorkerSignals()
         self.source = source
         self.sink = sink
-        self.amplitude_nm = amplitude_nm
+        self.amplitude_perc = amplitude_perc
         self.frequency = 0.035
         self.angle_rad_array = np.deg2rad(np.linspace(0.0, 180.0, n_steps, endpoint=False) + (180.0 / n_steps) / 2)
         self.phase_rad_array = np.deg2rad(np.array([0.0, 90.0, 180.0, 270.0]))
         super().__init__(self.angle_rad_array.size * (self.phase_rad_array.size + 1) + 1)  # blank
 
-    def speckle_phase_sweep(self, speckle_amplitude_nm: float, speckle_frequency: float, speckle_angle_rad: float, speckle_phase_rad_array: np.ndarray) -> list[tuple[float, float]]:
+    def speckle_phase_sweep(self, speckle_amplitude: float, speckle_frequency: float, speckle_angle_rad: float, speckle_phase_rad_array: np.ndarray) -> list[tuple[float, float]]:
 
         # ---- zero ---------------------------------------------------------------------------------------------------
         zero_cmd = np.zeros(self.sink.shape)
@@ -57,7 +57,7 @@ class ProcessWorker(Worker):
         sum_probe_capture = np.zeros_like(self.source.blank, dtype=float)
         while (speckle_phase_rad_array.size > i_phs) and self._running:
 
-            probe = speckle_amplitude_nm * sinusoid(self.sink.shape, 1.0 / speckle_frequency, angle=speckle_angle_rad, phase=speckle_phase_rad_array[i_phs])
+            probe = speckle_amplitude * sinusoid(self.sink.shape, 1.0 / speckle_frequency, angle=speckle_angle_rad, phase=speckle_phase_rad_array[i_phs])
             probe_cmd = zero_cmd + probe
 
             probe_sink_sample = self.sink.push_command(probe_cmd)
@@ -81,17 +81,18 @@ class ProcessWorker(Worker):
 
         return speckles
 
-    def speckle_angle_sweep(self, speckle_amplitude_nm: float, speckle_frequency: float, speckle_angle_rad_array: np.ndarray, speckle_phase_rad_array: np.ndarray):
+    def speckle_angle_sweep(self, speckle_amplitude: float, speckle_frequency: float, speckle_angle_rad_array: np.ndarray, speckle_phase_rad_array: np.ndarray):
         speckles = np.full((speckle_angle_rad_array.size, 2, 2), np.nan)
         i_ang = 0
         while (speckle_angle_rad_array.size > i_ang) and self._running:
-            speckles[i_ang] = self.speckle_phase_sweep(speckle_amplitude_nm, speckle_frequency, speckle_angle_rad_array[i_ang], speckle_phase_rad_array)
+            speckles[i_ang] = self.speckle_phase_sweep(speckle_amplitude, speckle_frequency, speckle_angle_rad_array[i_ang], speckle_phase_rad_array)
             i_ang = i_ang + 1
             self.signals.specklesLocated.emit(speckles)
         return speckles
 
     def find_center(self) -> tuple[float, float]:
-        speckles = self.speckle_angle_sweep(self.amplitude_nm, self.frequency, self.angle_rad_array, self.phase_rad_array)
+        amplitude = self.sink.vrange * self.amplitude_perc
+        speckles = self.speckle_angle_sweep(amplitude, self.frequency, self.angle_rad_array, self.phase_rad_array)
         return np.mean(speckles, axis=(0, 1))
 
     @Slot()

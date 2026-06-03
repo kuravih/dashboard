@@ -36,7 +36,7 @@ class ProcessSettingsWidget(QWidget):
 
     def __init__(self, parent=None):
         _n_steps_min, _n_steps_max, _n_steps = 0, 9999, 8
-        _amplitude_perc_min, _amplitude_perc_max, _amplitude_perc = -100.0, 100.0, 10.0
+        _amplitude_perc_min, _amplitude_perc_max, _amplitude_perc = -100.0, 100.0, 1.0
         _sleep_s = 0.1
         _center = [0.0, 0.0]
         super().__init__(parent)
@@ -123,7 +123,7 @@ class ProcessSettingsWidget(QWidget):
         self.speckles = np.full((_n_steps, 2, 2), np.nan)
 
     @property
-    def amplitude_nm(self) -> float:
+    def amplitude_perc(self) -> float:
         return self.amplitude_perc_spinbox.value() / 100.0
 
     @property
@@ -281,7 +281,7 @@ class ProcessWindow(Window):
                 process_worker.stop()
                 return
 
-            process_worker = ProcessWorker(self.source, self.sink, self.settings_widget.amplitude_nm, self.settings_widget.n_steps)
+            process_worker = ProcessWorker(self.source, self.sink, self.settings_widget.amplitude_perc, self.settings_widget.n_steps)
             process_worker.signals.progressTicked.connect(self.on_progress_tick)
             process_worker.signals.finished.connect(self.on_process_finished)
             process_worker.signals.error.connect(self.on_process_error)
