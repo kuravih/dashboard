@@ -8,7 +8,7 @@ from PySide6.QtGui import QIcon, QCursor, QPixmap, QPainter, QColor
 from ..device import Device
 from ..device.camera import Camera
 from ..device.modulator import Modulator
-from ..widget.resource import ICON_FOLDER_OPEN, ICON_RUN, ICON_EYE, ICON_UP_ARROW, ICON_DOWN_ARROW, ICON_LEFT_ARROW, ICON_RIGHT_ARROW, ICON_INFO, ICON_BACKSPACE, ICON_PLUS, ICON_MINUS
+from ..widget.resource import ICON_FOLDER_OPEN, ICON_RUN, ICON_EYE, ICON_UP_ARROW, ICON_DOWN_ARROW, ICON_LEFT_ARROW, ICON_RIGHT_ARROW, ICON_INFO, ICON_BACKSPACE, ICON_PLUS, ICON_MINUS, ICON_QUESTION_MARK, ICON_CENTER
 from ..widget.dialog import MessageDialog
 from ..function import Rotation, Flip, DOTFProbeDirection, PairwiseProbeDirection
 
@@ -211,9 +211,7 @@ class LinspaceWidget(QWidget):
         self.num_spinbox.setValue(steps)
         self.num_spinbox.valueChanged.connect(self._on_value_changed)
 
-        self.help_button = QPushButton("?", self)
-        self.help_button.setFixedWidth(self.num_spinbox.sizeHint().height())
-        self.help_button.setFixedHeight(self.num_spinbox.sizeHint().height())
+        self.help_button = IconButton(QIcon(ICON_QUESTION_MARK), parent=self)
         self.help_button.clicked.connect(lambda: QToolTip.showText(QCursor.pos(), f"{np.array2string(self.value(), precision=4, separator=', ')}"))
 
         layout = QHBoxLayout()
@@ -438,6 +436,7 @@ class ROIWidget(QWidget):
     """
 
     roiMoveClicked = Signal(int, int)  # (dx, dy)
+    centerClicked = Signal()
 
     def __init__(self, roi: dict[str, tuple[int, int]], step: int = 8, parent=None):
         super().__init__(parent)
@@ -462,6 +461,9 @@ class ROIWidget(QWidget):
         right_button = IconButton(QIcon(ICON_RIGHT_ARROW), parent=self)
         right_button.setToolTip("Move ROI right")
 
+        center_button = IconButton(QIcon(ICON_CENTER), parent=self)
+        center_button.setToolTip("Center on brightest pixel")
+
         # --- ROI value label ---
         self.value_label = QLabel("", self)
         self.value_label.setToolTip("Region of interest [(x1,y1),(x2,y2)]")
@@ -475,6 +477,7 @@ class ROIWidget(QWidget):
         layout.addWidget(down_button)
         layout.addWidget(left_button)
         layout.addWidget(right_button)
+        layout.addWidget(center_button)
         layout.addWidget(self.value_label)
         layout.addItem(QSpacerItem(10, 10, QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Maximum))
         layout.setContentsMargins(0, 0, 0, 0)
@@ -486,6 +489,7 @@ class ROIWidget(QWidget):
         down_button.clicked.connect(lambda: self._emit_moved(0, Δ_spinbox.value()))
         left_button.clicked.connect(lambda: self._emit_moved(-Δ_spinbox.value(), 0))
         right_button.clicked.connect(lambda: self._emit_moved(Δ_spinbox.value(), 0))
+        center_button.clicked.connect(self.centerClicked)
 
     def _emit_moved(self, dx: int, dy: int):
         self.roiMoveClicked.emit(dx, dy)
@@ -770,20 +774,14 @@ class TaskControlsWidget(QWidget):
         self.progressbar = ProgressBar(self)
 
         self.run_stop_button = IconButton(QIcon(ICON_RUN), parent=self)
-        self.run_stop_button.setFixedHeight(self.progressbar.bar.sizeHint().height())
-        self.run_stop_button.setFixedWidth(self.progressbar.bar.sizeHint().height())
         self.run_stop_button.setToolTip("Run Process")
         self.run_stop_button.setEnabled(False)
 
         self.preview_button = IconButton(QIcon(ICON_EYE), parent=self)
-        self.preview_button.setFixedHeight(self.progressbar.bar.sizeHint().height())
-        self.preview_button.setFixedWidth(self.progressbar.bar.sizeHint().height())
         self.preview_button.setToolTip("Preview")
         self.preview_button.setEnabled(False)
 
         self.info_button = IconButton(QIcon(ICON_INFO), parent=self)
-        self.info_button.setFixedHeight(self.progressbar.bar.sizeHint().height())
-        self.info_button.setFixedWidth(self.progressbar.bar.sizeHint().height())
         self.info_button.setToolTip("Info")
         self.info_button.setEnabled(False)
 

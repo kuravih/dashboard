@@ -21,7 +21,7 @@ def create_camera_memory(name: str, full_shape: tuple[int, int], roi_shape: tupl
     kw_width = Keyword("WIDTH", KeywordType.LONG, int(roi_shape[0]), "Width (px)")
     kw_height = Keyword("HEIGHT", KeywordType.LONG, int(roi_shape[1]), "Height (px)")
     # ---- variables ----
-    kw_exptime = Keyword("EXPTIME", KeywordType.LONG, int(0), "Exposure time (us)")
+    kw_exptime = Keyword("EXPTIME", KeywordType.DOUBLE, int(0), "Exposure time (s)")
     kw_frmrate = Keyword("FRMRATE", KeywordType.DOUBLE, float(0), "Frame rate (fps)")
     kw_gain = Keyword("GAIN", KeywordType.DOUBLE, float(0), "Gain (units)")
     kw_temp = Keyword("TEMP", KeywordType.DOUBLE, float(0), "Temperature (C)")

@@ -454,10 +454,19 @@ class SettingsWindow(Window):
                     self.camera.move_roi(x, y)
                     roi_widget.set_roi(self.camera.roi)
 
+                @Slot()
+                def on_center_on_brightest_clicked():
+                    y_bright, x_bright = np.unravel_index(np.argmax(self.camera.sample.capture), self.camera.sample.capture.shape)
+                    dx = x_bright - self.camera.sample.capture.shape[1] // 2
+                    dy = y_bright - self.camera.sample.capture.shape[0] // 2
+                    self.camera.move_roi(dx, dy)
+                    roi_widget.set_roi(self.camera.roi)
+
                 roi_label = QLabel("Move ROI", self)
                 roi_label.setFixedWidth(100)
                 roi_widget = ROIWidget(self.camera.roi, step=8, parent=self)
                 roi_widget.roiMoveClicked.connect(on_roi_move_clicked)
+                roi_widget.centerClicked.connect(on_center_on_brightest_clicked)
                 # ---- roi setting --------------------------------------------------------------------------------------------
 
                 row += 1

@@ -122,7 +122,7 @@ class Camera(CameraStream):
             exposure_time_s: float
                 Exposure time in s
         """
-        command = {"settings": {"exposureTime_s": exposure_time_s}}
+        command = {"settings": {"exposureTime_s": float(exposure_time_s)}}
         reply = self.link.send_command(command)
         self._settings["exposureTime_s"] = reply["settings"]["exposureTime_s"]
         logger.info("self._settings : %s", self._settings)
@@ -135,7 +135,7 @@ class Camera(CameraStream):
             gain: int
                 gain
         """
-        command = {"settings": {"gain": gain}}
+        command = {"settings": {"gain": float(gain)}}
         reply = self.link.send_command(command)
         self._settings["gain"] = reply["settings"]["gain"]
         logger.info("self._settings : %s", self._settings)
@@ -148,7 +148,7 @@ class Camera(CameraStream):
             temperature_c: float
                 temperature in c
         """
-        command = {"settings": {"temperature_C": temperature_c}}
+        command = {"settings": {"temperature_C": float(temperature_c)}}
         reply = self.link.send_command(command)
         self._settings["temperature_C"] = reply["settings"]["temperature_C"]
         logger.info("self._settings : %s", self._settings)
@@ -163,7 +163,7 @@ class Camera(CameraStream):
             y: float
                 move vertically
         """
-        command = {"settings": {"nudge": {"x": x, "y": y}}}
+        command = {"settings": {"nudge": {"x": int(x), "y": int(y)}}}
         reply = self.link.send_command(command)
         self._settings["roi"] = reply["settings"]["roi"]
         logger.info("self._settings : %s", self._settings)

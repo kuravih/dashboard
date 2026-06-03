@@ -362,7 +362,7 @@ class SettingsWindow(Window):
 
         @Slot()
         def on_calibration_change():
-            self.modulator.set_calibration(self.calibration_widget.filepath)
+            self.modulator.calibration_file = self.calibration_widget.filepath
 
             pstr = 'adu'
             plim = [0, 100] # soft range

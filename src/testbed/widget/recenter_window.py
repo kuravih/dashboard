@@ -84,8 +84,6 @@ class ProcessSettingsWidget(QWidget):
         self.center_yvalue_textbox.setText(f"{_center[1]:.0f}")
 
         self.move_pushbutton = IconButton(QIcon(ICON_CENTER), parent=self)
-        self.move_pushbutton.setFixedHeight(self.amplitude_perc_spinbox.sizeHint().height())
-        self.move_pushbutton.setFixedWidth(self.amplitude_perc_spinbox.sizeHint().height())
         self.move_pushbutton.setToolTip("Move to center")
         self.move_pushbutton.setEnabled(False)
 
