@@ -35,9 +35,7 @@ class ProcessSettingsWidget(QWidget):
     """
 
     def __init__(self, parent=None):
-        _n_steps_min, _n_steps_max, _n_steps = 0, 9999, 8
         _amplitude_perc_min, _amplitude_perc_max, _amplitude_perc = -100.0, 100.0, 1.0
-        _sleep_s = 0.1
         _center = [0.0, 0.0]
         super().__init__(parent)
 
@@ -51,30 +49,8 @@ class ProcessSettingsWidget(QWidget):
         self.amplitude_perc_spinbox.setToolTip("Command amplitude")
         self.amplitude_perc_spinbox.setValue(_amplitude_perc)
 
-        n_steps_label = QLabel("Steps", self)
-        n_steps_label.setFixedWidth(100)
-
-        self.n_steps_spinbox = QSpinBox(self)
-        self.n_steps_spinbox.setRange(_n_steps_min, _n_steps_max)
-        self.n_steps_spinbox.setSingleStep(1)
-        self.n_steps_spinbox.setToolTip("Number of steps")
-        self.n_steps_spinbox.setValue(_n_steps)
-
-        n_steps_layout = QHBoxLayout()
-        n_steps_layout.addWidget(self.n_steps_spinbox)
-
-        sleep_label = QLabel("Sleep", self)
-        sleep_label.setFixedWidth(100)
-
-        self.sleep_s_spinbox = QDoubleSpinBox(self)
-        self.sleep_s_spinbox.setMinimum(0)
-        self.sleep_s_spinbox.setSingleStep(0.0001)
-        self.sleep_s_spinbox.setDecimals(4)
-        self.sleep_s_spinbox.setSuffix(" s")
-        self.sleep_s_spinbox.setValue(_sleep_s)
-
         center_label = QLabel("Center", self)
-        sleep_label.setFixedWidth(100)
+        center_label.setFixedWidth(100)
 
         self.center_xvalue_textbox = QLineEdit(self)
         self.center_xvalue_textbox.setEnabled(False)
@@ -97,18 +73,6 @@ class ProcessSettingsWidget(QWidget):
 
         row += 1
         col = 0
-        widget_layout.addWidget(n_steps_label, row, col)
-        col += 1
-        widget_layout.addLayout(n_steps_layout, row, col, 1, 3)
-
-        row += 1
-        col = 0
-        widget_layout.addWidget(sleep_label, row, col)
-        col += 1
-        widget_layout.addWidget(self.sleep_s_spinbox, row, col, 1, 3)
-
-        row += 1
-        col = 0
         widget_layout.addWidget(center_label, row, col)
         col += 1
         widget_layout.addWidget(self.center_xvalue_textbox, row, col)
@@ -120,19 +84,11 @@ class ProcessSettingsWidget(QWidget):
         self.setLayout(widget_layout)
 
         self.center = _center
-        self.speckles = np.full((_n_steps, 2, 2), np.nan)
+        self.speckles = np.full((4, 2), np.nan)
 
     @property
     def amplitude_perc(self) -> float:
         return self.amplitude_perc_spinbox.value() / 100.0
-
-    @property
-    def n_steps(self) -> int:
-        return self.n_steps_spinbox.value()
-
-    @property
-    def sleep_s(self) -> float:
-        return self.sleep_s_spinbox.value()
 
     @property
     def center(self) -> list[float]:
@@ -281,7 +237,7 @@ class ProcessWindow(Window):
                 process_worker.stop()
                 return
 
-            process_worker = ProcessWorker(self.source, self.sink, self.settings_widget.amplitude_perc, self.settings_widget.n_steps)
+            process_worker = ProcessWorker(self.source, self.sink, self.settings_widget.amplitude_perc)
             process_worker.signals.progressTicked.connect(self.on_progress_tick)
             process_worker.signals.finished.connect(self.on_process_finished)
             process_worker.signals.error.connect(self.on_process_error)
@@ -295,7 +251,7 @@ class ProcessWindow(Window):
 
                 if self.speckles_plot is not None:
                     self.speckles_plot.remove()
-                    self.speckles = np.full((self.settings_widget.n_steps, 2, 2), np.nan)
+                    self.speckles = np.full((4, 2), np.nan)
 
                 if self.center_plot is not None:
                     self.center_plot.remove()
@@ -306,7 +262,7 @@ class ProcessWindow(Window):
                 @Slot(np.ndarray)
                 def on_speckles_located(speckles):
                     self.speckles = speckles
-                    speckles_x, speckles_y = flip_rotate_points(speckles[:, :, 0], speckles[:, :, 1], source_preview_window.sample.capture.shape, source_preview_window.preview_figure_widget.flip, source_preview_window.preview_figure_widget.rotation)
+                    speckles_x, speckles_y = flip_rotate_points(speckles[:, 0], speckles[:, 1], source_preview_window.sample.capture.shape, source_preview_window.preview_figure_widget.flip, source_preview_window.preview_figure_widget.rotation)
                     self.speckles_plot.set_xdata([speckles_x])
                     self.speckles_plot.set_ydata([speckles_y])
 
