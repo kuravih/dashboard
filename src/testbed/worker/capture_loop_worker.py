@@ -28,7 +28,7 @@ class ProcessWorker(Worker):
 
     def count_sweep(self, n_steps: int = 0):
         i_step = 0
-        while ((n_steps is 0) or (n_steps > i_step)) and self._running:
+        while ((n_steps == 0) or (n_steps > i_step)) and self._running:
 
             count_source_sample = self.source.pull_capture()
             self.signals.srcSampled.emit(count_source_sample)

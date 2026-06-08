@@ -139,7 +139,7 @@ class ProcessWorker(Worker):
 
     def sense_wavefronts(self, probe_amplitude_nm: float, dξ: float, dη: float, ξc: float, directions: list[PairwiseProbeDirection], n_reps: int):
         i_rep = 0
-        while ((n_reps is 0) or (n_reps > i_rep)) and self._running:
+        while ((n_reps == 0) or (n_reps > i_rep)) and self._running:
             for direction in directions:
                 self.wavefront[direction] = self.wavefront[direction] + self.sense_wavefront(probe_amplitude_nm, dξ, dη, ξc, direction)
                 self.signals.wfSensed.emit(direction, self.wavefront[direction] / (i_rep + 1))

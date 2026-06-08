@@ -80,7 +80,7 @@ class ProcessWorker(Worker):
 
     def measure_dotfs(self, probe_amplitude_nm: float, probe_size: tuple[int, int], directions: list[DOTFProbeDirection], n_reps: int):
         i_rep = 0
-        while ((n_reps is 0) or (n_reps > i_rep)) and self._running:
+        while ((n_reps == 0) or (n_reps > i_rep)) and self._running:
             for direction in directions:
                 self.dotf_measurements[direction] = self.dotf_measurements[direction] + self.measure_dotf(probe_amplitude_nm, probe_size, direction)
                 self.signals.dotfMeasured.emit(direction, self.dotf_measurements[direction] / (i_rep + 1))

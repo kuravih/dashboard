@@ -37,7 +37,7 @@ class ProcessWorker(Worker):
     def count_sweep(self, amplitude_perc: float, n_steps: int = 0):
         zero_cmd = np.zeros(self.sink.shape)
         i_step = 0
-        while ((n_steps is 0) or (n_steps > i_step)) and self._running:
+        while ((n_steps == 0) or (n_steps > i_step)) and self._running:
 
             count = amplitude_perc * text(self.sink.shape, f"{i_step:02d}", font_size=150)
             count_cmd = zero_cmd + count

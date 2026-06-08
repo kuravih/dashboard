@@ -9,7 +9,7 @@ from numpy.typing import NDArray
 from .device import SinkSample, SourceSample
 from io import FileIO
 from pykato.log import setup_logger
-from pykato.function import box, generate_coordinates, invert_2x2_arrays
+from pykato.function import box, generate_coordinates, invert_2x2_arrays, airy_fn, least_squares_fit_2d
 
 from scipy.interpolate import CubicSpline
 from skimage.feature import peak_local_max
@@ -1090,3 +1090,47 @@ def speckle_preset_validator(filepath: str) -> dict | None:
     except (KeyError, TypeError, ValueError):
         return None
     return data
+
+
+def locate_single_airy(capture: np.ndarray, guess_radius: float) -> tuple[tuple[float, float], float, float]:
+    """
+    Locate a single Airy disk in an image by fitting an Airy function.
+
+    Parameters:
+        capture: np.ndarray
+            2D image containing the Airy disk.
+        guess_radius: float
+            Initial guess for the Airy disk radius in pixels.
+
+    Returns: tuple[tuple[float, float], float, float]
+        Fitted center (x, y) in pixels, fitted radius in pixels, and fitted peak brightness.
+    """
+    y_bright, x_bright = np.unravel_index(np.argmax(capture), capture.shape)
+    brightness = capture[y_bright, x_bright]
+    def fit_airy_fn(xx_yy, cx, cy, r, h):
+        return airy_fn(xx_yy, (cx, cy), r, h)
+    (cx, cy, fit_radius, fit_height), _ = least_squares_fit_2d(capture, fit_airy_fn, guess_prms=(x_bright, y_bright, guess_radius, brightness))  # pylint: disable=unbalanced-tuple-unpacking
+    fit_center = (cx, cy)
+    return fit_center, fit_radius, fit_height
+
+
+def locate_single_airy_with_radius(capture: np.ndarray, radius: float) -> tuple[tuple[float, float], float]:
+    """
+    Locate a single Airy disk of known radius in an image by fitting an Airy function.
+
+    Parameters:
+        capture: np.ndarray
+            2D image containing the Airy disk.
+        radius: float
+            Known Airy disk radius in pixels (held fixed during fitting).
+
+    Returns: tuple[tuple[float, float], float]
+        Fitted center (x, y) in pixels and fitted peak brightness.
+    """
+    y_bright, x_bright = np.unravel_index(np.argmax(capture), capture.shape)
+    brightness = capture[y_bright, x_bright]
+    def fit_airy_fn(xx_yy, cx, cy, h):
+        return airy_fn(xx_yy, (cx, cy), radius, h)
+    (cx, cy, fit_height), _ = least_squares_fit_2d(capture, fit_airy_fn, guess_prms=(x_bright, y_bright, brightness))  # pylint: disable=unbalanced-tuple-unpacking
+    fit_center = (cx, cy)
+    return fit_center, fit_height

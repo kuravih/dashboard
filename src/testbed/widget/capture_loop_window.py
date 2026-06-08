@@ -21,7 +21,7 @@ from .resource import ICON_STOP, ICON_RUN
 
 from . import DevicesSetupWidget, TaskControlsWidget, Window
 
-logger = setup_logger(f"{testbed.SIMPLE_LOOP}_window", terminator="\n")
+logger = setup_logger(f"{testbed.CAPTURE_LOOP}_window", terminator="\n")
 
 
 # ==== ProcessSettingsWidget ==========================================================================================
@@ -85,7 +85,7 @@ class ProcessWindow(Window):
     Simple Process Window
     """
 
-    wid = f"{testbed.SIMPLE_LOOP}_window"
+    wid = f"{testbed.CAPTURE_LOOP}_window"
 
     def __init__(self, parent=None):
         super().__init__(parent, Qt.WindowType.Dialog)

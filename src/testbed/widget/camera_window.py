@@ -12,7 +12,7 @@ import testbed
 from ..device.camera import Camera, SourceSample
 from ..widget import Window, OrientationWidget, ROIWidget, DoubleValueSetWidget, FileLoadWidget
 from ..widget.figure_widget import SourceFigureWidget, SourceHistFigureWidget
-from ..function import Flip, Rotation, flip_rotate_frame, is_camera_calibration_file_valid
+from ..function import Flip, Rotation, flip_rotate_frame, is_camera_calibration_file_valid, locate_single_airy
 
 logger = setup_logger("camera_window", terminator="\n")
 
@@ -456,9 +456,10 @@ class SettingsWindow(Window):
 
                 @Slot()
                 def on_center_on_brightest_clicked():
-                    y_bright, x_bright = np.unravel_index(np.argmax(self.camera.sample.capture), self.camera.sample.capture.shape)
-                    dx = x_bright - self.camera.sample.capture.shape[1] // 2
-                    dy = y_bright - self.camera.sample.capture.shape[0] // 2
+                    guess_radius = 0.5
+                    fit_center, _fit_radius, _fit_height = locate_single_airy(self.camera.sample.capture, guess_radius)
+                    dx = int(fit_center[0] - self.camera.sample.capture.shape[1] // 2)
+                    dy = int(fit_center[1] - self.camera.sample.capture.shape[0] // 2)
                     self.camera.move_roi(dx, dy)
                     roi_widget.set_roi(self.camera.roi)
 
