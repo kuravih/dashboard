@@ -1,8 +1,11 @@
 from typing import cast
 import numpy as np
+from pathlib import Path
+from datetime import datetime
 
-from PySide6.QtWidgets import QWidget, QVBoxLayout, QLabel, QRadioButton, QSpacerItem, QButtonGroup, QSizePolicy, QGridLayout, QHBoxLayout, QCheckBox, QComboBox
+from PySide6.QtWidgets import QWidget, QVBoxLayout, QLabel, QRadioButton, QSpacerItem, QButtonGroup, QSizePolicy, QGridLayout, QHBoxLayout, QCheckBox, QComboBox, QFileDialog
 from PySide6.QtCore import Slot, QTimer, Qt
+from astropy.io import fits
 from matplotlib import colormaps
 from matplotlib.colors import LogNorm, Normalize
 
@@ -628,6 +631,7 @@ class PreviewWindow(Window):
         self.preview_figure_widget = SourceFigureWidget(self.camera.blank, self.camera.clim, parent=self)
         if self.preview_figure_widget.toolbar is not None:
             self.preview_figure_widget.toolbar.settingsClicked.connect(self.on_preview_settings_clicked)
+            self.preview_figure_widget.toolbar.captureClicked.connect(self.on_preview_capture_clicked)
 
         layout.addWidget(self.preview_figure_widget)
 
@@ -647,6 +651,26 @@ class PreviewWindow(Window):
         self.preview_settings_window.cmap_combobox.currentTextChanged.connect(self.on_cmap_name_changed)
         self.preview_settings_window.orientation_widget.rotationChanged.connect(self.on_rotation_changed)
         self.preview_settings_window.orientation_widget.flipChanged.connect(self.on_flip_changed)
+
+    @Slot()
+    def on_preview_capture_clicked(self):
+        default_name = f"capture_{datetime.now():%Y%m%d_%H%M%S}.fits"
+        filepath, _ = QFileDialog.getSaveFileName(self, "Save Capture", str(Path("./data/output") / default_name), "FITS file (*.fits)")
+        if not filepath:
+            return
+        sample = self.sample
+        hdu = fits.PrimaryHDU(data=sample.capture)
+        hdu.header["LACTIME"] = (sample.last_access_time.isoformat(), "Last access time")
+        hdu.header["EXPTIME"] = (sample.exposure_time_s, "Exposure time (s)")
+        hdu.header["GAIN"] = (sample.gain, "Gain")
+        hdu.header["FRMRATE"] = (sample.frame_rate_fps, "Frame rate (fps)")
+        hdu.header["TEMP"] = (sample.temperature_c, "Temperature (deg C)")
+        hdu.header["ROI.BR.X"] = (sample.roi["br"][0], "ROI bottom-right X")
+        hdu.header["ROI.BR.Y"] = (sample.roi["br"][1], "ROI bottom-right Y")
+        hdu.header["ROI.TL.X"] = (sample.roi["tl"][0], "ROI top-left X")
+        hdu.header["ROI.TL.Y"] = (sample.roi["tl"][1], "ROI top-left Y")
+        hdu.writeto(filepath, overwrite=True)
+        logger.info("capture saved to %s", filepath)
 
     @Slot(str)
     def on_cmap_name_changed(self, colormap: str):

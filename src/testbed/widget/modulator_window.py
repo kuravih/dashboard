@@ -1,9 +1,12 @@
 from typing import cast
 import numpy as np
+from pathlib import Path
+from datetime import datetime
 
-from PySide6.QtWidgets import QWidget, QVBoxLayout, QLabel, QRadioButton, QSpacerItem, QButtonGroup, QSizePolicy, QGridLayout, QHBoxLayout, QComboBox
+from PySide6.QtWidgets import QWidget, QVBoxLayout, QLabel, QRadioButton, QSpacerItem, QButtonGroup, QSizePolicy, QGridLayout, QHBoxLayout, QComboBox, QFileDialog
 from PySide6.QtGui import QIcon
 from PySide6.QtCore import Slot, QTimer, Qt
+from astropy.io import fits
 from matplotlib import colormaps
 
 from pykato.log import setup_logger
@@ -364,10 +367,10 @@ class SettingsWindow(Window):
         def on_calibration_change():
             self.modulator.calibration_file = self.calibration_widget.filepath
 
-            pstr = 'adu'
-            plim = [0, 100] # soft range
+            pstr = "adu"
+            plim = [0, 100]  # soft range
             if self.modulator.calibration:
-                pstr = 'm'
+                pstr = "m"
                 plim = [-50, 50]
 
             if testbed.data.is_window_alive(self.modulator.preview_window_id):
@@ -525,13 +528,13 @@ class PresetsWindow(Window):
 
         self._sample = self.modulator.sample
 
-        self.pstr = 'adu'
+        self.pstr = "adu"
         self.plim = [0, 100]
         if self.modulator.calibration:
-            self.pstr = 'm'
+            self.pstr = "m"
             self.plim = [-50, 50]
 
-        self.preview_figure_widget = ModulatorFigureWidget(self.modulator.blank, self.modulator.vlim, parent=self)
+        self.preview_figure_widget = ModulatorFigureWidget(self.modulator.blank, self.modulator.vlim, toolitems=["Home", "Pan", "Zoom", "Save", "Settings"], parent=self)
         self.preview_figure_widget.figure.get_cbar_axes().set_title(self.pstr, size=10)
 
         if self.preview_figure_widget.toolbar is not None:
@@ -778,15 +781,16 @@ class PreviewWindow(Window):
         layout.setContentsMargins(2, 2, 2, 2)
         widget.setLayout(layout)
 
-        vstr = 'adu'
+        vstr = "adu"
         if self.modulator.calibration:
-            vstr = 'm'
+            vstr = "m"
 
         self.preview_figure_widget = ModulatorFigureWidget(self.modulator.blank, self.modulator.vlim, parent=self)
         self.preview_figure_widget.figure.get_cbar_axes().set_title(vstr, size=10)
 
         if self.preview_figure_widget.toolbar is not None:
             self.preview_figure_widget.toolbar.settingsClicked.connect(self.on_preview_settings_clicked)
+            self.preview_figure_widget.toolbar.captureClicked.connect(self.on_preview_capture_clicked)
 
         layout.addWidget(self.preview_figure_widget)
 
@@ -806,6 +810,22 @@ class PreviewWindow(Window):
         preview_settings_window.orientation_widget.rotationChanged.connect(self.on_rotation_changed)
         preview_settings_window.orientation_widget.flipChanged.connect(self.on_flip_changed)
 
+    @Slot()
+    def on_preview_capture_clicked(self):
+        default_name = f"command_{datetime.now():%Y%m%d_%H%M%S}.fits"
+        filepath, _ = QFileDialog.getSaveFileName(self, "Save Command", str(Path("./data/output") / default_name), "FITS file (*.fits)")
+        if not filepath:
+            return
+        sample = self._sample
+        hdu = fits.PrimaryHDU(data=np.array(self.command))
+        hdu.header["LACTIME"] = (sample.last_access_time.isoformat(), "Last access time")
+        hdu.header["FRMRATE"] = (sample.frame_rate_fps, "Frame rate (fps)")
+        hdu.header["CENTER.X"] = (sample.center[0], "Center X")
+        hdu.header["CENTER.Y"] = (sample.center[1], "Center Y")
+        hdu.header["RADIUS"] = (sample.radius, "Radius (px)")
+        hdu.writeto(filepath, overwrite=True)
+        logger.info("command saved to %s", filepath)
+
     @Slot(str)
     def on_cmap_changed(self, colormap: str):
         self.preview_figure_widget.cmap_name = colormap
@@ -821,6 +841,9 @@ class PreviewWindow(Window):
     @Slot()
     def on_update_timer_tick(self):
         self.preview_figure_widget.figure.get_image().set_data(flip_rotate_frame(self.sample.command, self.preview_figure_widget.flip, self.preview_figure_widget.rotation))
+        vmin, vmax = float(self.sample.command.min()), float(self.sample.command.max())
+        self.preview_figure_widget.figure.cbar_min_line.set_ydata([vmin, vmin])
+        self.preview_figure_widget.figure.cbar_max_line.set_ydata([vmax, vmax])
         self.preview_figure_widget.figure.canvas.draw_idle()
         # logger.info("modulator_window.py - PreviewWindow.on_update_timer_tick()")
 

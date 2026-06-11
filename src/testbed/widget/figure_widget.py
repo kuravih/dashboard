@@ -17,7 +17,7 @@ from matplotlib.backends.backend_qtagg import NavigationToolbar2QT
 from testbed.function import Flip, Rotation, DOTFProbeDirection
 from testbed.plot.preset import Speckle_Modulation_Plot_Preset, Contrast_Evolution_Plot_Preset, DOTF_Measurement_Plot_Preset, Image_Plot_Preset, Wavefront_Plot_Preset, Histogram_Plot_Preset
 
-from .resource import ICON_HOUSE, ICON_MOVE, ICON_MAGNIFY, ICON_DISK, ICON_GEAR
+from .resource import ICON_CAMERA, ICON_HOUSE, ICON_MOVE, ICON_MAGNIFY, ICON_DISK, ICON_GEAR
 from . import IconButton
 
 
@@ -30,17 +30,21 @@ class NavigationToolbar(NavigationToolbar2QT):
     """
 
     settingsClicked = Signal()
+    captureClicked = Signal()
 
     def __init__(self, canvas, items: list[str] | None = None, parent: QWidget | None = None):
 
         if items is None:
-            items = ["Home", "Pan", "Zoom", "Save", "Settings"]
+            items = ["Home", "Pan", "Zoom", "Save", "Settings", "Capture"]
 
         original_toolitems = NavigationToolbar2QT.toolitems
         custom_toolitems = [t for t in NavigationToolbar2QT.toolitems if t[0] in items]
 
         if "Settings" in items:
             custom_toolitems.append(("Settings", "Settings", "settings", "settings_button_callback"))
+
+        if "Capture" in items:
+            custom_toolitems.append(("Capture", "Capture", "capture", "capture_button_callback"))
 
         # temporarily override
         self.toolitems = custom_toolitems
@@ -58,6 +62,8 @@ class NavigationToolbar(NavigationToolbar2QT):
                 action.setIcon(QIcon(ICON_DISK))
             elif action.text() == "Settings":
                 action.setIcon(QIcon(ICON_GEAR))
+            elif action.text() == "Capture":
+                action.setIcon(QIcon(ICON_CAMERA))
 
         for action in list(self.actions()):
             if action.isSeparator() or action.icon().isNull():
@@ -75,6 +81,9 @@ class NavigationToolbar(NavigationToolbar2QT):
 
     def settings_button_callback(self):
         self.settingsClicked.emit()
+
+    def capture_button_callback(self):
+        self.captureClicked.emit()
 
 
 class FigureWidget(QWidget):
@@ -216,7 +225,6 @@ class SourceFigureWidget(FigureWidget):
         self.figure.get_imshow_axes().axhline(frame.shape[0] / 2, alpha=0.25, linewidth=0.5, color="white")
         self.figure.get_imshow_axes().axvline(frame.shape[1] / 2, alpha=0.25, linewidth=0.5, color="white")
         self.figure.get_imshow_axes().add_patch(patches.Circle((frame.shape[1] / 2, frame.shape[0] / 2), radius=225, fill=False, alpha=0.25, linewidth=0.5, color="white", transform=self.figure.get_imshow_axes().transData))
-
         self.setMinimumSize(100, 100)
 
     @property

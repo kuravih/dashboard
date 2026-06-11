@@ -60,10 +60,11 @@ class ModulatorStream(DeviceStream):
 
     @calibration_file.setter
     def calibration_file(self, value: str | None):
-        self._calibration_file = value
-        if value is not None and is_modulator_calibration_file_valid(value, self.full_shape):
+        if value is not None and is_modulator_calibration_file_valid(value, self.shape):
+            self._calibration_file = value
             self._calibration = read_modulator_calibration_file(value)
         else:
+            self._calibration_file  = None
             self._calibration = None
 
     @property

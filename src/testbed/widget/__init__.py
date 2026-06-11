@@ -5,12 +5,16 @@ from PySide6.QtWidgets import QWidget, QHBoxLayout, QVBoxLayout, QDoubleSpinBox,
 from PySide6.QtCore import Signal, Slot, Qt, QFileInfo, QSize
 from PySide6.QtGui import QIcon, QCursor, QPixmap, QPainter, QColor
 
+from pykato.log import setup_logger
+
 from ..device import Device
 from ..device.camera import Camera
 from ..device.modulator import Modulator
 from ..widget.resource import ICON_FOLDER_OPEN, ICON_RUN, ICON_EYE, ICON_UP_ARROW, ICON_DOWN_ARROW, ICON_LEFT_ARROW, ICON_RIGHT_ARROW, ICON_INFO, ICON_BACKSPACE, ICON_PLUS, ICON_MINUS, ICON_QUESTION_MARK, ICON_CENTER
 from ..widget.dialog import MessageDialog
 from ..function import Rotation, Flip, DOTFProbeDirection, PairwiseProbeDirection
+
+logger = setup_logger("widget", terminator="\n")
 
 
 class Window(QWidget):
@@ -860,13 +864,15 @@ class FileLoadWidget(QWidget):
         if filepath is not None and not self._validator(filepath):
             return
         self.filepath = filepath
-        self.file_lineedit.setText(self.filepath)
         if self.filepath is None:
+            self.file_lineedit.setText("")
             self.file_browse_button.show()
             self.file_clear_button.hide()
         else:
+            self.file_lineedit.setText(QFileInfo(self.filepath).fileName())
             self.file_browse_button.hide()
             self.file_clear_button.show()
+        self.fileChanged.emit()
 
 
 class DOTFProbeDirectionWidget(QWidget):
