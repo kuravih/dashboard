@@ -1,7 +1,7 @@
 import numpy as np
 from numpy.typing import NDArray
 
-from PySide6.QtCore import Signal
+from PySide6.QtCore import Signal, Qt
 from PySide6.QtWidgets import QWidget, QVBoxLayout
 from PySide6.QtGui import QAction, QIcon
 
@@ -201,9 +201,6 @@ class ModulatorFigureWidget(SinkFigureWidget):
         self.figure.get_imshow_axes().set_xlabel("px", size=10)
         self.figure.get_imshow_axes().set_ylabel("px", size=10)
         self.figure.get_cbar_axes().set_title("adu", size=10)
-        self.figure.get_imshow_axes().axhline(frame.shape[0] / 2, alpha=0.25, linewidth=0.5, color="white")
-        self.figure.get_imshow_axes().axvline(frame.shape[1] / 2, alpha=0.25, linewidth=0.5, color="white")
-        self.figure.get_imshow_axes().add_patch(patches.Circle((frame.shape[0] / 2, frame.shape[1] / 2), radius=frame.shape[1] / 2, fill=False, alpha=0.25, linewidth=0.5, color="white", transform=self.figure.get_imshow_axes().transData))
         self.setMinimumSize(100, 100)
 
 
@@ -222,10 +219,23 @@ class SourceFigureWidget(FigureWidget):
         self.figure.get_imshow_axes().set_ylabel("px", size=10)
         self.figure.get_imshow_axes().set_ylim((0 - 0.5, frame.shape[0] - 1 + 0.5))
         self.figure.get_cbar_axes().set_title("adu", size=10)
-        self.figure.get_imshow_axes().axhline(frame.shape[0] / 2, alpha=0.25, linewidth=0.5, color="white")
-        self.figure.get_imshow_axes().axvline(frame.shape[1] / 2, alpha=0.25, linewidth=0.5, color="white")
-        self.figure.get_imshow_axes().add_patch(patches.Circle((frame.shape[1] / 2, frame.shape[0] / 2), radius=225, fill=False, alpha=0.25, linewidth=0.5, color="white", transform=self.figure.get_imshow_axes().transData))
         self.setMinimumSize(100, 100)
+
+        self._drag_mode: str | None = None
+        self._drag_offset: tuple[float, float] | None = None
+
+        cx, cy = frame.shape[1] / 2, frame.shape[0] / 2
+        r = 0.8 * frame.shape[0] / 2
+        self.circle = patches.Circle((cx, cy), radius=r, fill=False, alpha=0.25, linewidth=0.5, color="white")
+        self.figure.get_imshow_axes().add_patch(self.circle)
+        self.hline = self.figure.get_imshow_axes().axhline(cy, color="white", linewidth=0.5, alpha=0.25)
+        self.vline = self.figure.get_imshow_axes().axvline(cx, color="white", linewidth=0.5, alpha=0.25)
+        self._original_center: tuple[float, float] = (cx, cy)
+        self._original_radius: float = r
+
+        self.figure_canvas.mpl_connect("button_press_event", self._on_select_press)
+        self.figure_canvas.mpl_connect("motion_notify_event", self._on_select_motion)
+        self.figure_canvas.mpl_connect("button_release_event", self._on_select_release)
 
     @property
     def cmap_name(self) -> str:
@@ -274,6 +284,101 @@ class SourceFigureWidget(FigureWidget):
     @flip.setter
     def flip(self, value: Flip):
         self._flip = value
+
+    def _hit_test(self, x: float, y: float, ax) -> str | None:
+        cx, cy = self.circle.center
+        t = ax.transData
+        click_px = t.transform([x, y])
+        center_px = t.transform([cx, cy])
+        edge_px = t.transform([cx + self.circle.get_radius(), cy])
+        dist_px = np.hypot(click_px[0] - center_px[0], click_px[1] - center_px[1])
+        radius_px = np.hypot(edge_px[0] - center_px[0], edge_px[1] - center_px[1])
+        if dist_px < 8:
+            return "move"
+        if abs(dist_px - radius_px) < 8:
+            return "resize"
+        return None
+
+    def _select(self):
+        self.circle.set_alpha(0.5)
+        self.circle.set_linewidth(1)
+        self.circle.set_linestyle("--")
+        self.hline.set_alpha(0.5)
+        self.hline.set_linewidth(1)
+        self.hline.set_linestyle("--")
+        self.vline.set_alpha(0.5)
+        self.vline.set_linewidth(1)
+        self.vline.set_linestyle("--")
+        self.figure_canvas.draw_idle()
+
+    def _deselect(self):
+        self.circle.set_alpha(0.25)
+        self.circle.set_linewidth(0.5)
+        self.circle.set_linestyle("-")
+        self.hline.set_alpha(0.25)
+        self.hline.set_linewidth(0.5)
+        self.hline.set_linestyle("-")
+        self.vline.set_alpha(0.25)
+        self.vline.set_linewidth(0.5)
+        self.vline.set_linestyle("-")
+        self._drag_mode = None
+        self._drag_offset = None
+        self.figure_canvas.draw_idle()
+
+    def _reset_circle(self):
+        self.circle.set_center(self._original_center)
+        self.circle.set_radius(self._original_radius)
+        self.hline.set_ydata([self._original_center[1], self._original_center[1]])
+        self.vline.set_xdata([self._original_center[0], self._original_center[0]])
+        self.figure_canvas.draw_idle()
+
+    def _on_select_press(self, event):
+        if self._toolbar is not None and self._toolbar.mode:
+            return
+        if event.inaxes is None or event.button != 1:
+            self._deselect()
+            return
+        hit = self._hit_test(event.xdata, event.ydata, event.inaxes)
+        if hit is not None:
+            if event.dblclick and hit == "move":
+                self._reset_circle()
+                return
+            self._select()
+            self._drag_mode = hit
+            if hit == "move":
+                cx, cy = self.circle.center
+                self._drag_offset = (cx - event.xdata, cy - event.ydata)
+        else:
+            self._deselect()
+
+    def _on_select_motion(self, event):
+        if event.inaxes is None:
+            return
+        if self._drag_mode is None:
+            if self._toolbar is not None and self._toolbar.mode:
+                return
+            hit = self._hit_test(event.xdata, event.ydata, event.inaxes)
+            if hit == "move":
+                self.figure_canvas.setCursor(Qt.CursorShape.SizeAllCursor)
+            elif hit == "resize":
+                self.figure_canvas.setCursor(Qt.CursorShape.SizeBDiagCursor)
+            else:
+                self.figure_canvas.setCursor(Qt.CursorShape.ArrowCursor)
+            return
+        if self._drag_mode == "move" and self._drag_offset is not None:
+            new_center = (event.xdata + self._drag_offset[0], event.ydata + self._drag_offset[1])
+            self.circle.set_center(new_center)
+            self.hline.set_ydata([new_center[1], new_center[1]])
+            self.vline.set_xdata([new_center[0], new_center[0]])
+        elif self._drag_mode == "resize":
+            cx, cy = self.circle.center
+            radius = np.hypot(event.xdata - cx, event.ydata - cy)
+            self.circle.set_radius(radius)
+        self.figure_canvas.draw_idle()
+
+    def _on_select_release(self, event):
+        self._drag_mode = None
+        self._drag_offset = None
 
 
 class SourceHistFigureWidget(FigureWidget):
