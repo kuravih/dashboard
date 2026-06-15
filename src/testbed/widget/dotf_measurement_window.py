@@ -301,7 +301,7 @@ class ProcessWindow(Window):
         self.controls_widget.progressbar.updateProgress()
         if testbed.data.is_worker_alive(ProcessWorker.wid):
             testbed.data.workers.pop(ProcessWorker.wid)
-            self.controls_widget.run_stop_button.setIconHint(QIcon(ICON_RUN), "Run")
+            self.controls_widget.run_stop_button.setBaseIconHint(QIcon(ICON_RUN), "Run")
         self.update_device_buttons(True)
 
     @Slot()
@@ -321,7 +321,7 @@ class ProcessWindow(Window):
             process_worker.signals.error.connect(self.on_process_error)
 
             self.controls_widget.progressbar.setMaximum(process_worker.n_ticks)
-            self.controls_widget.run_stop_button.setIconHint(QIcon(ICON_STOP), "Stop")
+            self.controls_widget.run_stop_button.setBaseIconHint(QIcon(ICON_STOP), "Stop")
 
             if testbed.data.is_window_alive(self.source.preview_window_id):
                 source_preview_window = cast(CameraPreviewWindow, testbed.data.windows[self.source.preview_window_id])

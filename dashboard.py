@@ -200,7 +200,7 @@ class MainWindow(QMainWindow):
         testbed.data.workers[device.sampling_worker_id] = device_sampling_worker
 
         testbed.data.threadpool.start(device_sampling_worker)
-        button.setIconHint(QIcon(ICON_PAUSE), "Pause")
+        button.setBaseIconHint(QIcon(ICON_PAUSE), "Pause")
         self.on_sampling_worker_play(device)
 
     def on_sampling_worker_play(self, device: Camera | Modulator):
@@ -236,7 +236,7 @@ class MainWindow(QMainWindow):
     def on_sampling_worker_pause(self, device: Camera | Modulator, button: IconButton):
         if testbed.data.is_worker_alive(device.sampling_worker_id):
             testbed.data.workers.pop(device.sampling_worker_id)
-            button.setIconHint(QIcon(ICON_PLAY), "play")
+            button.setBaseIconHint(QIcon(ICON_PLAY), "play")
         if testbed.data.is_window_alive(SimpleLoopWindow.wid):
             simple_loop_window = cast(SimpleLoopWindow, testbed.data.windows[SimpleLoopWindow.wid])
             simple_loop_window.update_process_controls()

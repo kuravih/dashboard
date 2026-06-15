@@ -1092,6 +1092,6 @@ class IconButton(QPushButton):
         self._rebuild_icon()
         super().resizeEvent(event)
 
-    def setIconHint(self, icon: QIcon, hint: str):
-        self.setIcon(icon)
+    def setBaseIconHint(self, icon: QIcon, hint: str):
+        self.setBaseIcon(icon)
         self.setToolTip(hint)

@@ -14,13 +14,13 @@ import matplotlib.patches as patches
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 
 from pykato.plotfunction.gridspec_layout import GridSpec_Layout
-from pykato.plotfunction.preset import monkeypatch_Axes_mask_image, monkeypatch_AxesImage_alpha_mask_show, monkeypatch_AxesImage_cmap_name, monkeypatch_AxesImage_cmap_norm, Imshow_Colorbar_Preset, Complex_ImageGrid_TwoColorbars_Preset, Complex_Imshow_TwoColorbars_Preset, Histogram_Colorbar_Preset
+from pykato.plotfunction.preset import monkeypatch_Axes_mask_image, monkeypatch_AxesImage_cmap_name, monkeypatch_AxesImage_cmap_norm, Imshow_Colorbar_Preset, Complex_ImageGrid_TwoColorbars_Preset, Complex_Imshow_TwoColorbars_Preset, Histogram_Colorbar_Preset
 from pykato.log import setup_logger
 
 logger = setup_logger("preset", terminator="\n")
 
 
-def Image_Plot_Preset(capture: NDArray[np.uint16 | np.float64], cmap_norm: Normalize | None = None, cmap_name: str | None = None, alpha_mask: NDArray[float] | None = None, figure: Figure | None = None) -> Figure:
+def Image_Plot_Preset(capture: NDArray[np.uint16 | np.float64], cmap_norm: Normalize | None = None, cmap_name: str | None = None, mask: NDArray[float] | None = None, figure: Figure | None = None) -> Figure:
     """
     Plot preset used to display source images.
 
@@ -54,15 +54,14 @@ def Image_Plot_Preset(capture: NDArray[np.uint16 | np.float64], cmap_norm: Norma
         monkeypatch_AxesImage_cmap_norm(figure.get_image())
         figure.get_image().set_cmap_norm(cmap_norm)
 
-    if alpha_mask is not None:
-        monkeypatch_AxesImage_alpha_mask_show(figure.get_image(), alpha_mask.astype(float), color='black')
-        figure.get_image().set_alpha_mask_show(True)
+    if mask is not None:
+        monkeypatch_Axes_mask_image(figure.get_imshow_axes(), mask.astype(float))
 
     figure.get_imshow_axes().set_xlabel("px", size=10)
     figure.get_imshow_axes().set_ylabel("px", size=10)
 
-    figure.cbar_min_line = figure.get_cbar_axes().axhline(np.min(capture), color='cyan', linewidth=1)
-    figure.cbar_max_line = figure.get_cbar_axes().axhline(np.max(capture), color='cyan', linewidth=1)
+    figure.cbar_min_line = figure.get_cbar_axes().axhline(np.min(capture), color="cyan", linewidth=1)
+    figure.cbar_max_line = figure.get_cbar_axes().axhline(np.max(capture), color="cyan", linewidth=1)
 
     return figure
 

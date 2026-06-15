@@ -10,6 +10,7 @@ from astropy.io import fits
 from matplotlib import colormaps
 
 from pykato.log import setup_logger
+from pykato.function import disk
 
 import testbed
 from ..device.modulator import Modulator, SinkSample
@@ -333,6 +334,13 @@ class SettingsWindow(Window):
         def on_set_radius_clicked(radius: int):
             self.modulator.set_radius(radius)
             radius_widget.setValue(self.modulator.radius)
+            mask = 0.5 * (1.0 - disk(self.modulator.shape, radius))
+            if testbed.data.is_window_alive(self.modulator.preview_window_id):
+                modulator_preview_window = cast(PreviewWindow, testbed.data.windows[self.modulator.preview_window_id])
+                modulator_preview_window.preview_figure_widget.figure.get_imshow_axes().get_mask().set_alpha(mask.astype(np.float64))
+            if testbed.data.is_window_alive(self.modulator.presets_window_id):
+                modulator_presets_window = cast(PresetsWindow, testbed.data.windows[self.modulator.presets_window_id])
+                modulator_presets_window.preview_figure_widget.figure.get_imshow_axes().get_mask().set_alpha(mask.astype(np.float64))
 
         radius_label = QLabel("Radius", self)
         radius_label.setFixedWidth(100)
@@ -534,7 +542,7 @@ class PresetsWindow(Window):
             self.pstr = "m"
             self.plim = [-50, 50]
 
-        self.preview_figure_widget = ModulatorFigureWidget(self.modulator.blank, self.modulator.vlim, toolitems=["Home", "Pan", "Zoom", "Save", "Settings"], parent=self)
+        self.preview_figure_widget = ModulatorFigureWidget(self.modulator.blank, self.modulator.vlim, self.modulator.radius, toolitems=["Home", "Pan", "Zoom", "Save", "Settings"], parent=self)
         self.preview_figure_widget.figure.get_cbar_axes().set_title(self.pstr, size=10)
 
         if self.preview_figure_widget.toolbar is not None:
@@ -785,7 +793,7 @@ class PreviewWindow(Window):
         if self.modulator.calibration:
             vstr = "m"
 
-        self.preview_figure_widget = ModulatorFigureWidget(self.modulator.blank, self.modulator.vlim, parent=self)
+        self.preview_figure_widget = ModulatorFigureWidget(self.modulator.blank, self.modulator.vlim, self.modulator.radius, parent=self)
         self.preview_figure_widget.figure.get_cbar_axes().set_title(vstr, size=10)
 
         if self.preview_figure_widget.toolbar is not None:

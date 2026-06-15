@@ -6,6 +6,7 @@ from PySide6.QtWidgets import QWidget, QVBoxLayout
 from PySide6.QtGui import QAction, QIcon
 
 from pykato.log import setup_logger
+from pykato.function import disk
 
 import matplotlib.pyplot as plt
 import matplotlib.patches as patches
@@ -123,8 +124,12 @@ class SinkFigureWidget(FigureWidget):
     Sink Figure widget
     """
 
-    def __init__(self, frame: np.ndarray, vlim: tuple[float, float], toolitems: list[str] | None = None, parent: QWidget | None = None):
-        super().__init__(Image_Plot_Preset(frame, cmap_name="bwr"), toolitems, parent=parent)
+    def __init__(self, frame: np.ndarray, vlim: tuple[float, float], radius: float | None = None, toolitems: list[str] | None = None, parent: QWidget | None = None):
+        super().__init__(Image_Plot_Preset(frame, cmap_name="bwr", mask=np.zeros_like(frame)), toolitems, parent=parent)
+        self.figure.get_imshow_axes().get_mask().set_cmap("Greys_r")
+        if radius is not None:
+            mask = 0.5 * (1.0 - disk(frame.shape, radius))
+            self.figure.get_imshow_axes().get_mask().set_alpha(mask)
         self.rotation = Rotation.UP
         self.flip = Flip.POS
 
@@ -195,8 +200,8 @@ class ModulatorFigureWidget(SinkFigureWidget):
     Modulator Figure widget
     """
 
-    def __init__(self, frame: np.ndarray, vlim: tuple[float, float], toolitems: list[str] | None = None, parent: QWidget | None = None):
-        super().__init__(frame, vlim, toolitems, parent=parent)
+    def __init__(self, command: np.ndarray, vlim: tuple[float, float], radius: float | None = None, toolitems: list[str] | None = None, parent: QWidget | None = None):
+        super().__init__(command, vlim, radius, toolitems, parent=parent)
         self.figure.get_imshow_axes().set_title("SLM", size=10)
         self.figure.get_imshow_axes().set_xlabel("px", size=10)
         self.figure.get_imshow_axes().set_ylabel("px", size=10)
@@ -209,8 +214,8 @@ class SourceFigureWidget(FigureWidget):
     Source Figure widget
     """
 
-    def __init__(self, frame: np.ndarray, clim: tuple[float, float], rotation: Rotation = Rotation.UP, flip: Flip = Flip.POS, alpha_mask: NDArray[np.bool] | None = None, toolitems: list[str] | None = None, parent: QWidget | None = None):
-        super().__init__(Image_Plot_Preset(frame, cmap_name="hot", cmap_norm=Normalize(*clim), alpha_mask=alpha_mask), toolitems, parent)
+    def __init__(self, frame: np.ndarray, clim: tuple[float, float], rotation: Rotation = Rotation.UP, flip: Flip = Flip.POS, mask: NDArray[np.bool] | None = None, toolitems: list[str] | None = None, parent: QWidget | None = None):
+        super().__init__(Image_Plot_Preset(frame, cmap_name="hot", cmap_norm=Normalize(*clim), mask=mask), toolitems, parent)
         self.rotation = rotation
         self.flip = flip
         self.figure.get_imshow_axes().set_title("Source", size=10)
@@ -262,12 +267,12 @@ class SourceFigureWidget(FigureWidget):
         self.figure.get_image().set_cmap_norm(value)
 
     @property
-    def alpha_mask_show(self) -> bool:
-        return self.figure.get_image().get_alpha_mask_show()
+    def mask_show(self) -> bool:
+        return self.figure.get_image().get_mask_show()
 
-    @alpha_mask_show.setter
-    def alpha_mask_show(self, value: bool):
-        self.figure.get_image().set_alpha_mask_show(value)
+    @mask_show.setter
+    def mask_show(self, value: bool):
+        self.figure.get_image().set_mask_show(value)
 
     @property
     def rotation(self) -> Rotation:
@@ -470,12 +475,12 @@ class ContrastFigureWidget(FigureWidget):
         self.figure.get_image().set_cmap_norm(value)
 
     @property
-    def alpha_mask_show(self) -> bool:
-        return self.figure.get_image().get_alpha_mask_show()
+    def mask_show(self) -> bool:
+        return self.figure.get_image().get_mask_show()
 
-    @alpha_mask_show.setter
-    def alpha_mask_show(self, value: bool):
-        self.figure.get_image().set_alpha_mask_show(value)
+    @mask_show.setter
+    def mask_show(self, value: bool):
+        self.figure.get_image().set_mask_show(value)
 
 
 class SpeckleNullingFigureWidget(FigureWidget):
