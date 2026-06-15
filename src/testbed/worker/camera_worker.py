@@ -29,8 +29,14 @@ class ProcessWorker(Worker):
         super().run()
         while self._running:
             time.sleep(0.1)
-            self.signals.sampled.emit(self._camera.pull_capture())
+            try:
+                self.signals.sampled.emit(self._camera.pull_capture())
+            except RuntimeError:
+                break
 
         logger.info("camera_worker.py - ProcessWorker() finished")
         self.stop()
-        self.signals.finished.emit()
+        try:
+            self.signals.finished.emit()
+        except RuntimeError:
+            pass
