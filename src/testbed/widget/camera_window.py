@@ -1,30 +1,28 @@
-from typing import cast
-import numpy as np
-from pathlib import Path
 from datetime import datetime
+from pathlib import Path
+from typing import cast
 
-from PySide6.QtWidgets import QWidget, QVBoxLayout, QLabel, QRadioButton, QSpacerItem, QButtonGroup, QSizePolicy, QGridLayout, QHBoxLayout, QCheckBox, QComboBox, QFileDialog
-from PySide6.QtCore import Slot, QTimer, Qt
+import numpy as np
 from astropy.io import fits
 from matplotlib import colormaps
 from matplotlib.colors import LogNorm, Normalize
-
 from pykato.log import setup_logger
+from PySide6.QtCore import Qt, QTimer, Slot
+from PySide6.QtWidgets import QButtonGroup, QCheckBox, QComboBox, QFileDialog, QGridLayout, QHBoxLayout, QLabel, QRadioButton, QSizePolicy, QSpacerItem, QVBoxLayout, QWidget
 
 import testbed
+
 from ..device.camera import Camera, SourceSample
-from ..widget import Window, OrientationWidget, ROIWidget, DoubleValueSetWidget, FileLoadWidget
-from ..widget.figure_widget import SourceFigureWidget, SourceHistFigureWidget
 from ..function import Flip, Rotation, flip_rotate_frame, is_camera_calibration_file_valid, locate_single_airy
+from ..widget import DoubleValueSetWidget, FileLoadWidget, OrientationWidget, ROIWidget, Window
+from ..widget.figure_widget import SourceFigureWidget, SourceHistFigureWidget
 
 logger = setup_logger("camera_window", terminator="\n")
 
 
 # ==== HistogramSettingsWindow ========================================================================================
 class HistogramSettingsWindow(Window):
-    """
-    Settings for the histogram.
-    """
+    """Settings for the histogram."""
 
     def __init__(self, cmap_name: str, cmap_norm: Normalize, parent=None):
         self.cmap_name: str = cmap_name
@@ -76,9 +74,7 @@ class HistogramSettingsWindow(Window):
 
 # ==== InfoWindow =====================================================================================================
 class InfoWindow(Window):
-    """
-    Camera info window
-    """
+    """Camera info window"""
 
     def __init__(self, camera: Camera, parent=None):
         self.camera = camera
@@ -199,7 +195,7 @@ class InfoWindow(Window):
         self.info_last_access_time_value_label.setToolTip("Last access time")
 
         roi_label = QLabel("ROI", self)
-        self.info_roi_value_label = QLabel(f"[({self.camera.roi['br'][0]}, {self.camera.roi['br'][1]})," f"({self.camera.roi['tl'][0]}, {self.camera.roi['tl'][1]})]", self)  # pylint: disable=W1405:inconsistent-quotes
+        self.info_roi_value_label = QLabel(f"[({self.camera.roi['br'][0]}, {self.camera.roi['br'][1]}),({self.camera.roi['tl'][0]}, {self.camera.roi['tl'][1]})]", self)  # pylint: disable=W1405:inconsistent-quotes
         self.info_roi_value_label.setToolTip("Region of interest [(x1,y1),(x2,y2)]")
 
         self.hist_figure_widget = SourceHistFigureWidget(self.camera.blank, self.camera.pxmax, parent=self)
@@ -327,7 +323,7 @@ class InfoWindow(Window):
         self.info_gain_value_label.setText(f"{self.sample.gain}")
         self.info_frame_rate_value_label.setText(f"{self.sample.frame_rate_fps:.2f}")
         self.info_temperature_value_label.setText(f"{self.sample.temperature_c}")
-        self.info_roi_value_label.setText(f"[({self.sample.roi['br'][0]}, {self.sample.roi['br'][1]})," f"({self.sample.roi['tl'][0]}, {self.sample.roi['tl'][1]})]")  # pylint: disable=W1405:inconsistent-quotes
+        self.info_roi_value_label.setText(f"[({self.sample.roi['br'][0]}, {self.sample.roi['br'][1]}),({self.sample.roi['tl'][0]}, {self.sample.roi['tl'][1]})]")  # pylint: disable=W1405:inconsistent-quotes
         self.hist_figure_widget.figure.set_data(self.sample.capture)
         self.hist_figure_widget.figure.canvas.draw_idle()
         # logger.info("camera_window.py - InfoWindow.on_update_timer_tick()")
@@ -341,9 +337,7 @@ class InfoWindow(Window):
 
 # ==== SettingsWindow =================================================================================================
 class SettingsWindow(Window):
-    """
-    Camera settings window.
-    """
+    """Camera settings window."""
 
     def __init__(self, camera: Camera, parent: QWidget | None = None):
         self.camera = camera
@@ -425,7 +419,6 @@ class SettingsWindow(Window):
                 layout.addWidget(expTime_widget, row, col)
 
             if "gain" in self.camera.settings:
-
                 # ---- gain setting ---------------------------------------------------------------------------------------
                 @Slot(int)
                 def on_gain_set_clicked(gain: float):
@@ -450,7 +443,6 @@ class SettingsWindow(Window):
                 layout.addWidget(gain_widget, row, col)
 
             if "roi" in self.camera.settings:
-
                 # ---- roi setting --------------------------------------------------------------------------------------------
                 @Slot(int, int)
                 def on_roi_move_clicked(x: int, y: int):
@@ -511,9 +503,7 @@ class SettingsWindow(Window):
 
 # ==== PreviewSettingsWindow ====================================================================================
 class PreviewSettingsWindow(Window):
-    """
-    Settings for the simple preview window.
-    """
+    """Settings for the simple preview window."""
 
     def __init__(self, cmap_name: str, cmap_norm: Normalize, rotation: Rotation, flip: Flip, parent: QWidget | None = None):
         self.cmap_name: str = cmap_name
@@ -582,9 +572,7 @@ class PreviewSettingsWindow(Window):
 
 # ==== PreviewWindow ==================================================================================================
 class PreviewWindow(Window):
-    """
-    Alternate preview window (with orientation control).
-    """
+    """Alternate preview window (with orientation control)."""
 
     def __init__(self, camera: Camera, parent: QWidget | None = None):
         self.camera = camera

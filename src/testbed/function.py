@@ -1,22 +1,23 @@
-import cloudpickle
-from enum import Enum, IntEnum, auto
 import struct
+from datetime import datetime
+from enum import Enum, IntEnum, auto
+from io import FileIO
+
+import cloudpickle
 import numpy as np
 import toml
-from datetime import datetime
-
-from numpy.typing import NDArray
-from .device import SinkSample, SourceSample
-from io import FileIO
-from pykato.log import setup_logger
-from pykato.function import box, generate_coordinates, invert_2x2_arrays, airy_fn, least_squares_fit_2d
-
-from scipy.interpolate import CubicSpline
-from skimage.feature import peak_local_max
-from skimage.morphology import disk, dilation
-from skimage.measure import label, regionprops
 from astropy.io import fits
 from hcipy.util import large_poisson
+from numpy.typing import NDArray
+from pykato.function import airy_fn, box, generate_coordinates, invert_2x2_arrays, least_squares_fit_2d
+from pykato.log import setup_logger
+from scipy import ndimage
+from scipy.interpolate import CubicSpline
+from skimage.feature import peak_local_max
+from skimage.measure import label, regionprops
+from skimage.morphology import dilation, disk
+
+from .device import SinkSample, SourceSample
 
 logger = setup_logger("function", terminator="\n")
 
@@ -47,8 +48,7 @@ class Flip(Enum):
 
     @classmethod
     def from_bool(cls, value: bool) -> "Flip":
-        """
-        Construct a Flip from a boolean value.
+        """Construct a Flip from a boolean value.
 
         Parameters:
             value: bool
@@ -60,8 +60,7 @@ class Flip(Enum):
         return cls.POS if value else cls.NEG
 
     def to_bool(self) -> bool:
-        """
-        Convert the Flip to a boolean.
+        """Convert the Flip to a boolean.
 
         Returns: bool
             True if POS, False if NEG.
@@ -77,8 +76,7 @@ class Rotation(Enum):
 
     @classmethod
     def from_int(cls, i: int) -> "Rotation":
-        """
-        Construct a Rotation from an integer.
+        """Construct a Rotation from an integer.
 
         Parameters:
             i: int
@@ -90,8 +88,7 @@ class Rotation(Enum):
         return {0: cls.UP, 1: cls.LEFT, 2: cls.DOWN, 3: cls.RIGHT}[i]
 
     def to_int(self):
-        """
-        Convert the Rotation to an integer.
+        """Convert the Rotation to an integer.
 
         Returns: int
             0 for UP, 1 for LEFT, 2 for DOWN, 3 for RIGHT.
@@ -100,8 +97,7 @@ class Rotation(Enum):
 
 
 def flip_rotate_frame(frame: np.ndarray, flip: Flip, rotation: Rotation) -> np.ndarray:
-    """
-    Apply rotation then horizontal flip to a frame array.
+    """Apply rotation then horizontal flip to a frame array.
     Parameters:
         frame: np.ndarray
             Input frame
@@ -120,8 +116,7 @@ def flip_rotate_frame(frame: np.ndarray, flip: Flip, rotation: Rotation) -> np.n
 
 
 def flip_rotate_points(xs: np.ndarray, ys: np.ndarray, image_shape: tuple[int, int], flip: Flip, rotation: Rotation) -> tuple[np.ndarray, np.ndarray]:
-    """
-    Transform point coordinates to match a flip and rotation applied to an image.
+    """Transform point coordinates to match a flip and rotation applied to an image.
     Parameters:
         xs: np.ndarray
             x coordinates
@@ -159,8 +154,7 @@ def flip_rotate_points(xs: np.ndarray, ys: np.ndarray, image_shape: tuple[int, i
 
 
 def write_source_sample_header(fileio: FileIO, sample: SourceSample):
-    """
-    Write the binary file header (tag, shape, dtype) for a source sample recording.
+    """Write the binary file header (tag, shape, dtype) for a source sample recording.
 
     Parameters:
         fileio: FileIO
@@ -181,8 +175,7 @@ def write_source_sample_header(fileio: FileIO, sample: SourceSample):
 
 
 def write_source_sample_data(fileio: FileIO, sample: SourceSample):
-    """
-    Append source sample metadata and raw capture bytes to a binary file.
+    """Append source sample metadata and raw capture bytes to a binary file.
 
     Parameters:
         fileio: FileIO
@@ -209,8 +202,7 @@ def write_source_sample_data(fileio: FileIO, sample: SourceSample):
 
 
 def read_source_samples(filename: str) -> list[SourceSample]:
-    """
-    Read and return all source samples from a binary recording file.
+    """Read and return all source samples from a binary recording file.
 
     Parameters:
         filename: str
@@ -253,8 +245,7 @@ def read_source_samples(filename: str) -> list[SourceSample]:
 
 
 def write_sink_sample_header(fileio: FileIO, sample: SinkSample):
-    """
-    Write the binary file header (tag, shape, dtype) for a sink sample recording.
+    """Write the binary file header (tag, shape, dtype) for a sink sample recording.
 
     Parameters:
         fileio: FileIO
@@ -275,8 +266,7 @@ def write_sink_sample_header(fileio: FileIO, sample: SinkSample):
 
 
 def write_sink_sample_data(fileio: FileIO, sample: SinkSample):
-    """
-    Append sink sample metadata and raw command bytes to a binary file.
+    """Append sink sample metadata and raw command bytes to a binary file.
 
     Parameters:
         fileio: FileIO
@@ -297,8 +287,7 @@ def write_sink_sample_data(fileio: FileIO, sample: SinkSample):
 
 
 def read_sink_samples(filename: str) -> list[SinkSample]:
-    """
-    Read and return all sink samples from a binary recording file.
+    """Read and return all sink samples from a binary recording file.
 
     Parameters:
         filename: str
@@ -341,8 +330,7 @@ def read_sink_samples(filename: str) -> list[SinkSample]:
 
 
 def find_speckles(speckle_image: np.ndarray, num_peaks: int = 1, footprint_size: int = 10, min_distance: int = 1) -> tuple[list[tuple[float, float]], np.ndarray]:
-    """
-    Locate speckle peaks and return their weighted centroids sorted by x and the dilated peak mask.
+    """Locate speckle peaks and return their weighted centroids sorted by x and the dilated peak mask.
 
     Parameters:
         speckle_image: np.ndarray
@@ -376,8 +364,7 @@ def find_speckles(speckle_image: np.ndarray, num_peaks: int = 1, footprint_size:
 
 
 def speckle_parameters(center: tuple[float, float], speckle_location_px: tuple[float, float], speck_calibration: dict[str, dict[str, float]]) -> tuple[float, float]:
-    """
-    Convert a speckle pixel position to calibrated frequency and angle.
+    """Convert a speckle pixel position to calibrated frequency and angle.
 
     Parameters:
         center: tuple[float, float]
@@ -399,8 +386,7 @@ def speckle_parameters(center: tuple[float, float], speckle_location_px: tuple[f
 
 
 def is_speckle_calibration_file_valid(filename: str) -> bool:
-    """
-    Return True if the speckle calibration pickle file contains the required slope/intercept keys.
+    """Return True if the speckle calibration pickle file contains the required slope/intercept keys.
 
     Parameters:
         filename: str
@@ -430,8 +416,7 @@ def is_speckle_calibration_file_valid(filename: str) -> bool:
 
 
 def read_speckle_calibration_file(filename: str) -> dict[str, dict[str, float]]:
-    """
-    Load and return the speckle calibration dict from a pickle file.
+    """Load and return the speckle calibration dict from a pickle file.
 
     Parameters:
         filename: str
@@ -445,8 +430,7 @@ def read_speckle_calibration_file(filename: str) -> dict[str, dict[str, float]]:
 
 
 def write_speckle_calibration_file(speckle_calibration_dict: dict[str, dict[str, float]], filename: str):
-    """
-    Serialize the speckle calibration dict to a pickle file.
+    """Serialize the speckle calibration dict to a pickle file.
 
     Parameters:
         speckle_calibration_dict: dict[str, dict[str, float]]
@@ -459,8 +443,7 @@ def write_speckle_calibration_file(speckle_calibration_dict: dict[str, dict[str,
 
 
 def is_camera_calibration_file_valid(filename: str, shape: tuple[int, int]) -> bool:
-    """
-    Return True if the camera calibration FITS file contains 3 image frames, a QE table, full well capacity,
+    """Return True if the camera calibration FITS file contains 3 image frames, a QE table, full well capacity,
     and bit depth, all matching the expected shape.
 
     Parameters:
@@ -491,8 +474,7 @@ def is_camera_calibration_file_valid(filename: str, shape: tuple[int, int]) -> b
 
 
 def read_camera_calibration_file(filename: str, roi: dict[str, tuple[int, int]] | None = None) -> dict[str, np.ndarray | float | int]:
-    """
-    Load dark_rate, bias, read_noise, quantum_efficiency, full_well_capacity, and bit_depth from a camera calibration FITS file.
+    """Load dark_rate, bias, read_noise, quantum_efficiency, full_well_capacity, and bit_depth from a camera calibration FITS file.
 
     Parameters:
         filename: str
@@ -528,8 +510,7 @@ def read_camera_calibration_file(filename: str, roi: dict[str, tuple[int, int]] 
 
 
 def write_camera_calibration_file(filename: str, dark_rate: np.ndarray, bias: np.ndarray, read_noise: np.ndarray, λ_m_qe_perc_data: tuple[np.ndarray, np.ndarray], gain: float, full_well_capacity: float, bit_depth: int):
-    """
-    Write dark_rate, bias, read_noise, and quantum_efficiency arrays to a camera calibration FITS file.
+    """Write dark_rate, bias, read_noise, and quantum_efficiency arrays to a camera calibration FITS file.
 
     Parameters:
         filename: str
@@ -569,8 +550,7 @@ def write_camera_calibration_file(filename: str, dark_rate: np.ndarray, bias: np
 
 
 def read_quantum_efficiency_file(filename: str) -> tuple[np.ndarray, np.ndarray]:
-    """
-    Read quantum efficiency data from a 2-column CSV file.
+    """Read quantum efficiency data from a 2-column CSV file.
 
     The file must have a single header row followed by rows of
     (wavelength_nm, quantum_efficiency) values.
@@ -587,8 +567,7 @@ def read_quantum_efficiency_file(filename: str) -> tuple[np.ndarray, np.ndarray]
 
 
 def calculate_quantum_efficiency(λ: float | np.ndarray, λs: np.ndarray, qes: np.ndarray) -> float | np.ndarray:
-    """
-    Interpolate quantum efficiency at a given wavelength.
+    """Interpolate quantum efficiency at a given wavelength.
 
     Parameters:
         λ: float
@@ -606,8 +585,7 @@ def calculate_quantum_efficiency(λ: float | np.ndarray, λs: np.ndarray, qes: n
 
 
 def is_modulator_calibration_file_valid(filename: str, shape: tuple[int, int]) -> bool:
-    """
-    Return True if the modulator calibration FITS file contains 2 frames matching the expected shape.
+    """Return True if the modulator calibration FITS file contains 2 frames matching the expected shape.
 
     Parameters:
         filename: str
@@ -627,8 +605,7 @@ def is_modulator_calibration_file_valid(filename: str, shape: tuple[int, int]) -
 
 
 def read_modulator_calibration_file(filename: str) -> dict[str, np.ndarray]:
-    """
-    Load slope and flat arrays from a modulator calibration FITS file.
+    """Load slope and flat arrays from a modulator calibration FITS file.
 
     Parameters:
         filename: str
@@ -644,8 +621,7 @@ def read_modulator_calibration_file(filename: str) -> dict[str, np.ndarray]:
 
 
 def write_modulator_calibration_file(filename: str, slope_nm_to_adu: np.ndarray, intercept_nm: np.ndarray):
-    """
-    Write slope and flat calibration arrays to a modulator calibration FITS file.
+    """Write slope and flat calibration arrays to a modulator calibration FITS file.
 
     Parameters:
         filename: str
@@ -664,8 +640,7 @@ def write_modulator_calibration_file(filename: str, slope_nm_to_adu: np.ndarray,
 
 
 def sin_fit_fn(x, amplitude: float, frequency: float, phase: float, offset: float):
-    """
-    Evaluate amplitude * sin(frequency * x + phase) + offset.
+    """Evaluate amplitude * sin(frequency * x + phase) + offset.
 
     Parameters:
         x:
@@ -686,8 +661,7 @@ def sin_fit_fn(x, amplitude: float, frequency: float, phase: float, offset: floa
 
 
 def constrained_sin_fit_fn(x, amplitude: float, phase: float, offset: float):
-    """
-    Evaluate a unit-frequency sinusoid: amplitude * sin(x + phase) + offset.
+    """Evaluate a unit-frequency sinusoid: amplitude * sin(x + phase) + offset.
 
     Parameters:
         x:
@@ -706,8 +680,7 @@ def constrained_sin_fit_fn(x, amplitude: float, phase: float, offset: float):
 
 
 def quadratic_fit_fn(x, a: float, x0: float, c: float):
-    """
-    Evaluate a vertex-form quadratic: a * (x - x0)^2 + c.
+    """Evaluate a vertex-form quadratic: a * (x - x0)^2 + c.
 
     Parameters:
         x:
@@ -730,8 +703,7 @@ def quadratic_fit_fn(x, a: float, x0: float, c: float):
 
 
 def linear_fit_fn(x, m: float, c: float):
-    """
-    Evaluate a linear function: m * x + c.
+    """Evaluate a linear function: m * x + c.
 
     Parameters:
         x:
@@ -748,8 +720,7 @@ def linear_fit_fn(x, m: float, c: float):
 
 
 def deflection_to_command(deflection_m: np.ndarray, slope_adu_per_m: np.ndarray, flat_adu: np.ndarray) -> np.ndarray:
-    """
-    Parameters:
+    """Parameters:
         deflection_m: np.ndarray
             Deflection (m)
         slope_adu_per_m: np.ndarray
@@ -764,8 +735,7 @@ def deflection_to_command(deflection_m: np.ndarray, slope_adu_per_m: np.ndarray,
 
 
 def command_to_deflection(command_adu: np.ndarray, slope_adu_per_m: np.ndarray, flat_adu: np.ndarray) -> np.ndarray:
-    """
-    Parameters:
+    """Parameters:
         command: np.ndarray
             Command (adu)
         slope_adu_per_m: np.ndarray
@@ -780,8 +750,7 @@ def command_to_deflection(command_adu: np.ndarray, slope_adu_per_m: np.ndarray, 
 
 
 def intensity_limits(limits: tuple[float, float] | tuple[int, int], exp_time_s: float, dark_rate: np.ndarray, bias: np.ndarray, qe: float, gain: float) -> tuple[float, float]:
-    """
-    Parameters:
+    """Parameters:
         limits: tuple[float, float]
             min max limits
         exp_time_s: float
@@ -797,33 +766,33 @@ def intensity_limits(limits: tuple[float, float] | tuple[int, int], exp_time_s: 
     return np.min(capture_to_intensity(limits[0], exp_time_s, dark_rate, bias, qe, gain)), np.max(capture_to_intensity(limits[1], exp_time_s, dark_rate, bias, qe, gain))
 
 
-def capture_to_intensity(capture: np.ndarray | float | int, exp_time_s: float, dark_rate: np.ndarray, bias: np.ndarray, qe: float, gain: float) -> np.ndarray:
-    """
-    Inverse of intensity_to_capture (noise-free, ignoring clipping and quantization).
+def capture_to_intensity(capture: np.ndarray, exp_time_s: float, dark_rate: np.ndarray | float = 0, bias: np.ndarray | float = 0, qe: float = 1, flat_field: float | np.ndarray = 1, gain: float = 1) -> np.ndarray:
+    """Inverse of intensity_to_capture (noise-free, ignoring clipping and quantization).
 
     Parameters:
         capture: np.ndarray
             Raw capture in adu
         exp_time_s: float
             Exposure time in seconds
-        dark_rate: np.ndarray
+        dark_rate: np.ndarray | float = 0
             Dark current rate in adu/s
-        bias: np.ndarray
+        bias: np.ndarray | float = 0
             Bias in adu
-        qe: float
-            Quantum efficiency (0-1)
-        gain: float
+        qe: float = 1
+            Quantum efficiency (%)
+        flat_field: float | np.ndarray = 1
+            Electron count to adu conversion gain (ADU/e)
+        gain: float = 1
             Electron count to adu conversion gain (ADU/e)
 
     Returns: np.ndarray
         Intensity in photons/s
     """
-    return ((capture - bias) - dark_rate * exp_time_s) / (gain * qe * exp_time_s)
+    return (capture - bias - dark_rate * exp_time_s) / (exp_time_s * qe * gain * flat_field)
 
 
 def power_to_capture(power: np.ndarray, exp_time_s: float, dark_rate: np.ndarray | float = 0, bias: np.ndarray | float = 0, qe: float = 1, flat_field: float | np.ndarray = 1, gain: float = 1, full_well_capacity: float | None = None, bit_depth: int | None = None, read_noise: float | np.ndarray = 0, photon_noise: bool = False) -> np.ndarray:
-    """
-    Parameters:
+    """Parameters:
         power: np.ndarray
             Intensity in photons/s
         exp_time_s: float
@@ -850,7 +819,6 @@ def power_to_capture(power: np.ndarray, exp_time_s: float, dark_rate: np.ndarray
     Returns: np.ndarray
         Capture (in photon_count/electron_count/adu)
     """
-
     # dark current
     dark_e = exp_time_s * dark_rate / gain
 
@@ -885,8 +853,7 @@ class DOTFProbeDirection(IntEnum):
     TOP = 12
 
     def to_str(self) -> str:
-        """
-        Return the zero-padded string representation of the direction value.
+        """Return the zero-padded string representation of the direction value.
 
         Returns: str
             Two-character zero-padded integer string, e.g. "03", "06", "09", "12".
@@ -895,8 +862,7 @@ class DOTFProbeDirection(IntEnum):
 
 
 def dotf_probe(shape: tuple[int, int], size: tuple[int, int], direction: DOTFProbeDirection) -> np.ndarray:
-    """
-    Create a DOTF probe pattern image.
+    """Create a DOTF probe pattern image.
 
     Example:
         image_dotf_probe = dotf_probe((200,200), (4,11), DOTFProbeDirection.TOP)
@@ -934,8 +900,7 @@ class PairwiseProbeDirection(Enum):
     VERTICAL = auto()
 
     def to_str(self) -> str:
-        """
-        Return the lowercase string name of the direction.
+        """Return the lowercase string name of the direction.
 
         Returns: str
             "horizontal" or "vertical".
@@ -944,8 +909,7 @@ class PairwiseProbeDirection(Enum):
 
 
 def pairwise_probe(shape: tuple[int, int], dξ: float, dη: float, ξc: float, θ: float, direction: PairwiseProbeDirection) -> np.ndarray:
-    """
-    Create a pairwise probe pattern image.
+    """Create a pairwise probe pattern image.
 
     Example:
         image_pairwise_probe = pairwise_probe((200,200), 0.01, 0.01, 90, 0, PairwiseProbeDirection.HORIZONTAL)
@@ -980,8 +944,7 @@ def pairwise_probe(shape: tuple[int, int], dξ: float, dη: float, ξc: float, �
 
 
 def is_pairwise_calibration_file_valid(filename: str) -> bool:
-    """
-    Return True if the pairwise calibration pickle file contains entries for both probes 1 and 2.
+    """Return True if the pairwise calibration pickle file contains entries for both probes 1 and 2.
 
     Parameters:
         filename: str
@@ -991,7 +954,7 @@ def is_pairwise_calibration_file_valid(filename: str) -> bool:
         True if valid, False otherwise.
     """
     with open(filename, "rb") as rbfile:
-        calibration, amplitude_m, ξc, dξ, dη = cloudpickle.load(rbfile)
+        E_star, calibration, amplitude_m, ξc, dξ, dη = cloudpickle.load(rbfile)
     if 1 not in calibration:
         return False
     if 2 not in calibration:
@@ -999,28 +962,26 @@ def is_pairwise_calibration_file_valid(filename: str) -> bool:
     return True
 
 
-def read_pairwise_calibration_file(filename: str) -> tuple[dict[int, NDArray[np.complex128]], float, float, float, float]:
-    """
-    Load and return pairwise calibration data from a pickle file.
+def read_pairwise_calibration_file(filename: str) -> tuple[NDArray[np.complex128], dict[int, NDArray[np.complex128]], float, float, float, float]:
+    """Load and return pairwise calibration data from a pickle file.
 
     Parameters:
         filename: str
             Path to the pairwise calibration pickle file.
 
-    Returns: tuple[dict[int, NDArray[np.complex128]], float, float, float, float]
-        Calibration dict keyed by probe index, amplitude_m, ξc, dξ, dη.
+    Returns: NDArray[np.complex128], tuple[dict[int, NDArray[np.complex128]], float, float, float, float]
+        E_star, {1:ΔE_1, 2:ΔE_2}, amplitude_m, ξc, dξ, dη.
     """
     with open(filename, "rb") as rbfile:
         return cloudpickle.load(rbfile)
 
 
-def write_pairwise_calibration_file(pairwise_calibration_dict: tuple[dict[int, NDArray[np.complex128]], float, float, float, float], filename: str):
-    """
-    Serialize pairwise calibration data to a pickle file.
+def write_pairwise_calibration_file(pairwise_calibration_dict: tuple[NDArray[np.complex128], dict[int, NDArray[np.complex128]], float, float, float, float], filename: str):
+    """Serialize pairwise calibration data to a pickle file.
 
     Parameters:
         pairwise_calibration_dict: tuple[dict[int, NDArray], float, float, float, float]
-            Calibration data (probe dict, amplitude_m, ξc, dξ, dη).
+            Calibration data (E_star, {1:ΔE_1, 2:ΔE_2}, amplitude_m, ξc, dξ, dη).
         filename: str
             Destination file path.
     """
@@ -1029,8 +990,7 @@ def write_pairwise_calibration_file(pairwise_calibration_dict: tuple[dict[int, N
 
 
 def pairwise_estimate(I_p1: NDArray[np.float64], I_m1: NDArray[np.float64], I_p2: NDArray[np.float64], I_m2: NDArray[np.float64], pqrs: tuple[NDArray[np.float64], NDArray[np.float64], NDArray[np.float64], NDArray[np.float64]]) -> NDArray[np.complex128]:
-    """
-    Estimate the complex electric field using the imaginary-probe pairwise formulation.
+    """Estimate the complex electric field using the imaginary-probe pairwise formulation.
 
     Parameters:
         I_p1: NDArray[np.float64]
@@ -1056,8 +1016,7 @@ def pairwise_estimate(I_p1: NDArray[np.float64], I_m1: NDArray[np.float64], I_p2
 
 
 def pairwise_estimation_matrices(iCAψ_1: NDArray[np.complex128], iCAψ_2: NDArray[np.complex128]) -> tuple[NDArray[float], NDArray[float], NDArray[float], NDArray[float]]:
-    """
-    Compute the inversion matrices for pairwise wavefront estimation from two complex probe fields.
+    """Compute the inversion matrices for pairwise wavefront estimation from two complex probe fields.
 
     Parameters:
         iCAψ_1: NDArray[np.complex128]
@@ -1093,8 +1052,7 @@ def speckle_preset_validator(filepath: str) -> dict | None:
 
 
 def locate_single_airy(capture: np.ndarray, guess_radius: float) -> tuple[tuple[float, float], float, float]:
-    """
-    Locate a single Airy disk in an image by fitting an Airy function.
+    """Locate a single Airy disk in an image by fitting an Airy function.
 
     Parameters:
         capture: np.ndarray
@@ -1107,16 +1065,17 @@ def locate_single_airy(capture: np.ndarray, guess_radius: float) -> tuple[tuple[
     """
     y_bright, x_bright = np.unravel_index(np.argmax(capture), capture.shape)
     brightness = capture[y_bright, x_bright]
+
     def fit_airy_fn(xx_yy, cx, cy, r, h):
         return airy_fn(xx_yy, (cx, cy), r, h)
+
     (cx, cy, fit_radius, fit_height), _ = least_squares_fit_2d(capture, fit_airy_fn, guess_prms=(x_bright, y_bright, guess_radius, brightness))  # pylint: disable=unbalanced-tuple-unpacking
     fit_center = (cx, cy)
     return fit_center, fit_radius, fit_height
 
 
 def locate_single_airy_with_radius(capture: np.ndarray, radius: float) -> tuple[tuple[float, float], float]:
-    """
-    Locate a single Airy disk of known radius in an image by fitting an Airy function.
+    """Locate a single Airy disk of known radius in an image by fitting an Airy function.
 
     Parameters:
         capture: np.ndarray
@@ -1129,8 +1088,17 @@ def locate_single_airy_with_radius(capture: np.ndarray, radius: float) -> tuple[
     """
     y_bright, x_bright = np.unravel_index(np.argmax(capture), capture.shape)
     brightness = capture[y_bright, x_bright]
+
     def fit_airy_fn(xx_yy, cx, cy, h):
         return airy_fn(xx_yy, (cx, cy), radius, h)
+
     (cx, cy, fit_height), _ = least_squares_fit_2d(capture, fit_airy_fn, guess_prms=(x_bright, y_bright, brightness))  # pylint: disable=unbalanced-tuple-unpacking
     fit_center = (cx, cy)
     return fit_center, fit_height
+
+
+def image_shift(image: np.ndarray, shift: tuple[float, float]) -> np.ndarray:
+    # image_fft2 = np.fft.fft2(image)
+    # image_fft2_shift = ndimage.fourier_shift(image_fft2, shift=200)
+    # return np.fft.ifft2(image_fft2_shift)
+    return ndimage.shift(image, shift, mode="mirror")

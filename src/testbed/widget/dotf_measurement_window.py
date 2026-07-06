@@ -1,40 +1,37 @@
 from __future__ import annotations
+
 from typing import TYPE_CHECKING, cast
 
 import numpy as np
 from numpy.typing import NDArray
-
-from PySide6.QtCore import Qt, Slot, QTimer
+from PySide6.QtCore import Qt, QTimer, Slot
 from PySide6.QtGui import QIcon
-from PySide6.QtWidgets import QDoubleSpinBox, QGridLayout, QHBoxLayout, QLabel, QSpinBox, QVBoxLayout, QWidget, QMessageBox, QCheckBox
+from PySide6.QtWidgets import QCheckBox, QDoubleSpinBox, QGridLayout, QHBoxLayout, QLabel, QMessageBox, QSpinBox, QVBoxLayout, QWidget
 
 import testbed
 
 if TYPE_CHECKING:
     from dashboard import MainWindow
-from ..function import DOTFProbeDirection
-from ..widget import NSpinBoxesWidget, DOTFProbeDirectionWidget
+from pykato.log import setup_logger
+
 from ..device.camera import Camera
 from ..device.modulator import Modulator
+from ..function import DOTFProbeDirection
+from ..widget import DOTFProbeDirectionWidget, NSpinBoxesWidget
 from ..worker.dotf_measurement_worker import ProcessWorker
+from . import DevicesSetupWidget, TaskControlsWidget, Window
 from .camera_window import PreviewWindow as CameraPreviewWindow
-from .modulator_window import PreviewWindow as ModulatorPreviewWindow
 from .dialog import MessageDialog
 from .figure_widget import DOTFMeasureFigureWidget
-from .resource import ICON_STOP, ICON_RUN
-
-from . import DevicesSetupWidget, TaskControlsWidget, Window
-
-from pykato.log import setup_logger
+from .modulator_window import PreviewWindow as ModulatorPreviewWindow
+from .resource import ICON_RUN, ICON_STOP
 
 logger = setup_logger(f"{testbed.DOTF_MEASUREMENT}_window", terminator="\n")
 
 
 # ==== ProcessSettingsWidget ==========================================================================================
 class ProcessSettingsWidget(QWidget):
-    """
-    DOTF process settings window
-    """
+    """DOTF process settings window"""
 
     def __init__(self, parent=None):
         _probe_amplitude_perc_min, _probe_amplitude_perc_max, _probe_amplitude_perc = -100.0, 100.0, 10.0
@@ -139,8 +136,8 @@ class ProcessSettingsWidget(QWidget):
         self.setLayout(widget_layout)
 
     @property
-    def probe_amplitude_nm(self) -> float:  # nm
-        return  self.probe_amplitude_perc_spinbox.value() / 100.0
+    def probe_amplitude_perc(self) -> float:
+        return self.probe_amplitude_perc_spinbox.value() / 100.0
 
     @property
     def probe_size(self) -> tuple[int, int]:
@@ -165,9 +162,7 @@ class ProcessSettingsWidget(QWidget):
 
 # ==== ProcessInfoWindow ==============================================================================================
 class ProcessInfoWindow(Window):
-    """
-    DOTF process info window
-    """
+    """DOTF process info window"""
 
     wid = f"{testbed.DOTF_MEASUREMENT}_info_window"
 
@@ -200,6 +195,9 @@ class ProcessInfoWindow(Window):
         layout.setContentsMargins(2, 2, 2, 2)
         widget.setLayout(layout)
         self.process_info_figure_widget = DOTFMeasureFigureWidget(self.dotf_measure_dict, ["Home", "Pan", "Zoom", "Save"], parent=self)
+        for imshow_axes in self.process_info_figure_widget.figure.get_imshow_axes_list():
+            imshow_axes.set_xlim(128 - 64, 128 + 64)
+            imshow_axes.set_ylim(128 - 64, 128 + 64)
         layout.addWidget(self.process_info_figure_widget)
         return widget
 
@@ -218,9 +216,7 @@ class ProcessInfoWindow(Window):
 
 # ==== ProcessWindow ==================================================================================================
 class ProcessWindow(Window):
-    """
-    DOTF process window
-    """
+    """DOTF process window"""
 
     wid = f"{testbed.DOTF_MEASUREMENT}_window"
 
@@ -315,7 +311,7 @@ class ProcessWindow(Window):
                 process_worker.stop()
                 return
 
-            process_worker = ProcessWorker(self.source, self.sink, self.settings_widget.probe_amplitude_nm, self.settings_widget.probe_size, self.settings_widget.probe_directions, self.settings_widget.n_reps)
+            process_worker = ProcessWorker(self.source, self.sink, self.settings_widget.probe_amplitude_perc, self.settings_widget.probe_size, self.settings_widget.probe_directions, self.settings_widget.n_reps)
             process_worker.signals.progressTicked.connect(self.on_progress_tick)
             process_worker.signals.finished.connect(self.on_process_finished)
             process_worker.signals.error.connect(self.on_process_error)

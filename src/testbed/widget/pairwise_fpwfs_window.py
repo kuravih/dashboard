@@ -189,7 +189,7 @@ class ProcessSettingsWidget(QWidget):
         self.setLayout(widget_layout)
 
     @property
-    def probe_amplitude_nm(self) -> float:
+    def probe_amplitude_perc(self) -> float:
         return self.probe_amplitude_perc_spinbox.value() / 100.0
 
     @property
@@ -325,11 +325,11 @@ class ProcessWindow(Window):
         self._sink = device
 
     @property
-    def pairwise_calibration(self) -> dict[int, NDArray[np.float64]] | None:
+    def pairwise_calibration(self) -> dict[int, NDArray[np.complex128]] | None:
         return self._pairwise_calibration
 
     @pairwise_calibration.setter
-    def pairwise_calibration(self, value: dict[int, NDArray[np.float64]] | None):
+    def pairwise_calibration(self, value: dict[int, NDArray[np.complex128]] | None):
         self._pairwise_calibration = value
 
     def update_device_buttons(self, enabled: bool):
@@ -405,7 +405,7 @@ class ProcessWindow(Window):
                 process_worker.stop()
                 return
 
-            process_worker = ProcessWorker(self.source, self.sink, self.settings_widget.dark_hole_mask, self.pairwise_calibration, self.settings_widget.probe_amplitude_nm, self.settings_widget.probe_dξ, self.settings_widget.probe_dη, self.settings_widget.probe_ξc, self.settings_widget.probe_directions, self.settings_widget.n_reps)
+            process_worker = ProcessWorker(self.source, self.sink, self.settings_widget.dark_hole_mask, self.pairwise_calibration, self.settings_widget.probe_amplitude_perc, self.settings_widget.probe_dξ, self.settings_widget.probe_dη, self.settings_widget.probe_ξc, self.settings_widget.probe_directions, self.settings_widget.n_reps)
             process_worker.signals.progressTicked.connect(self.on_progress_tick)
             process_worker.signals.finished.connect(self.on_process_finished)
             process_worker.signals.error.connect(self.on_process_error)

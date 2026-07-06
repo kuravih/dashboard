@@ -20,15 +20,35 @@ dependencies = [
 
 [dependency-groups]
 dev = [
-    "black>=25.12.0",
-    "isort>=7.0.0",
-    "pylint>=4.0.4",
-    "pytest>=8.4.2",
+    "ruff>=0.9.0",
+    "ty>=0.0.1",
+    "pytest>=8.4.2"
 ]
 
 [build-system]
 requires = ["uv_build>=0.9.18,<0.10.0"]
 build-backend = "uv_build"
 
-[tool.mypy]
-check_untyped_defs = true
+[tool.ruff]
+line-length = 1024
+indent-width = 4
+
+[tool.ruff.lint]
+select = [
+    "E", "F", "W",   # pycodestyle/pyflakes core
+    "C90",           # mccabe complexity
+    "N",             # pep8-naming
+    "D",             # pydocstyle (docstrings)
+    "I",             # isort
+    "B",             # bugbear (catches common pylint-style issues)
+]
+ignore = [
+    "D203", "D213",  # conflicting docstring rules, pick one style
+]
+
+[tool.ruff.lint.pydocstyle]
+convention = "google"
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
