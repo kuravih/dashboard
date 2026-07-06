@@ -1,26 +1,23 @@
 import numpy as np
-
-from PySide6.QtWidgets import QWidget, QGridLayout, QDoubleSpinBox, QLabel, QSpinBox, QLineEdit
-from PySide6.QtCore import Signal, Slot
-
-from pykato.function import gradient, checkers, sinusoid, box, polka, register, text
+from pykato.function import box, checkers, gradient, polka, register, sinusoid, text
 from pykato.log import setup_logger
-from ..widget import NSpinBoxesWidget, NDoubleSpinBoxesWidget, DOTFProbeDirectionWidget, PairwiseProbeDirectionWidget
-from ..function import dotf_probe, DOTFProbeDirection, pairwise_probe, PairwiseProbeDirection
+from PySide6.QtCore import Signal, Slot
+from PySide6.QtWidgets import QDoubleSpinBox, QGridLayout, QLabel, QLineEdit, QSpinBox, QWidget
+
+from ..function import DOTFProbeDirection, PairwiseProbeDirection, dotf_probe, pairwise_probe
+from ..widget import DOTFProbeDirectionWidget, NDoubleSpinBoxesWidget, NSpinBoxesWidget, PairwiseProbeDirectionWidget
 
 logger = setup_logger("command_preset", terminator="\n")
 
 
 class CommandPresetWidget(QWidget):
-    """
-    Base class for command preset classes
-    """
+    """Base class for command preset classes"""
 
     changed = Signal(np.ndarray)
 
     def __init__(self, shape: tuple[int, int], plim: list[float], vlim: tuple[float, float] | tuple[int, int], parent=None):
         super().__init__(parent)
-        self.plim = plim # range of the spinbox
+        self.plim = plim  # range of the spinbox
         self.vlim = vlim
         self.command = np.zeros(shape)
         self.setup_main_widget()
@@ -58,9 +55,7 @@ class CommandPresetWidget(QWidget):
 
 
 class ConstantPresetWidget(CommandPresetWidget):
-    """
-    Constant command preset widget
-    """
+    """Constant command preset widget"""
 
     @Slot(float)
     def on_const_value_changed(self, const_perc: float):
@@ -93,13 +88,12 @@ class ConstantPresetWidget(CommandPresetWidget):
     @CommandPresetWidget.plim.setter
     def plim(self, values: list[float]):
         self._plim = values
-        if hasattr(self, 'const_spinbox'):
+        if hasattr(self, "const_spinbox"):
             self.const_spinbox.setRange(*values)
 
+
 class GradientPresetWidget(CommandPresetWidget):
-    """
-    Gradient command preset widget
-    """
+    """Gradient command preset widget"""
 
     @Slot(float, float)
     def on_values_changed(self, peak_valley_perc: float, angle: float):
@@ -151,13 +145,12 @@ class GradientPresetWidget(CommandPresetWidget):
     @CommandPresetWidget.plim.setter
     def plim(self, values: list[float]):
         self._plim = values
-        if hasattr(self, 'grad_spinbox'):
+        if hasattr(self, "grad_spinbox"):
             self.grad_spinbox.setRange(*values)
 
+
 class CheckerPresetWidget(CommandPresetWidget):
-    """
-    Checker command preset widget
-    """
+    """Checker command preset widget"""
 
     @Slot(float, float, tuple, tuple)
     def on_values_changed(self, color1_perc: float, color2_perc: float, size: tuple[int, int], offset: tuple[int, int]):
@@ -245,21 +238,20 @@ class CheckerPresetWidget(CommandPresetWidget):
     @CommandPresetWidget.plim.setter
     def plim(self, values: list[float]):
         self._plim = values
-        if hasattr(self, 'color1_spinbox'):
+        if hasattr(self, "color1_spinbox"):
             self.color1_spinbox.setRange(*values)
             self.color2_spinbox.setRange(*values)
 
+
 class SinusoidPresetWidget(CommandPresetWidget):
-    """
-    Sinusoidal command preset widget
-    """
+    """Sinusoidal command preset widget"""
 
     @Slot(float, float, float, float, float)
     def on_values_changed(self, amp_perc: float, period: float, phase: float, angle: float, mean_perc: float):
         amp = self.vrange * amp_perc / 100.0
         mean = self.vrange * mean_perc / 100.0
         self.command = amp * sinusoid(self.command.shape, period, angle=np.deg2rad(angle), phase=np.deg2rad(phase)) + mean
-        self.period_spinbox.setToolTip(f"Period of the sinusoid (Frequency = {1.0/period:.4f})")
+        self.period_spinbox.setToolTip(f"Period of the sinusoid (Frequency = {1.0 / period:.4f})")
         self.changed.emit(self.command)
 
     def setup_main_widget(self):
@@ -292,7 +284,7 @@ class SinusoidPresetWidget(CommandPresetWidget):
         self.period_spinbox.setFixedWidth(100)
         self.period_spinbox.setRange(0.0, self.command.shape[0])
         self.period_spinbox.setSingleStep(1.0)
-        self.period_spinbox.setToolTip(f"Period of the sinusoid (Frequency = {((1.0/self.period_spinbox.value()) if (self.period_spinbox.value()) else 0.0):.4f})")
+        self.period_spinbox.setToolTip(f"Period of the sinusoid (Frequency = {((1.0 / self.period_spinbox.value()) if (self.period_spinbox.value()) else 0.0):.4f})")
         self.period_spinbox.setValue(20)
         self.period_spinbox.valueChanged.connect(lambda _period: self.on_values_changed(self.amplitude_spinbox.value(), _period, self.phase_spinbox.value(), self.angle_spinbox.value(), self.mean_spinbox.value()))
 
@@ -355,14 +347,13 @@ class SinusoidPresetWidget(CommandPresetWidget):
     @CommandPresetWidget.plim.setter
     def plim(self, values: list[float]):
         self._plim = values
-        if hasattr(self, 'amplitude_spinbox'):
+        if hasattr(self, "amplitude_spinbox"):
             self.amplitude_spinbox.setRange(*values)
             self.mean_spinbox.setRange(*values)
 
+
 class BoxPresetWidget(CommandPresetWidget):
-    """
-    Box command preset widget
-    """
+    """Box command preset widget"""
 
     @Slot(float, float, tuple, tuple)
     def on_values_changed(self, color1_perc: float, color2_perc: float, size: tuple[int, int], center: tuple[int, int]):
@@ -450,14 +441,13 @@ class BoxPresetWidget(CommandPresetWidget):
     @CommandPresetWidget.plim.setter
     def plim(self, values: list[float]):
         self._plim = values
-        if hasattr(self, 'color1_spinbox'):
+        if hasattr(self, "color1_spinbox"):
             self.color1_spinbox.setRange(*values)
             self.color2_spinbox.setRange(*values)
 
+
 class PolkaPresetWidget(CommandPresetWidget):
-    """
-    Polka dot pattern command preset widget
-    """
+    """Polka dot pattern command preset widget"""
 
     @Slot(float, float, float, tuple, tuple)
     def on_values_changed(self, color1_perc: float, color2_perc: float, radius: float, spacing: tuple[int, int], offset: tuple[int, int]):
@@ -557,9 +547,7 @@ class PolkaPresetWidget(CommandPresetWidget):
 
 
 class RegisterPresetWidget(CommandPresetWidget):
-    """
-    Registration dot pattern command preset widget
-    """
+    """Registration dot pattern command preset widget"""
 
     @Slot(float, tuple, float, tuple, tuple, float)
     def on_values_changed(self, amp_perc: float, count: tuple[int, int], radius: float, spacing: tuple[int, int], center: tuple[int, int], mean_perc: float):
@@ -676,14 +664,13 @@ class RegisterPresetWidget(CommandPresetWidget):
     @CommandPresetWidget.plim.setter
     def plim(self, values: list[float]):
         self._plim = values
-        if hasattr(self, 'amplitude_spinbox'):
+        if hasattr(self, "amplitude_spinbox"):
             self.amplitude_spinbox.setRange(int(values[0]), int(values[1]))
             self.mean_spinbox.setRange(*values)
 
+
 class TextPresetWidget(CommandPresetWidget):
-    """
-    Text command preset widget
-    """
+    """Text command preset widget"""
 
     @Slot(float, str, tuple, int, float)
     def on_values_changed(self, fg_perc: float, stringdata: str, position: tuple[int, int], font_size: int, bg_perc: float):
@@ -781,14 +768,13 @@ class TextPresetWidget(CommandPresetWidget):
     @CommandPresetWidget.plim.setter
     def plim(self, values: list[float]):
         self._plim = values
-        if hasattr(self, 'foreground_spinbox'):
+        if hasattr(self, "foreground_spinbox"):
             self.foreground_spinbox.setRange(*values)
             self.background_spinbox.setRange(*values)
 
+
 class DOTFProbePresetWidget(CommandPresetWidget):
-    """
-    DOTF Probe command preset widget
-    """
+    """DOTF Probe command preset widget"""
 
     @Slot(float, tuple, DOTFProbeDirection)
     def on_values_changed(self, amp_perc: float, size: tuple[int, int], direction: DOTFProbeDirection):
@@ -851,13 +837,12 @@ class DOTFProbePresetWidget(CommandPresetWidget):
     @CommandPresetWidget.plim.setter
     def plim(self, values: list[float]):
         self._plim = values
-        if hasattr(self, 'amplitude_spinbox'):
+        if hasattr(self, "amplitude_spinbox"):
             self.amplitude_spinbox.setRange(int(values[0]), int(values[1]))
 
+
 class PairwiseProbePresetWidget(CommandPresetWidget):
-    """
-    Pairwise probe command preset widget
-    """
+    """Pairwise probe command preset widget"""
 
     @Slot(float, float, float, float, float, PairwiseProbeDirection)
     def on_values_changed(self, amp_perc: float, dξ: float, dη: float, ξc: float, θ: float, direction: PairwiseProbeDirection):
@@ -970,5 +955,5 @@ class PairwiseProbePresetWidget(CommandPresetWidget):
     @CommandPresetWidget.plim.setter
     def plim(self, values: list[float]):
         self._plim = values
-        if hasattr(self, 'amplitude_spinbox'):
+        if hasattr(self, "amplitude_spinbox"):
             self.amplitude_spinbox.setRange(*values)

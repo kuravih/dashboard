@@ -1,4 +1,5 @@
 from __future__ import annotations
+
 from typing import TYPE_CHECKING, cast
 
 import numpy as np
@@ -6,29 +7,26 @@ from pykato.function import timestamp_string
 from pykato.log import setup_logger
 from PySide6.QtCore import Qt, Slot
 from PySide6.QtGui import QIcon
-from PySide6.QtWidgets import QVBoxLayout, QHBoxLayout, QWidget, QMessageBox
+from PySide6.QtWidgets import QHBoxLayout, QMessageBox, QVBoxLayout, QWidget
 
 import testbed
 
 if TYPE_CHECKING:
     from dashboard import MainWindow
 from ..device.camera import Camera
+from ..widget.camera_window import PreviewWindow as CameraPreviewWindow
 from ..worker.camera_calibration_worker import ProcessWorker
 from ..worker.storage_worker import SourceStorageWorker
-from ..widget.camera_window import PreviewWindow as CameraPreviewWindow
+from . import DevicesSetupWidget, ExposureTimeArrayWidget, TaskControlsWidget, Window
 from .dialog import MessageDialog
-from .resource import ICON_STOP, ICON_RUN
-
-from . import DevicesSetupWidget, TaskControlsWidget, ExposureTimeArrayWidget, Window
+from .resource import ICON_RUN, ICON_STOP
 
 logger = setup_logger(f"{testbed.CAMERA_CALIBRATION}_window", terminator="\n")
 
 
 # ==== ProcessSettingsWidget ==========================================================================================
 class ProcessSettingsWidget(QWidget):
-    """
-    Camera Calibration Process Settings
-    """
+    """Camera Calibration Process Settings"""
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -46,9 +44,7 @@ class ProcessSettingsWidget(QWidget):
 
 # ==== ProcessWindow ==================================================================================================
 class ProcessWindow(Window):
-    """
-    Camera Calibration Process Window
-    """
+    """Camera Calibration Process Window"""
 
     wid = f"{testbed.CAMERA_CALIBRATION}_window"
 

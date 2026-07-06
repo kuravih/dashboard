@@ -1,16 +1,17 @@
 import time
-import numpy as np
-from PySide6.QtCore import Slot, Signal
 
-from pykato.function import sinusoid, least_squares_fit
+import numpy as np
+from pykato.function import least_squares_fit, sinusoid
 from pykato.log import setup_logger
+from PySide6.QtCore import Signal, Slot
 
 import testbed
-from ..device import SourceSample, SinkSample
+
+from ..device import SinkSample, SourceSample
 from ..device.camera import Camera
 from ..device.modulator import Modulator
+from ..function import constrained_sin_fit_fn, find_speckles, quadratic_fit_fn, speckle_parameters
 from . import Worker, WorkerSignals
-from ..function import find_speckles, speckle_parameters, constrained_sin_fit_fn, quadratic_fit_fn
 
 logger = setup_logger(f"{testbed.SPECKLE_NULLING}_worker", terminator="\n")
 
@@ -33,7 +34,6 @@ class ProcessWorkerSignals(WorkerSignals):
 
 
 class ProcessWorker(Worker):
-
     wid = f"{testbed.SPECKLE_NULLING}_worker"
 
     def __init__(self, source: Camera, sink: Modulator, dark_hole_mask: np.ndarray, speckle_calibration: dict[str, dict[str, float]], phase_rad_array: np.ndarray, amplitude_perc_array: np.ndarray, n_iterations: int | None = None):
@@ -57,7 +57,6 @@ class ProcessWorker(Worker):
         logger.info("speckle_phs_search : amplitude = %s", amplitude)
         i_phs = 0
         while i_phs < phase_rad_array.size:
-
             probe_command = amplitude * sinusoid(self.sink.shape, 1.0 / speckle_frequency, angle=speckle_angle_rad, phase=phase_rad_array[i_phs])
             # logger.info("speckle_phs_search : np.deg2rad(phs_array[%s]) = %s", i_phs, np.deg2rad(phs_array[i_phs]))
             command = current_cmd + probe_command
@@ -107,7 +106,6 @@ class ProcessWorker(Worker):
         speckle_intensity_array = np.zeros_like(amplitude_perc_array) * np.nan
         i_amp = 0
         while i_amp < amplitude_perc_array.size:
-
             probe_command = amplitude_perc_array[i_amp] * sinusoid(self.sink.shape, 1.0 / speckle_frequency, angle=speckle_angle_rad, phase=speckle_phase_rad)
 
             command = current_cmd + probe_command

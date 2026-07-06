@@ -1,18 +1,18 @@
-from collections.abc import Iterator, Callable
-import numpy as np
 import time
-from PySide6.QtWidgets import QWidget, QHBoxLayout, QVBoxLayout, QDoubleSpinBox, QSpinBox, QComboBox, QPushButton, QLabel, QProgressBar, QGridLayout, QSpacerItem, QSizePolicy, QToolTip, QRadioButton, QButtonGroup, QCheckBox, QLineEdit, QFileDialog, QMessageBox, QStyle
-from PySide6.QtCore import Signal, Slot, Qt, QFileInfo, QSize
-from PySide6.QtGui import QIcon, QCursor, QPixmap, QPainter, QColor
+from collections.abc import Callable, Iterator
 
+import numpy as np
 from pykato.log import setup_logger
+from PySide6.QtCore import QFileInfo, QSize, Qt, Signal, Slot
+from PySide6.QtGui import QColor, QCursor, QIcon, QPainter, QPixmap
+from PySide6.QtWidgets import QButtonGroup, QCheckBox, QComboBox, QDoubleSpinBox, QFileDialog, QGridLayout, QHBoxLayout, QLabel, QLineEdit, QMessageBox, QProgressBar, QPushButton, QRadioButton, QSizePolicy, QSpacerItem, QSpinBox, QStyle, QToolTip, QVBoxLayout, QWidget
 
 from ..device import Device
 from ..device.camera import Camera
 from ..device.modulator import Modulator
-from ..widget.resource import ICON_FOLDER_OPEN, ICON_RUN, ICON_EYE, ICON_UP_ARROW, ICON_DOWN_ARROW, ICON_LEFT_ARROW, ICON_RIGHT_ARROW, ICON_INFO, ICON_BACKSPACE, ICON_PLUS, ICON_MINUS, ICON_QUESTION_MARK, ICON_CENTER
+from ..function import DOTFProbeDirection, Flip, PairwiseProbeDirection, Rotation
 from ..widget.dialog import MessageDialog
-from ..function import Rotation, Flip, DOTFProbeDirection, PairwiseProbeDirection
+from ..widget.resource import ICON_BACKSPACE, ICON_CENTER, ICON_DOWN_ARROW, ICON_EYE, ICON_FOLDER_OPEN, ICON_INFO, ICON_LEFT_ARROW, ICON_MINUS, ICON_PLUS, ICON_QUESTION_MARK, ICON_RIGHT_ARROW, ICON_RUN, ICON_UP_ARROW
 
 logger = setup_logger("widget", terminator="\n")
 
@@ -22,8 +22,7 @@ class Window(QWidget):
 
 
 class DevicesComboBox(QComboBox):
-    """
-    Devices combo box.
+    """Devices combo box.
 
     Parameters:
         devices: list[Device]
@@ -57,8 +56,7 @@ class DevicesComboBox(QComboBox):
 
 
 class DevicesSetupWidget(QWidget):
-    """
-    Devices setup widget, with two comboboxes for sink devices and source devices.
+    """Devices setup widget, with two comboboxes for sink devices and source devices.
 
     Parameters:
         devices: dict[str, Camera | Modulator]
@@ -137,9 +135,7 @@ class DevicesSetupWidget(QWidget):
 
 
 class ProgressBar(QWidget):
-    """
-    Progress bar widget with time text
-    """
+    """Progress bar widget with time text"""
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -178,8 +174,7 @@ class ProgressBar(QWidget):
 
 
 class LinspaceWidget(QWidget):
-    """
-    Widget with a start, stop double spinboxes and a count spinbox.
+    """Widget with a start, stop double spinboxes and a count spinbox.
 
     Function:
         value(): np.ndarray
@@ -238,8 +233,7 @@ class LinspaceWidget(QWidget):
 
 
 class NDoubleSpinBoxesWidget(QWidget):
-    """
-    Widget with multiple double spinboxes.
+    """Widget with multiple double spinboxes.
 
     Parameter:
         count: int = 2
@@ -284,8 +278,7 @@ class NDoubleSpinBoxesWidget(QWidget):
 
 
 class NSpinBoxesWidget(QWidget):
-    """
-    Widget with multiple spinboxes.
+    """Widget with multiple spinboxes.
 
     Parameter:
         count: int = 2
@@ -329,8 +322,7 @@ class NSpinBoxesWidget(QWidget):
 
 
 class OrientationWidget(QWidget):
-    """
-    Widget for rotation and mirroring
+    """Widget for rotation and mirroring
 
     Parameter:
         rotation: Rotation = Rotation.UP
@@ -420,8 +412,7 @@ class OrientationWidget(QWidget):
 
 
 class ROIWidget(QWidget):
-    """
-    Widget for Region of interest
+    """Widget for Region of interest
 
     Parameter:
         roi: dict[str, tuple[int, int]]
@@ -504,8 +495,7 @@ class ROIWidget(QWidget):
 
 
 class CenterWidget(QWidget):
-    """
-    Widget for center
+    """Widget for center
 
     Parameter:
         center: tuple[int, int]
@@ -581,8 +571,7 @@ class CenterWidget(QWidget):
 
 
 class ValueSetWidget(QWidget):
-    """
-    Widget for changing an integer value
+    """Widget for changing an integer value
 
     Function:
         setValue(self, value: int):
@@ -625,8 +614,7 @@ class ValueSetWidget(QWidget):
 
 
 class DoubleValueSetWidget(QWidget):
-    """
-    Widget for changing an float value
+    """Widget for changing an float value
 
     Function:
         setValue(self, value: float):
@@ -673,8 +661,7 @@ class DoubleValueSetWidget(QWidget):
 
 
 class ExposureTimeArrayWidget(QWidget):
-    """
-    Exposure time array widget with add and remove step buttons.
+    """Exposure time array widget with add and remove step buttons.
 
     Parameter:
         value: int = 10
@@ -768,9 +755,7 @@ class ExposureTimeArrayWidget(QWidget):
 
 
 class TaskControlsWidget(QWidget):
-    """
-    Task control widget showing run, forward step, stop, pause, unpause buttons & a progress bar.
-    """
+    """Task control widget showing run, forward step, stop, pause, unpause buttons & a progress bar."""
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -800,9 +785,7 @@ class TaskControlsWidget(QWidget):
 
 
 class FileLoadWidget(QWidget):
-    """
-    File load widget
-    """
+    """File load widget"""
 
     fileChanged = Signal()
 
@@ -876,8 +859,7 @@ class FileLoadWidget(QWidget):
 
 
 class DOTFProbeDirectionWidget(QWidget):
-    """
-    Widget with four checkboxes for the four DOTF probes (03, 06, 09 & 12 o'clock).
+    """Widget with four checkboxes for the four DOTF probes (03, 06, 09 & 12 o'clock).
 
     Function:
         value(): List[DOTFProbeDirection]
@@ -951,8 +933,7 @@ class DOTFProbeDirectionWidget(QWidget):
 
 
 class PairwiseProbeDirectionWidget(QWidget):
-    """
-    Widget with four checkboxes for horizontal/vertical pairwise probes.
+    """Widget with four checkboxes for horizontal/vertical pairwise probes.
 
     Function:
         value(): List[PairwiseProbeDirection]
@@ -1035,8 +1016,7 @@ def _tint_pixmap(src: QPixmap, color: QColor) -> QPixmap:
 
 
 class IconButton(QPushButton):
-    """
-    A QPushButton whose icon is generated from a base QIcon and tinted
+    """A QPushButton whose icon is generated from a base QIcon and tinted
     for Normal/Disabled, using the button's current iconSize (or style default).
     """
 

@@ -1,10 +1,12 @@
+import time
 import unittest
+
+import numpy as np
+from pykato.log import setup_logger
+
 from testbed.device import Stream
 from testbed.device.camera import Camera
 from testbed.device.modulator import Modulator
-from pykato.log import setup_logger
-import time
-import numpy as np
 
 logger = setup_logger("test_model", terminator="\n")
 

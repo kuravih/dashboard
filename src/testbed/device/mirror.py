@@ -1,18 +1,16 @@
-import numpy as np
 from datetime import datetime
 
-from . import Device, Stream, ZMQLink, SinkSample
-from ..function import Flip, Rotation, flip_rotate_frame
-
+import numpy as np
 from pykato.log import setup_logger
+
+from ..function import Flip, Rotation, flip_rotate_frame
+from . import Device, SinkSample, Stream, ZMQLink
 
 logger = setup_logger("Mirror", terminator="\n")
 
 
 class Mirror(Device):
-    """
-    Mirror
-    """
+    """Mirror"""
 
     __slots__ = ("_stream", "_shape", "_max_radius", "_link", "_rotation", "_flip", "_command")
 
@@ -106,18 +104,14 @@ class Mirror(Device):
         return self.link.sync_settings()
 
     def move_center(self, x: int, y: int) -> dict:
-        """
-        Move roi by x y amount
-        """
+        """Move roi by x y amount"""
         logger.info("nudge center by (%d, %d)", x, y)
         command = {"settings": {"nudge": {"x": x, "y": y}}}
         reply = self.link.send_command(command)
         return reply["settings"]["center"]
 
     def set_radius(self, radius: float) -> float:
-        """
-        Change radius
-        """
+        """Change radius"""
         command = {"settings": {"radius": radius}}
         reply = self.link.send_command(command)
         return reply["settings"]["radius"]

@@ -1,10 +1,11 @@
 import time
-from PySide6.QtCore import Slot, Signal
 
 from pykato.log import setup_logger
+from PySide6.QtCore import Signal, Slot
 
 import testbed
-from ..device import SourceSample, SinkSample
+
+from ..device import SinkSample, SourceSample
 from ..device.camera import Camera
 from . import Worker, WorkerSignals
 
@@ -17,7 +18,6 @@ class ProcessWorkerSignals(WorkerSignals):
 
 
 class ProcessWorker(Worker):
-
     wid = f"{testbed.CAPTURE_LOOP}_worker"
 
     def __init__(self, source: Camera, n_steps: int = 0):
@@ -29,7 +29,6 @@ class ProcessWorker(Worker):
     def count_sweep(self, n_steps: int = 0):
         i_step = 0
         while ((n_steps == 0) or (n_steps > i_step)) and self._running:
-
             count_source_sample = self.source.pull_capture()
             self.signals.srcSampled.emit(count_source_sample)
             time.sleep(0.2)

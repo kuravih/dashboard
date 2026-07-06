@@ -1,16 +1,17 @@
 import time
-import numpy as np
-from PySide6.QtCore import Slot, Signal
 
+import numpy as np
 from pykato.function import sinusoid
 from pykato.log import setup_logger
+from PySide6.QtCore import Signal, Slot
 
 import testbed
-from ..device import SourceSample, SinkSample
+
+from ..device import SinkSample, SourceSample
 from ..device.camera import Camera
 from ..device.modulator import Modulator
-from . import Worker, WorkerSignals
 from ..function import find_speckles
+from . import Worker, WorkerSignals
 
 logger = setup_logger(f"{testbed.SPECKLE_CAPTURE}_worker", terminator="\n")
 
@@ -22,7 +23,6 @@ class ProcessWorkerSignals(WorkerSignals):
 
 
 class ProcessWorker(Worker):
-
     wid = f"{testbed.SPECKLE_CAPTURE}_worker"
 
     def __init__(self, source: Camera, sink: Modulator, amplitude_perc: float, n_reps: int, frequency_array: np.ndarray, angle_rad_array: np.ndarray, phase_rad_array: np.ndarray):
@@ -56,7 +56,6 @@ class ProcessWorker(Worker):
         i_phs = 0
         sum_probe_capture = np.zeros_like(self.source.blank, dtype=float)
         while (speckle_phase_rad_array.size > i_phs) and self._running:
-
             probe = speckle_amplitude * sinusoid(self.sink.shape, 1.0 / speckle_frequency, angle=speckle_angle_rad, phase=speckle_phase_rad_array[i_phs])
             probe_cmd = zero_cmd + probe
 

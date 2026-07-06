@@ -1,12 +1,13 @@
 import time
-import numpy as np
-from PySide6.QtCore import Slot, Signal
 
+import numpy as np
 from pykato.function import text
 from pykato.log import setup_logger
+from PySide6.QtCore import Signal, Slot
 
 import testbed
-from ..device import SourceSample, SinkSample
+
+from ..device import SinkSample, SourceSample
 from ..device.camera import Camera
 from ..device.modulator import Modulator
 from . import Worker, WorkerSignals
@@ -20,7 +21,6 @@ class ProcessWorkerSignals(WorkerSignals):
 
 
 class ProcessWorker(Worker):
-
     wid = f"{testbed.SIMPLE_LOOP}_worker"
 
     def __init__(self, source: Camera, sink: Modulator, amplitude_perc: float, n_steps: int = 0):
@@ -38,7 +38,6 @@ class ProcessWorker(Worker):
         zero_cmd = np.zeros(self.sink.shape)
         i_step = 0
         while ((n_steps == 0) or (n_steps > i_step)) and self._running:
-
             count = amplitude_perc * text(self.sink.shape, f"{i_step:02d}", font_size=150)
             count_cmd = zero_cmd + count
 

@@ -1,36 +1,34 @@
 import sys
 from typing import NamedTuple, cast
-from PySide6.QtGui import QIcon
-from PySide6.QtWidgets import QMainWindow, QPushButton, QFileDialog, QMessageBox, QApplication, QWidget, QVBoxLayout, QHBoxLayout, QTableWidget, QTableWidgetItem, QHeaderView, QSpacerItem, QSizePolicy
 
-from PySide6.QtCore import Slot, QFileInfo
+from pykato.log import setup_logger
+from PySide6.QtCore import QFileInfo, Slot
+from PySide6.QtGui import QIcon
+from PySide6.QtWidgets import QApplication, QFileDialog, QHBoxLayout, QHeaderView, QMainWindow, QMessageBox, QPushButton, QSizePolicy, QSpacerItem, QTableWidget, QTableWidgetItem, QVBoxLayout, QWidget
 
 import testbed
 from testbed.device import Stream
-
 from testbed.device.camera import Camera
-from testbed.widget.camera_window import PreviewWindow as CameraPreviewWindow, InfoWindow as CameraInfoWindow, SettingsWindow as CameraSettingsWindow
-from testbed.worker.camera_worker import ProcessWorker as CameraSamplingWorker
-
 from testbed.device.modulator import Modulator
-from testbed.widget.modulator_window import PreviewWindow as ModulatorPreviewWindow, InfoWindow as ModulatorInfoWindow, SettingsWindow as ModulatorSettingsWindow
-from testbed.worker.modulator_worker import ProcessWorker as ModulatorSamplingWorker
-
-from testbed.widget.simple_loop_window import ProcessWindow as SimpleLoopWindow
+from testbed.widget import IconButton
+from testbed.widget.camera_calibration_window import ProcessWindow as CameraCalibrationWindow
+from testbed.widget.camera_window import InfoWindow as CameraInfoWindow
+from testbed.widget.camera_window import PreviewWindow as CameraPreviewWindow
+from testbed.widget.camera_window import SettingsWindow as CameraSettingsWindow
 from testbed.widget.capture_loop_window import ProcessWindow as CaptureLoopWindow
+from testbed.widget.dialog import MessageDialog
+from testbed.widget.dotf_measurement_window import ProcessWindow as DOTFMeasurementWindow
+from testbed.widget.modulator_window import InfoWindow as ModulatorInfoWindow
+from testbed.widget.modulator_window import PreviewWindow as ModulatorPreviewWindow
+from testbed.widget.modulator_window import SettingsWindow as ModulatorSettingsWindow
+from testbed.widget.pairwise_fpwfs_window import ProcessWindow as PairwiseFPWFSWindow
+from testbed.widget.recenter_window import ProcessWindow as RecenterWindow
+from testbed.widget.resource import ICON_EYE, ICON_GEAR, ICON_INFO, ICON_PAUSE, ICON_PLAY
+from testbed.widget.simple_loop_window import ProcessWindow as SimpleLoopWindow
 from testbed.widget.speckle_capture_window import ProcessWindow as SpeckleCaptureWindow
 from testbed.widget.speckle_nulling_window import ProcessWindow as SpeckleNullingWindow
-from testbed.widget.recenter_window import ProcessWindow as RecenterWindow
-from testbed.widget.camera_calibration_window import ProcessWindow as CameraCalibrationWindow
-from testbed.widget.dotf_measurement_window import ProcessWindow as DOTFMeasurementWindow
-from testbed.widget.pairwise_fpwfs_window import ProcessWindow as PairwiseFPWFSWindow
-
-from testbed.widget.dialog import MessageDialog
-from testbed.widget.resource import ICON_EYE, ICON_GEAR, ICON_INFO, ICON_PLAY, ICON_PAUSE
-
-from testbed.widget import IconButton
-
-from pykato.log import setup_logger
+from testbed.worker.camera_worker import ProcessWorker as CameraSamplingWorker
+from testbed.worker.modulator_worker import ProcessWorker as ModulatorSamplingWorker
 
 logger = setup_logger("dashboard", terminator="\n")
 
@@ -41,9 +39,7 @@ class DeviceButtons(NamedTuple):
 
 
 class MainWindow(QMainWindow):
-    """
-    Main Window
-    """
+    """Main Window"""
 
     def __init__(self):
         super().__init__()

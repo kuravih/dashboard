@@ -1,17 +1,17 @@
 from __future__ import annotations
+
 from typing import TYPE_CHECKING, cast
-import toml
 
 import cloudpickle
 import numpy as np
+import toml
 from matplotlib.lines import Line2D
 from numpy.typing import NDArray
-
 from pykato.function import timestamp_string
 from pykato.log import setup_logger
-from PySide6.QtCore import Qt, Slot, QFileInfo
+from PySide6.QtCore import QFileInfo, Qt, Slot
 from PySide6.QtGui import QIcon
-from PySide6.QtWidgets import QDoubleSpinBox, QGridLayout, QLabel, QSpinBox, QVBoxLayout, QWidget, QMessageBox, QFileDialog
+from PySide6.QtWidgets import QDoubleSpinBox, QFileDialog, QGridLayout, QLabel, QMessageBox, QSpinBox, QVBoxLayout, QWidget
 
 import testbed
 
@@ -19,24 +19,21 @@ if TYPE_CHECKING:
     from dashboard import MainWindow
 from ..device.camera import Camera
 from ..device.modulator import Modulator
+from ..function import flip_rotate_points, speckle_preset_validator
 from ..worker.speckle_capture_worker import ProcessWorker
 from ..worker.storage_worker import SinkStorageWorker, SourceStorageWorker
-from ..function import flip_rotate_points, speckle_preset_validator
+from . import DevicesSetupWidget, IconButton, LinspaceWidget, TaskControlsWidget, Window
 from .camera_window import PreviewWindow as CameraPreviewWindow
-from .modulator_window import PreviewWindow as ModulatorPreviewWindow
 from .dialog import MessageDialog
-from .resource import ICON_STOP, ICON_RUN, ICON_FOLDER_OPEN, ICON_DISK
-
-from . import DevicesSetupWidget, LinspaceWidget, TaskControlsWidget, Window, IconButton
+from .modulator_window import PreviewWindow as ModulatorPreviewWindow
+from .resource import ICON_DISK, ICON_FOLDER_OPEN, ICON_RUN, ICON_STOP
 
 logger = setup_logger(f"{testbed.SPECKLE_CAPTURE}_window", terminator="\n")
 
 
 # ==== ProcessSettingsWidget ==========================================================================================
 class ProcessSettingsWidget(QWidget):
-    """
-    Speckle Calibration Process Settings
-    """
+    """Speckle Calibration Process Settings"""
 
     def __init__(self, parent=None):
         _amplitude_perc_min, _amplitude_perc_max, _amplitude_perc = -10.0, 10.0, 1.0
@@ -225,9 +222,7 @@ class ProcessSettingsWidget(QWidget):
 
 # ==== ProcessWindow ==================================================================================================
 class ProcessWindow(Window):
-    """
-    Speckle Calibration Process Window
-    """
+    """Speckle Calibration Process Window"""
 
     wid = f"{testbed.SPECKLE_CAPTURE}_window"
 

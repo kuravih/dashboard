@@ -1,13 +1,13 @@
-from dataclasses import dataclass
-from enum import Enum, auto
-import zmq
-import toml
 import ast
-import numpy as np
+from dataclasses import dataclass
 from datetime import datetime
+from enum import Enum, auto
 
-from pyshmio import SharedMemory, Keyword, KeywordType, DataType
+import numpy as np
+import toml
+import zmq
 from pykato.log import setup_logger
+from pyshmio import DataType, Keyword, KeywordType, SharedMemory
 
 
 def create_camera_memory(name: str, full_shape: tuple[int, int], roi_shape: tuple[int, int], dtype: DataType, serial: str, pxmax: int, port: int) -> SharedMemory:
@@ -55,8 +55,7 @@ device_logger = setup_logger("Device", terminator="\n")
 
 
 class Device:
-    """
-    Device
+    """Device
 
     Attributes:
         name: str
@@ -103,9 +102,7 @@ class Device:
 
 
 class Stream(SharedMemory):
-    """
-    Stream
-    """
+    """Stream"""
 
     class Kind(Enum):
         CAMERA = auto()
@@ -129,14 +126,12 @@ class Stream(SharedMemory):
     __slots__ = ("_kind", "_sn", "_pxmax", "_full_shape", "_port", "_shape")
 
     def __init__(self, source: str | SharedMemory):
-        """
-        Construct stream object
+        """Construct stream object
 
         Parameters:
             source: str | SharedMemory
                 Stream name or existing SharedMemory to attach to
         """
-
         if isinstance(source, str):
             super().__init__(source)
         else:
@@ -193,9 +188,7 @@ class Stream(SharedMemory):
 
 
 class DeviceStream(Device):
-    """
-    StreamDevice to wrap a Stream
-    """
+    """StreamDevice to wrap a Stream"""
 
     __slots__ = ("_stream",)
 
@@ -240,9 +233,7 @@ class DeviceStream(Device):
 
 
 class ZMQLink:
-    """
-    ZMQ link
-    """
+    """ZMQ link"""
 
     __slots__ = ("_uri", "_context", "_socket", "_connected")
 
@@ -283,9 +274,9 @@ class ZMQLink:
     def send_command(self, command: dict) -> dict:
         self.send(toml.dumps(command))
         reply = toml.loads(self.receive())
-        if 'settings' in reply:
-            if 'roi' in reply['settings']:
-                reply['settings']['roi'] = ast.literal_eval(reply['settings']['roi'])
+        if "settings" in reply:
+            if "roi" in reply["settings"]:
+                reply["settings"]["roi"] = ast.literal_eval(reply["settings"]["roi"])
         return reply
 
     def sync_settings(self):

@@ -1,9 +1,9 @@
 import time
-import numpy as np
-from PySide6.QtCore import Signal, Slot
 
+import numpy as np
 from pykato.function import preroll
 from pykato.log import setup_logger
+from PySide6.QtCore import Signal, Slot
 
 from ..device import SinkSample
 from ..device.mirror import Mirror
@@ -17,7 +17,6 @@ class UpdateWorkerSignals(WorkerSignals):
 
 
 class UpdateWorker(Worker):
-
     def __init__(self, mirror: Mirror):
         super().__init__()
         self.signals = UpdateWorkerSignals()

@@ -2,8 +2,13 @@ from PySide6.QtCore import QThreadPool
 
 from .device.camera import Camera
 from .device.modulator import Modulator
-from .widget.camera_window import PreviewWindow as CameraPreviewWindow, InfoWindow as CameraInfoWindow, SettingsWindow as CameraSettingsWindow
-from .widget.modulator_window import PreviewWindow as ModulatorPreviewWindow, InfoWindow as ModulatorInfoWindow, SettingsWindow as ModulatorSettingsWindow, PresetsWindow as ModulatorPresetsWindow
+from .widget.camera_window import InfoWindow as CameraInfoWindow
+from .widget.camera_window import PreviewWindow as CameraPreviewWindow
+from .widget.camera_window import SettingsWindow as CameraSettingsWindow
+from .widget.modulator_window import InfoWindow as ModulatorInfoWindow
+from .widget.modulator_window import PresetsWindow as ModulatorPresetsWindow
+from .widget.modulator_window import PreviewWindow as ModulatorPreviewWindow
+from .widget.modulator_window import SettingsWindow as ModulatorSettingsWindow
 
 SIMPLE_LOOP = "simple_loop"
 from .widget.simple_loop_window import ProcessWindow as SimpleLoopWindow
@@ -18,7 +23,9 @@ from .widget.speckle_capture_window import ProcessWindow as SpeckleCaptureWindow
 from .worker.speckle_capture_worker import ProcessWorker as SpeckleCaptureWorker
 
 SPECKLE_NULLING = "speckle_nulling"
-from .widget.speckle_nulling_window import ProcessWindow as SpeckleNullingWindow, ProcessPreviewWindow as SpeckleNullingPreviewWindow, ProcessInfoWindow as SpeckleNullingInfoWindow
+from .widget.speckle_nulling_window import ProcessInfoWindow as SpeckleNullingInfoWindow
+from .widget.speckle_nulling_window import ProcessPreviewWindow as SpeckleNullingPreviewWindow
+from .widget.speckle_nulling_window import ProcessWindow as SpeckleNullingWindow
 from .worker.speckle_nulling_worker import ProcessWorker as SpeckleNullingWorker
 
 RECENTER = "recenter"
@@ -35,11 +42,10 @@ from .worker.dotf_measurement_worker import ProcessWorker as DOTFMeasurementWork
 
 PAIRWISE_FPWFS = "pairwise_fpwfs"
 from .widget.pairwise_fpwfs_window import ProcessWindow as PairwiseFPWFSWindow
-from .worker.pairwise_fpwfs_worker import ProcessWorker as PairwiseFPWFSWorker
-
 from .worker.camera_worker import ProcessWorker as CameraSamplingWorker
 from .worker.modulator_worker import ProcessWorker as ModulatorSamplingWorker
-from .worker.storage_worker import SourceStorageWorker, SinkStorageWorker
+from .worker.pairwise_fpwfs_worker import ProcessWorker as PairwiseFPWFSWorker
+from .worker.storage_worker import SinkStorageWorker, SourceStorageWorker
 
 
 class Data:

@@ -1,17 +1,16 @@
 from __future__ import annotations
+
 from typing import TYPE_CHECKING, cast
 
 import numpy as np
+from matplotlib import colormaps
+from matplotlib.colors import LogNorm, Normalize
 from numpy.typing import NDArray
-
 from pykato.function import chord
 from pykato.log import setup_logger
-
 from PySide6.QtCore import Qt, QTimer, Slot
 from PySide6.QtGui import QIcon
-from PySide6.QtWidgets import QCheckBox, QGridLayout, QHBoxLayout, QLabel, QMessageBox, QSpinBox, QVBoxLayout, QWidget, QComboBox
-from matplotlib import colormaps
-from matplotlib.colors import Normalize, LogNorm
+from PySide6.QtWidgets import QCheckBox, QComboBox, QGridLayout, QHBoxLayout, QLabel, QMessageBox, QSpinBox, QVBoxLayout, QWidget
 
 import testbed
 
@@ -19,27 +18,25 @@ if TYPE_CHECKING:
     from dashboard import MainWindow
 from ..device.camera import Camera
 from ..device.modulator import Modulator
-from ..function import is_speckle_calibration_file_valid, read_speckle_calibration_file, constrained_sin_fit_fn, quadratic_fit_fn
+from ..function import constrained_sin_fit_fn, is_speckle_calibration_file_valid, quadratic_fit_fn, read_speckle_calibration_file
 from ..worker.speckle_nulling_worker import ProcessWorker
 from ..worker.storage_worker import SinkStorageWorker, SourceStorageWorker
+from . import DevicesSetupWidget, FileLoadWidget, LinspaceWidget, TaskControlsWidget, Window
 from .camera_window import PreviewWindow as CameraPreviewWindow
-from .modulator_window import PreviewWindow as ModulatorPreviewWindow
 from .dialog import MessageDialog
 from .figure_widget import ContrastFigureWidget, SpeckleNullingFigureWidget
-from .resource import ICON_STOP, ICON_RUN
-
-from . import DevicesSetupWidget, LinspaceWidget, TaskControlsWidget, Window, FileLoadWidget
+from .modulator_window import PreviewWindow as ModulatorPreviewWindow
+from .resource import ICON_RUN, ICON_STOP
 
 logger = setup_logger(f"{testbed.SPECKLE_NULLING}_window", terminator="\n")
 
 RADIUS = 0.347798
 PORTION = 0.68
 
+
 # ==== ProcessSettingsWidget ==========================================================================================
 class ProcessSettingsWidget(QWidget):
-    """
-    Speckle Nulling Process Settings
-    """
+    """Speckle Nulling Process Settings"""
 
     def __init__(self, parent=None):
         _phase_deg_start, _phase_deg_stop, _phase_deg_steps = 0, 300, 6
@@ -193,9 +190,7 @@ class ProcessSettingsWidget(QWidget):
 
 # ==== ProcessInfoWindow ==============================================================================================
 class ProcessInfoWindow(Window):
-    """
-    Speckle Nulling Process Information Window
-    """
+    """Speckle Nulling Process Information Window"""
 
     wid = f"{testbed.SPECKLE_NULLING}_info_window"
 
@@ -288,9 +283,7 @@ class ProcessInfoWindow(Window):
 
 # ==== ProcessPreviewSettingsWindow ===================================================================================
 class ProcessPreviewSettingsWindow(Window):
-    """
-    Process Preview Settings Window
-    """
+    """Process Preview Settings Window"""
 
     def __init__(self, cmap_name: str, cmap_norm: Normalize, alpha_mask_show: bool, parent=None):
         super().__init__(parent, Qt.WindowType.Dialog)
@@ -352,8 +345,7 @@ class ProcessPreviewSettingsWindow(Window):
 
 # ==== ProcessPreviewWindow ===========================================================================================
 class ProcessPreviewWindow(Window):
-    """
-    Speckle Nulling Contrast Result Window
+    """Speckle Nulling Contrast Result Window
     Consists of an Imshow axes for the contrast map and a Plot axes for a contrast evolution plot.
     """
 
@@ -450,9 +442,7 @@ class ProcessPreviewWindow(Window):
 
 # ==== ProcessWindow ==================================================================================================
 class ProcessWindow(Window):
-    """
-    Speckle Nulling Process Window
-    """
+    """Speckle Nulling Process Window"""
 
     wid = f"{testbed.SPECKLE_NULLING}_window"
 

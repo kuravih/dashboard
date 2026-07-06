@@ -1,28 +1,23 @@
+import matplotlib.patches as patches
+import matplotlib.pyplot as plt
 import numpy as np
-from numpy.typing import NDArray
-
 from matplotlib.axes import Axes
+from matplotlib.colors import LogNorm, Normalize
+from matplotlib.figure import Figure
 from matplotlib.image import AxesImage
 from matplotlib.lines import Line2D
-from matplotlib.figure import Figure
 from matplotlib.ticker import MaxNLocator
-from matplotlib.colors import LogNorm, Normalize
-
-import matplotlib.pyplot as plt
-import matplotlib.patches as patches
-
 from mpl_toolkits.axes_grid1 import make_axes_locatable
-
-from pykato.plotfunction.gridspec_layout import GridSpec_Layout
-from pykato.plotfunction.preset import monkeypatch_Axes_mask_image, monkeypatch_AxesImage_cmap_name, monkeypatch_AxesImage_cmap_norm, Imshow_Colorbar_Preset, Complex_ImageGrid_TwoColorbars_Preset, Complex_Imshow_TwoColorbars_Preset, Histogram_Colorbar_Preset
+from numpy.typing import NDArray
 from pykato.log import setup_logger
+from pykato.plotfunction.gridspec_layout import GridSpec_Layout
+from pykato.plotfunction.preset import Complex_ImageGrid_TwoColorbars_Preset, Complex_Imshow_TwoColorbars_Preset, Histogram_Colorbar_Preset, Imshow_Colorbar_Preset, monkeypatch_Axes_mask_image, monkeypatch_AxesImage_cmap_name, monkeypatch_AxesImage_cmap_norm
 
 logger = setup_logger("preset", terminator="\n")
 
 
 def Image_Plot_Preset(capture: NDArray[np.uint16 | np.float64], cmap_norm: Normalize | None = None, cmap_name: str | None = None, mask: NDArray[float] | None = None, figure: Figure | None = None) -> Figure:
-    """
-    Plot preset used to display source images.
+    """Plot preset used to display source images.
 
     Parameters:
         capture: NDArray[np.float64]
@@ -43,7 +38,6 @@ def Image_Plot_Preset(capture: NDArray[np.uint16 | np.float64], cmap_norm: Norma
     Returns: figure: Figure | None = None
             Figure object
     """
-
     figure = Imshow_Colorbar_Preset(capture, figure=figure)
 
     if cmap_name is not None:
@@ -67,13 +61,11 @@ def Image_Plot_Preset(capture: NDArray[np.uint16 | np.float64], cmap_norm: Norma
 
 
 def Wavefront_Plot_Preset(wavefront: NDArray[np.complex128], abs_min: float | None = None, abs_max: float | None = None, figure: Figure | None = None) -> Figure:
-    """
-    Plot preset used to illustrate wavefronts.
+    """Plot preset used to illustrate wavefronts.
 
     Examples:
         figure = Wavefront_Plot_Preset(wavefront)
     """
-
     figure = Complex_Imshow_TwoColorbars_Preset(wavefront, abs_min, abs_max, figure)
     figure.get_imshow_axes().set_xlabel("px", size=10)
     figure.get_imshow_axes().set_ylabel("px", size=10)
@@ -86,8 +78,7 @@ def Histogram_Plot_Preset(capture: NDArray[np.float64], cmap_norm: Normalize | N
 
 
 def Speckle_Modulation_Plot_Preset(phs_lim: tuple[float, float], amp_lim: tuple[float, float], figure: Figure | None = None) -> Figure:
-    """
-    Plot preset used to illustrate speckle nulling process.
+    """Plot preset used to illustrate speckle nulling process.
     Consists of two plot axes for the phase and the intensity sweeps.
 
     Examples:
@@ -129,7 +120,6 @@ def Speckle_Modulation_Plot_Preset(phs_lim: tuple[float, float], amp_lim: tuple[
             Properly close the figure
 
     """
-
     figure = GridSpec_Layout(nrows=2, ncols=1, hspace=0.5, figure=figure)
 
     plot_ax_phs, plot_ax_amp = figure.get_axes()
@@ -222,8 +212,7 @@ def Speckle_Modulation_Plot_Preset(phs_lim: tuple[float, float], amp_lim: tuple[
 
 
 def Contrast_Evolution_Plot_Preset(contrast: np.ndarray, n_iteration: int, dark_hole_mask: NDArray[np.float64], figure: Figure | None = None) -> Figure:
-    """
-    Plot preset used to illustrate contrast evolution.
+    """Plot preset used to illustrate contrast evolution.
     Consists of and Imshow axis and corresponding colorbar for contrast and a plot for change in contrast with iteration.
 
     Examples:
@@ -251,7 +240,6 @@ def Contrast_Evolution_Plot_Preset(contrast: np.ndarray, n_iteration: int, dark_
             Properly close the figure
 
     """
-
     figure = GridSpec_Layout(nrows=1, ncols=1, aspect_ratios=(8,), figure=figure)
 
     (image_ax,) = figure.get_axes()
@@ -339,14 +327,12 @@ def Contrast_Evolution_Plot_Preset(contrast: np.ndarray, n_iteration: int, dark_
 
 
 def DOTF_Measurement_Plot_Preset(measure_dict: dict[int, NDArray[np.complex64]], figure: Figure | None = None) -> Figure:
-    """
-    Plot preset used to illustrate DOTF wavefront measurement process.
+    """Plot preset used to illustrate DOTF wavefront measurement process.
     Consists of complex image plot axes to display DOTF maps.
 
     Examples:
         figure = DOTF_Sensing_Process_Plot_Preset(measure_dict, command)
     """
-
     figure = Complex_ImageGrid_TwoColorbars_Preset(measure_dict.values(), figure=figure)
 
     imshow_image_dict = {}

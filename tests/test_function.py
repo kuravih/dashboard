@@ -1,9 +1,11 @@
 import unittest
-from testbed.function import read_source_samples, read_sink_samples, find_speckles, is_speckle_calibration_file_valid
-from pykato.log import setup_logger
-from pykato.function import airy
-from pykato.plotfunction.preset import Imshow_Preset
+
 import numpy as np
+from pykato.function import airy
+from pykato.log import setup_logger
+from pykato.plotfunction.preset import Imshow_Preset
+
+from testbed.function import find_speckles, is_speckle_calibration_file_valid, read_sink_samples, read_source_samples
 
 logger = setup_logger("test_read_functions", terminator="\n")
 

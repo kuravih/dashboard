@@ -1,7 +1,7 @@
 import time
-from PySide6.QtCore import Signal, Slot
 
 from pykato.log import setup_logger
+from PySide6.QtCore import Signal, Slot
 
 from ..device import SinkSample
 from ..device.modulator import Modulator

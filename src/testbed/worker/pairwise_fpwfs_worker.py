@@ -1,15 +1,16 @@
 import time
-import numpy as np
-from PySide6.QtCore import Slot, Signal
 
+import numpy as np
 from numpy.typing import NDArray
 from pykato.log import setup_logger
+from PySide6.QtCore import Signal, Slot
 
 import testbed
-from ..function import pairwise_probe, PairwiseProbeDirection, pairwise_estimate, pairwise_estimation_matrices
-from ..device import SourceSample, SinkSample
+
+from ..device import SinkSample, SourceSample
 from ..device.camera import Camera
 from ..device.modulator import Modulator
+from ..function import PairwiseProbeDirection, pairwise_estimate, pairwise_estimation_matrices, pairwise_probe
 from . import Worker, WorkerSignals
 
 logger = setup_logger(f"{testbed.PAIRWISE_FPWFS}_worker", terminator="\n")
@@ -22,7 +23,6 @@ class ProcessWorkerSignals(WorkerSignals):
 
 
 class ProcessWorker(Worker):
-
     wid = f"{testbed.PAIRWISE_FPWFS}_worker"
 
     def __init__(self, source: Camera, sink: Modulator, dark_hole_mask: NDArray[np.bool], pairwise_calibration: dict[int, NDArray[np.complex128]], probe_amplitude_perc: float, probe_dξ: float, probe_dη: float, probe_ξc: float, probe_directions: list[PairwiseProbeDirection], n_reps: int):

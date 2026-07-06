@@ -1,9 +1,8 @@
 import numpy as np
-
-from . import DeviceStream, Stream, ZMQLink, SinkSample
-from ..function import read_modulator_calibration_file, deflection_to_command, command_to_deflection, is_modulator_calibration_file_valid
-
 from pykato.log import setup_logger
+
+from ..function import command_to_deflection, deflection_to_command, is_modulator_calibration_file_valid, read_modulator_calibration_file
+from . import DeviceStream, SinkSample, Stream, ZMQLink
 
 logger = setup_logger("Modulator", terminator="\n")
 
@@ -64,7 +63,7 @@ class ModulatorStream(DeviceStream):
             self._calibration_file = value
             self._calibration = read_modulator_calibration_file(value)
         else:
-            self._calibration_file  = None
+            self._calibration_file = None
             self._calibration = None
 
     @property
@@ -96,9 +95,7 @@ class ModulatorStream(DeviceStream):
 
 
 class Modulator(ModulatorStream):
-    """
-    Modulator
-    """
+    """Modulator"""
 
     __slots__ = ("_link", "_settings")
 
@@ -124,8 +121,7 @@ class Modulator(ModulatorStream):
         logger.info("self._settings : %s", self._settings)
 
     def move_center(self, x: int, y: int):
-        """
-        Move roi by x y amount
+        """Move roi by x y amount
 
         Parameters:
             x: float
@@ -139,8 +135,7 @@ class Modulator(ModulatorStream):
         logger.info("self._settings : %s", self._settings)
 
     def set_radius(self, radius: float):
-        """
-        Change radius
+        """Change radius
 
         Parameter:
             radius: float

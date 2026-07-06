@@ -1,14 +1,13 @@
 from __future__ import annotations
+
 from typing import TYPE_CHECKING, cast
 
 import numpy as np
 from numpy.typing import NDArray
-
 from pykato.log import setup_logger
-
-from PySide6.QtCore import Qt, Slot, QTimer
+from PySide6.QtCore import Qt, QTimer, Slot
 from PySide6.QtGui import QIcon
-from PySide6.QtWidgets import QDoubleSpinBox, QGridLayout, QHBoxLayout, QLabel, QSpinBox, QVBoxLayout, QWidget, QMessageBox, QCheckBox
+from PySide6.QtWidgets import QCheckBox, QDoubleSpinBox, QGridLayout, QHBoxLayout, QLabel, QMessageBox, QSpinBox, QVBoxLayout, QWidget
 
 import testbed
 
@@ -16,25 +15,22 @@ if TYPE_CHECKING:
     from dashboard import MainWindow
 from ..device.camera import Camera
 from ..device.modulator import Modulator
-from ..function import is_pairwise_calibration_file_valid, read_pairwise_calibration_file, PairwiseProbeDirection
-from ..worker.pairwise_fpwfs_worker import ProcessWorker
+from ..function import PairwiseProbeDirection, is_pairwise_calibration_file_valid, read_pairwise_calibration_file
 from ..widget import PairwiseProbeDirectionWidget
+from ..worker.pairwise_fpwfs_worker import ProcessWorker
+from . import DevicesSetupWidget, FileLoadWidget, TaskControlsWidget, Window
 from .camera_window import PreviewWindow as CameraPreviewWindow
-from .modulator_window import PreviewWindow as ModulatorPreviewWindow
 from .dialog import MessageDialog
 from .figure_widget import WavefrontFigureWidget
-from .resource import ICON_STOP, ICON_RUN
-
-from . import DevicesSetupWidget, TaskControlsWidget, Window, FileLoadWidget
+from .modulator_window import PreviewWindow as ModulatorPreviewWindow
+from .resource import ICON_RUN, ICON_STOP
 
 logger = setup_logger(f"{testbed.PAIRWISE_FPWFS}_window", terminator="\n")
 
 
 # ==== ProcessSettingsWidget ==========================================================================================
 class ProcessSettingsWidget(QWidget):
-    """
-    Pairwise FPWFS process settings window
-    """
+    """Pairwise FPWFS process settings window"""
 
     def __init__(self, parent=None):
         _probe_amplitude_perc_min, _probe_amplitude_perc_max, _probe_amplitude_perc = -100.0, 100.0, 10.0
@@ -239,9 +235,7 @@ class ProcessSettingsWidget(QWidget):
 
 # ==== ProcessInfoWindow ==============================================================================================
 class ProcessInfoWindow(Window):
-    """
-    Pairwise FPWFS process info window
-    """
+    """Pairwise FPWFS process info window"""
 
     wid = f"{testbed.PAIRWISE_FPWFS}_info_window"
 
@@ -289,9 +283,7 @@ class ProcessInfoWindow(Window):
 
 # ==== ProcessWindow ==================================================================================================
 class ProcessWindow(Window):
-    """
-    Pairwise FPWFS process window
-    """
+    """Pairwise FPWFS process window"""
 
     wid = f"{testbed.PAIRWISE_FPWFS}_window"
 

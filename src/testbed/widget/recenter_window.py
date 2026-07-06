@@ -1,14 +1,14 @@
 from __future__ import annotations
+
 from typing import TYPE_CHECKING, cast
 
 import numpy as np
 from matplotlib.lines import Line2D
 from numpy.typing import NDArray
-
 from pykato.log import setup_logger
 from PySide6.QtCore import Qt, Slot
 from PySide6.QtGui import QIcon
-from PySide6.QtWidgets import QDoubleSpinBox, QGridLayout, QHBoxLayout, QLabel, QSpinBox, QVBoxLayout, QWidget, QMessageBox, QLineEdit
+from PySide6.QtWidgets import QDoubleSpinBox, QGridLayout, QLabel, QLineEdit, QMessageBox, QVBoxLayout, QWidget
 
 import testbed
 
@@ -16,23 +16,20 @@ if TYPE_CHECKING:
     from dashboard import MainWindow
 from ..device.camera import Camera
 from ..device.modulator import Modulator
-from ..worker.recenter_worker import ProcessWorker
 from ..function import flip_rotate_points
+from ..worker.recenter_worker import ProcessWorker
+from . import DevicesSetupWidget, IconButton, TaskControlsWidget, Window
 from .camera_window import PreviewWindow as CameraPreviewWindow
-from .modulator_window import PreviewWindow as ModulatorPreviewWindow
 from .dialog import MessageDialog
-from .resource import ICON_STOP, ICON_RUN, ICON_CENTER
-
-from . import DevicesSetupWidget, TaskControlsWidget, Window, IconButton
+from .modulator_window import PreviewWindow as ModulatorPreviewWindow
+from .resource import ICON_CENTER, ICON_RUN, ICON_STOP
 
 logger = setup_logger(f"{testbed.RECENTER}_window", terminator="\n")
 
 
 # ==== ProcessSettingsWidget ==========================================================================================
 class ProcessSettingsWidget(QWidget):
-    """
-    Re-centering process settings window
-    """
+    """Re-centering process settings window"""
 
     def __init__(self, parent=None):
         _amplitude_perc_min, _amplitude_perc_max, _amplitude_perc = -100.0, 100.0, 1.0
@@ -113,9 +110,7 @@ class ProcessSettingsWidget(QWidget):
 
 # ==== ProcessWindow ==================================================================================================
 class ProcessWindow(Window):
-    """
-    Re-centering process window
-    """
+    """Re-centering process window"""
 
     wid = f"{testbed.RECENTER}_window"
 

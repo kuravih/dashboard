@@ -1,34 +1,28 @@
-import numpy as np
-from numpy.typing import NDArray
-
-from PySide6.QtCore import Signal, Qt
-from PySide6.QtWidgets import QWidget, QVBoxLayout
-from PySide6.QtGui import QAction, QIcon
-
-from pykato.log import setup_logger
-from pykato.function import disk
-
-import matplotlib.pyplot as plt
 import matplotlib.patches as patches
-from matplotlib.figure import Figure
-from matplotlib.colors import Normalize
+import matplotlib.pyplot as plt
+import numpy as np
 from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.backends.backend_qtagg import NavigationToolbar2QT
+from matplotlib.colors import Normalize
+from matplotlib.figure import Figure
+from numpy.typing import NDArray
+from pykato.function import disk
+from pykato.log import setup_logger
+from PySide6.QtCore import Qt, Signal
+from PySide6.QtGui import QAction, QIcon
+from PySide6.QtWidgets import QVBoxLayout, QWidget
 
-from testbed.function import Flip, Rotation, DOTFProbeDirection
-from testbed.plot.preset import Speckle_Modulation_Plot_Preset, Contrast_Evolution_Plot_Preset, DOTF_Measurement_Plot_Preset, Image_Plot_Preset, Wavefront_Plot_Preset, Histogram_Plot_Preset
+from testbed.function import DOTFProbeDirection, Flip, Rotation
+from testbed.plot.preset import Contrast_Evolution_Plot_Preset, DOTF_Measurement_Plot_Preset, Histogram_Plot_Preset, Image_Plot_Preset, Speckle_Modulation_Plot_Preset, Wavefront_Plot_Preset
 
-from .resource import ICON_CAMERA, ICON_HOUSE, ICON_MOVE, ICON_MAGNIFY, ICON_DISK, ICON_GEAR
 from . import IconButton
-
+from .resource import ICON_CAMERA, ICON_DISK, ICON_GEAR, ICON_HOUSE, ICON_MAGNIFY, ICON_MOVE
 
 logger = setup_logger("figure_widget", terminator="\n")
 
 
 class NavigationToolbar(NavigationToolbar2QT):
-    """
-    Navigation toolbar with only the buttons we need
-    """
+    """Navigation toolbar with only the buttons we need"""
 
     settingsClicked = Signal()
     captureClicked = Signal()
@@ -88,9 +82,7 @@ class NavigationToolbar(NavigationToolbar2QT):
 
 
 class FigureWidget(QWidget):
-    """
-    Figure widget
-    """
+    """Figure widget"""
 
     def __init__(self, figure: Figure | None = None, toolitems: list[str] | None = None, parent: QWidget | None = None):
         super().__init__(parent)
@@ -99,7 +91,7 @@ class FigureWidget(QWidget):
             figure = plt.figure()
         self.figure_canvas = FigureCanvas(figure)
         self._toolbar = None
-        if toolitems is not []:
+        if toolitems != []:
             self._toolbar = NavigationToolbar(self.figure_canvas, toolitems, parent=self)
             layout.addWidget(self._toolbar)
         layout.addWidget(self.figure_canvas)
@@ -120,9 +112,7 @@ class FigureWidget(QWidget):
 
 
 class SinkFigureWidget(FigureWidget):
-    """
-    Sink Figure widget
-    """
+    """Sink Figure widget"""
 
     def __init__(self, frame: np.ndarray, vlim: tuple[float, float], radius: float | None = None, toolitems: list[str] | None = None, parent: QWidget | None = None):
         super().__init__(Image_Plot_Preset(frame, cmap_name="bwr", mask=np.zeros_like(frame)), toolitems, parent=parent)
@@ -172,9 +162,7 @@ class SinkFigureWidget(FigureWidget):
 
 
 class MirrorFigureWidget(SinkFigureWidget):
-    """
-    Mirror Figure widget
-    """
+    """Mirror Figure widget"""
 
     def __init__(self, frame: np.ndarray, vlim: tuple[float, float], toolitems: list[str] | None = None, parent: QWidget | None = None):
         super().__init__(frame, vlim, toolitems, parent=parent)
@@ -196,9 +184,7 @@ class MirrorFigureWidget(SinkFigureWidget):
 
 
 class ModulatorFigureWidget(SinkFigureWidget):
-    """
-    Modulator Figure widget
-    """
+    """Modulator Figure widget"""
 
     def __init__(self, command: np.ndarray, vlim: tuple[float, float], radius: float | None = None, toolitems: list[str] | None = None, parent: QWidget | None = None):
         super().__init__(command, vlim, radius, toolitems, parent=parent)
@@ -210,9 +196,7 @@ class ModulatorFigureWidget(SinkFigureWidget):
 
 
 class SourceFigureWidget(FigureWidget):
-    """
-    Source Figure widget
-    """
+    """Source Figure widget"""
 
     def __init__(self, frame: np.ndarray, clim: tuple[float, float], rotation: Rotation = Rotation.UP, flip: Flip = Flip.POS, mask: NDArray[np.bool] | None = None, toolitems: list[str] | None = None, parent: QWidget | None = None):
         super().__init__(Image_Plot_Preset(frame, cmap_name="hot", cmap_norm=Normalize(*clim), mask=mask), toolitems, parent)
@@ -387,9 +371,7 @@ class SourceFigureWidget(FigureWidget):
 
 
 class SourceHistFigureWidget(FigureWidget):
-    """
-    Source Histogram Figure widget
-    """
+    """Source Histogram Figure widget"""
 
     def __init__(self, frame: np.ndarray, pxmax: float, toolitems: list[str] | None = None, parent: QWidget | None = None):
         super().__init__(Histogram_Plot_Preset(frame, cmap_name="hot", cmap_norm=Normalize(0, pxmax)), toolitems, parent)
@@ -417,9 +399,7 @@ class SourceHistFigureWidget(FigureWidget):
 
 
 class SinkHistFigureWidget(FigureWidget):
-    """
-    Sink Histogram Figure widget
-    """
+    """Sink Histogram Figure widget"""
 
     def __init__(self, frame: np.ndarray, pxmax: float, toolitems: list[str] | None = None, parent: QWidget | None = None):
         super().__init__(Histogram_Plot_Preset(frame, cmap_name="bwr", cmap_norm=Normalize(0, pxmax)), toolitems, parent)
@@ -439,9 +419,7 @@ class SinkHistFigureWidget(FigureWidget):
 
 
 class ContrastFigureWidget(FigureWidget):
-    """
-    Contrast Figure widget
-    """
+    """Contrast Figure widget"""
 
     def __init__(self, contrast: np.ndarray, n_iteration: int, dark_hole_mask: NDArray[np.float64], toolitems: list[str] | None = None, parent: QWidget | None = None):
         super().__init__(Contrast_Evolution_Plot_Preset(contrast, n_iteration, dark_hole_mask), toolitems, parent)
@@ -484,9 +462,7 @@ class ContrastFigureWidget(FigureWidget):
 
 
 class SpeckleNullingFigureWidget(FigureWidget):
-    """
-    Speckle Nulling Figure widget
-    """
+    """Speckle Nulling Figure widget"""
 
     def __init__(self, phs_lim: tuple[float, float], amp_lim: tuple[float, float], toolitems: list[str] | None = None, parent: QWidget | None = None):
         super().__init__(Speckle_Modulation_Plot_Preset(phs_lim, amp_lim), toolitems, parent)
@@ -520,9 +496,7 @@ class SpeckleNullingFigureWidget(FigureWidget):
 
 
 class DOTFMeasureFigureWidget(FigureWidget):
-    """
-    DOTF measure figure widget
-    """
+    """DOTF measure figure widget"""
 
     def __init__(self, measure_dict: dict[DOTFProbeDirection, NDArray[np.complex64]], toolitems: list[str] | None = None, parent: QWidget | None = None):
         super().__init__(DOTF_Measurement_Plot_Preset(measure_dict), toolitems, parent=parent)
@@ -533,9 +507,7 @@ class DOTFMeasureFigureWidget(FigureWidget):
 
 
 class WavefrontFigureWidget(FigureWidget):
-    """
-    Wavefront figure widget
-    """
+    """Wavefront figure widget"""
 
     def __init__(self, wavefront: NDArray[np.complex64], toolitems: list[str] | None = None, parent: QWidget | None = None):
         super().__init__(Wavefront_Plot_Preset(wavefront), toolitems, parent)

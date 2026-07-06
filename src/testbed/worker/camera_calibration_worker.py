@@ -1,11 +1,12 @@
 import time
-import numpy as np
-from PySide6.QtCore import Slot, Signal
 
+import numpy as np
 from pykato.log import setup_logger
+from PySide6.QtCore import Signal, Slot
 
 import testbed
-from ..device import SourceSample, SinkSample
+
+from ..device import SinkSample, SourceSample
 from ..device.camera import Camera
 from . import Worker, WorkerSignals
 
@@ -18,7 +19,6 @@ class ProcessWorkerSignals(WorkerSignals):
 
 
 class ProcessWorker(Worker):
-
     wid = f"{testbed.CAMERA_CALIBRATION}_worker"
 
     def __init__(self, source: Camera, exp_array: np.ndarray):
@@ -30,7 +30,6 @@ class ProcessWorker(Worker):
     def exptime_sweep(self, exp_array: np.ndarray):
         i_exp = 0
         while (exp_array.size > i_exp) and self._running:
-
             self.source.set_exposure_time_s(float(exp_array[i_exp]))
 
             # ---- zero -----------------------------------------------------------------------------------------------

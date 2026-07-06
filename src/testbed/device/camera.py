@@ -1,9 +1,8 @@
 import numpy as np
-
-from . import DeviceStream, Stream, ZMQLink, SourceSample
-from ..function import is_camera_calibration_file_valid, read_camera_calibration_file, capture_to_intensity, calculate_quantum_efficiency, intensity_limits
-
 from pykato.log import setup_logger
+
+from ..function import calculate_quantum_efficiency, capture_to_intensity, intensity_limits, is_camera_calibration_file_valid, read_camera_calibration_file
+from . import DeviceStream, SourceSample, Stream, ZMQLink
 
 logger = setup_logger("Camera", terminator="\n")
 
@@ -87,9 +86,7 @@ class CameraStream(DeviceStream):
 
 
 class Camera(CameraStream):
-    """
-    Camera
-    """
+    """Camera"""
 
     __slots__ = ("_link", "_settings")
 
@@ -115,8 +112,7 @@ class Camera(CameraStream):
         logger.info("self._settings : %s", self._settings)
 
     def set_exposure_time_s(self, exposure_time_s: float):
-        """
-        Set the exposure time of the camera
+        """Set the exposure time of the camera
 
         Parameter:
             exposure_time_s: float
@@ -128,8 +124,7 @@ class Camera(CameraStream):
         logger.info("self._settings : %s", self._settings)
 
     def set_gain(self, gain: float):
-        """
-        Set the gain of the camera
+        """Set the gain of the camera
 
         Parameter:
             gain: int
@@ -141,8 +136,7 @@ class Camera(CameraStream):
         logger.info("self._settings : %s", self._settings)
 
     def set_temperature_c(self, temperature_c: float):
-        """
-        Set the temperature of the camera
+        """Set the temperature of the camera
 
         Parameter:
             temperature_c: float
@@ -154,8 +148,7 @@ class Camera(CameraStream):
         logger.info("self._settings : %s", self._settings)
 
     def move_roi(self, x: int, y: int):
-        """
-        Move roi by x y amount
+        """Move roi by x y amount
 
         Parameters:
             x: float

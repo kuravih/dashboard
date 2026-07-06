@@ -1,11 +1,12 @@
 from __future__ import annotations
+
 from typing import TYPE_CHECKING, cast
 
 from pykato.function import timestamp_string
 from pykato.log import setup_logger
 from PySide6.QtCore import Qt, Slot
-from PySide6.QtGui import QIcon, QCursor
-from PySide6.QtWidgets import QCheckBox, QDoubleSpinBox, QGridLayout, QHBoxLayout, QLabel, QSpinBox, QVBoxLayout, QWidget, QMessageBox, QPushButton, QToolTip
+from PySide6.QtGui import QIcon
+from PySide6.QtWidgets import QDoubleSpinBox, QGridLayout, QLabel, QMessageBox, QSpinBox, QVBoxLayout, QWidget
 
 import testbed
 
@@ -13,22 +14,18 @@ if TYPE_CHECKING:
     from dashboard import MainWindow
 from ..device.camera import Camera
 from ..worker.capture_loop_worker import ProcessWorker
-from ..worker.storage_worker import SinkStorageWorker, SourceStorageWorker
-from .camera_window import PreviewWindow as CameraPreviewWindow
-from .modulator_window import PreviewWindow as ModulatorPreviewWindow
-from .dialog import MessageDialog
-from .resource import ICON_STOP, ICON_RUN
-
+from ..worker.storage_worker import SourceStorageWorker
 from . import DevicesSetupWidget, TaskControlsWidget, Window
+from .camera_window import PreviewWindow as CameraPreviewWindow
+from .dialog import MessageDialog
+from .resource import ICON_RUN, ICON_STOP
 
 logger = setup_logger(f"{testbed.CAPTURE_LOOP}_window", terminator="\n")
 
 
 # ==== ProcessSettingsWidget ==========================================================================================
 class ProcessSettingsWidget(QWidget):
-    """
-    Simple Process Settings
-    """
+    """Simple Process Settings"""
 
     def __init__(self, parent=None):
         _n_steps_min, _n_steps_max, _n_steps = 0, 9999, 9
@@ -81,9 +78,7 @@ class ProcessSettingsWidget(QWidget):
 
 # ==== ProcessWindow ==================================================================================================
 class ProcessWindow(Window):
-    """
-    Simple Process Window
-    """
+    """Simple Process Window"""
 
     wid = f"{testbed.CAPTURE_LOOP}_window"
 

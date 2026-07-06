@@ -8,9 +8,7 @@ logger = setup_logger("mirror_window", terminator="\n")
 
 # ==== PreviewWindow ============================================================================================
 class PreviewWindow(Window):
-    """
-    Mirror Preview Window
-    """
+    """Mirror Preview Window"""
 
     def __init__(self, mirror: Mirror):
         super().__init__()
@@ -27,9 +25,7 @@ class PreviewWindow(Window):
 
 # ==== InfoWindow ===============================================================================================
 class InfoWindow(Window):
-    """
-    Mirror Info Window
-    """
+    """Mirror Info Window"""
 
     def __init__(self, mirror: Mirror):
         super().__init__()
@@ -46,7 +42,6 @@ class InfoWindow(Window):
 
 # ==== SettingsWindow ===========================================================================================
 class SettingsWindow(Window):
-
     def __init__(self, mirror: Mirror):
         super().__init__()
         self._mirror = mirror

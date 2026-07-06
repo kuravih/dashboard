@@ -1,5 +1,6 @@
 import time
-from PySide6.QtCore import QRunnable, Slot, QObject, Signal
+
+from PySide6.QtCore import QObject, QRunnable, Signal, Slot
 
 
 class WorkerSignals(QObject):
@@ -7,8 +8,8 @@ class WorkerSignals(QObject):
     finished = Signal()
     error = Signal(str)
 
-class Worker(QRunnable):
 
+class Worker(QRunnable):
     def __init__(self, n_ticks: int | None = None) -> None:
         self.n_ticks = n_ticks
         super().__init__()

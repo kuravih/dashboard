@@ -1,12 +1,14 @@
+import time
 import unittest
+
 import numpy as np
+from pykato.function import preroll
+from pykato.log import setup_logger
+from pyshmio import DataType
+
 from testbed.device import Stream, create_camera_memory, create_modulator_memory
 from testbed.device.camera import Camera
 from testbed.device.modulator import Modulator
-from pykato.log import setup_logger
-from pykato.function import preroll
-from pyshmio import DataType
-import time
 
 logger = setup_logger("test_device", terminator="\n")
 

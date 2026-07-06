@@ -1,11 +1,12 @@
 from __future__ import annotations
+
 from typing import TYPE_CHECKING, cast
 
 from pykato.function import timestamp_string
 from pykato.log import setup_logger
 from PySide6.QtCore import Qt, Slot
 from PySide6.QtGui import QIcon
-from PySide6.QtWidgets import QCheckBox, QDoubleSpinBox, QGridLayout, QHBoxLayout, QLabel, QSpinBox, QVBoxLayout, QWidget, QMessageBox
+from PySide6.QtWidgets import QCheckBox, QDoubleSpinBox, QGridLayout, QHBoxLayout, QLabel, QMessageBox, QSpinBox, QVBoxLayout, QWidget
 
 import testbed
 
@@ -15,21 +16,18 @@ from ..device.camera import Camera
 from ..device.modulator import Modulator
 from ..worker.simple_loop_worker import ProcessWorker
 from ..worker.storage_worker import SinkStorageWorker, SourceStorageWorker
-from .camera_window import PreviewWindow as CameraPreviewWindow
-from .modulator_window import PreviewWindow as ModulatorPreviewWindow
-from .dialog import MessageDialog
-from .resource import ICON_STOP, ICON_RUN
-
 from . import DevicesSetupWidget, TaskControlsWidget, Window
+from .camera_window import PreviewWindow as CameraPreviewWindow
+from .dialog import MessageDialog
+from .modulator_window import PreviewWindow as ModulatorPreviewWindow
+from .resource import ICON_RUN, ICON_STOP
 
 logger = setup_logger(f"{testbed.SIMPLE_LOOP}_window", terminator="\n")
 
 
 # ==== ProcessSettingsWidget ==========================================================================================
 class ProcessSettingsWidget(QWidget):
-    """
-    Simple Process Settings
-    """
+    """Simple Process Settings"""
 
     def __init__(self, parent=None):
         _n_steps_min, _n_steps_max, _n_steps = 0, 9999, 9
@@ -150,9 +148,7 @@ class ProcessSettingsWidget(QWidget):
 
 # ==== ProcessWindow ==================================================================================================
 class ProcessWindow(Window):
-    """
-    Simple Process Window
-    """
+    """Simple Process Window"""
 
     wid = f"{testbed.SIMPLE_LOOP}_window"
 

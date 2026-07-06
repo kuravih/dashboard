@@ -1,10 +1,11 @@
-from pykato.log import setup_logger
-
-from PySide6.QtCore import Slot
-from ..worker import Worker, WorkerSignals
-from ..device import SourceSample, SinkSample
 from queue import Queue
-from ..function import write_source_sample_header, write_source_sample_data, write_sink_sample_header, write_sink_sample_data
+
+from pykato.log import setup_logger
+from PySide6.QtCore import Slot
+
+from ..device import SinkSample, SourceSample
+from ..function import write_sink_sample_data, write_sink_sample_header, write_source_sample_data, write_source_sample_header
+from ..worker import Worker, WorkerSignals
 
 logger = setup_logger("storage_worker", terminator="\n")
 

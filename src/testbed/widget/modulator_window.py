@@ -1,24 +1,24 @@
-from typing import cast
-import numpy as np
-from pathlib import Path
 from datetime import datetime
+from pathlib import Path
+from typing import cast
 
-from PySide6.QtWidgets import QWidget, QVBoxLayout, QLabel, QRadioButton, QSpacerItem, QButtonGroup, QSizePolicy, QGridLayout, QHBoxLayout, QComboBox, QFileDialog
-from PySide6.QtGui import QIcon
-from PySide6.QtCore import Slot, QTimer, Qt
+import numpy as np
 from astropy.io import fits
 from matplotlib import colormaps
-
-from pykato.log import setup_logger
 from pykato.function import disk
+from pykato.log import setup_logger
+from PySide6.QtCore import Qt, QTimer, Slot
+from PySide6.QtGui import QIcon
+from PySide6.QtWidgets import QButtonGroup, QComboBox, QFileDialog, QGridLayout, QHBoxLayout, QLabel, QRadioButton, QSizePolicy, QSpacerItem, QVBoxLayout, QWidget
 
 import testbed
+
 from ..device.modulator import Modulator, SinkSample
-from ..widget import Window, OrientationWidget, CenterWidget, DoubleValueSetWidget, FileLoadWidget, IconButton
-from ..widget.figure_widget import ModulatorFigureWidget, SinkHistFigureWidget
-from ..widget.command_preset_widget import ConstantPresetWidget, GradientPresetWidget, CheckerPresetWidget, SinusoidPresetWidget, BoxPresetWidget, PolkaPresetWidget, RegisterPresetWidget, TextPresetWidget, DOTFProbePresetWidget, PairwiseProbePresetWidget
-from ..widget.resource import ICON_PAPER_PLANE, ICON_PLUS, ICON_GEAR
 from ..function import Flip, Rotation, flip_rotate_frame, is_modulator_calibration_file_valid
+from ..widget import CenterWidget, DoubleValueSetWidget, FileLoadWidget, IconButton, OrientationWidget, Window
+from ..widget.command_preset_widget import BoxPresetWidget, CheckerPresetWidget, ConstantPresetWidget, DOTFProbePresetWidget, GradientPresetWidget, PairwiseProbePresetWidget, PolkaPresetWidget, RegisterPresetWidget, SinusoidPresetWidget, TextPresetWidget
+from ..widget.figure_widget import ModulatorFigureWidget, SinkHistFigureWidget
+from ..widget.resource import ICON_GEAR, ICON_PAPER_PLANE, ICON_PLUS
 
 logger = setup_logger("modulator_window", terminator="\n")
 
@@ -27,9 +27,7 @@ PRESETS = ["Constant", "Gradient", "Checker", "Sinusoid", "Box", "Polka", "Regis
 
 # ==== HistogramSettingsWindow ========================================================================================
 class HistogramSettingsWindow(Window):
-    """
-    Settings for the simple preview window.
-    """
+    """Settings for the simple preview window."""
 
     def __init__(self, cmap_name: str, parent=None):
         self.cmap_name: str = cmap_name
@@ -65,9 +63,7 @@ class HistogramSettingsWindow(Window):
 
 # ==== InfoWindow =====================================================================================================
 class InfoWindow(Window):
-    """
-    Modulator info window
-    """
+    """Modulator info window"""
 
     def __init__(self, modulator: Modulator, parent: QWidget | None = None):
         self.modulator = modulator
@@ -298,9 +294,7 @@ class InfoWindow(Window):
 
 # ==== SettingsWindow =================================================================================================
 class SettingsWindow(Window):
-    """
-    Modulator settings window
-    """
+    """Modulator settings window"""
 
     def __init__(self, modulator: Modulator, parent: QWidget | None = None):
         self.modulator = modulator
@@ -500,9 +494,7 @@ class SettingsWindow(Window):
 
 # ==== PresetsWindow ===================================================================================================
 class PresetsWindow(Window):
-    """
-    Modulator settings window
-    """
+    """Modulator settings window"""
 
     def __init__(self, modulator: Modulator, parent: QWidget | None = None):
         self.modulator = modulator
@@ -695,9 +687,7 @@ class PresetsWindow(Window):
 
 # ==== PreviewSettingsWindow ==========================================================================================
 class PreviewSettingsWindow(Window):
-    """
-    Settings for the simple preview window.
-    """
+    """Settings for the simple preview window."""
 
     def __init__(self, cmap_name: str, rotation: Rotation, flip: Flip, parent: QWidget | None = None):
         self.cmap_name: str = cmap_name
@@ -744,9 +734,7 @@ class PreviewSettingsWindow(Window):
 
 # ==== PreviewWindow ==================================================================================================
 class PreviewWindow(Window):
-    """
-    Simple preview window.
-    """
+    """Simple preview window."""
 
     def __init__(self, modulator: Modulator, parent: QWidget | None = None):
         self.modulator = modulator

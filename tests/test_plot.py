@@ -1,13 +1,12 @@
 import unittest
-from matplotlib.figure import Figure
 
 import numpy as np
+from matplotlib.figure import Figure
 
-from testbed.plot.preset import Speckle_Modulation_Plot_Preset, Contrast_Evolution_Plot_Preset, DOTF_Measurement_Plot_Preset, Pairwise_FPWFS_Process_Plot_Preset
+from testbed.plot.preset import Contrast_Evolution_Plot_Preset, DOTF_Measurement_Plot_Preset, Pairwise_FPWFS_Process_Plot_Preset, Speckle_Modulation_Plot_Preset
 
 
 class TestPlotPreset(unittest.TestCase):
-
     def test_Speckle_Modulation_Plot_Preset(self):
         capture = np.zeros((256, 256), dtype=np.float64)
         command = np.zeros((360, 360), dtype=np.float64)

@@ -1,16 +1,17 @@
 import time
-import numpy as np
-from PySide6.QtCore import Slot, Signal
 
+import numpy as np
 from pykato.function import sinusoid
 from pykato.log import setup_logger
+from PySide6.QtCore import Signal, Slot
 
 import testbed
-from ..device import SourceSample, SinkSample
+
+from ..device import SinkSample, SourceSample
 from ..device.camera import Camera
 from ..device.modulator import Modulator
-from . import Worker, WorkerSignals
 from ..function import find_speckles
+from . import Worker, WorkerSignals
 
 logger = setup_logger(f"{testbed.RECENTER}_worker", terminator="\n")
 
@@ -23,7 +24,6 @@ class ProcessWorkerSignals(WorkerSignals):
 
 
 class ProcessWorker(Worker):
-
     wid = f"{testbed.RECENTER}_worker"
 
     def __init__(self, source: Camera, sink: Modulator, amplitude_perc: float):
