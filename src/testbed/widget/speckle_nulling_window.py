@@ -194,6 +194,8 @@ class ProcessInfoWindow(Window):
 
     wid = f"{testbed.SPECKLE_NULLING}_info_window"
 
+    _allowed_slots_ = Window._allowed_slots_ | {"phase_deg_lim", "phase_deg_array", "phase_deg_intensity_data_array", "phase_deg_intensity_fit", "phase_deg_intensity_fit_x_data", "phase_deg_intensity_fit_y_data", "phase_deg_solve", "amplitude_perc_lim", "amplitude_perc_array", "amplitude_perc_intensity_data_array", "amplitude_perc_intensity_fit", "amplitude_perc_intensity_fit_x_data", "amplitude_perc_intensity_fit_y_data", "amplitude_perc_solve"}
+
     def __init__(self, phase_deg_lim: tuple[float, float], phase_deg_array: np.ndarray, amplitude_perc_lim: tuple[float, float], amplitude_perc_array: np.ndarray, parent: QWidget | None = None):
         super().__init__(parent, Qt.WindowType.Dialog)
 
@@ -285,6 +287,8 @@ class ProcessInfoWindow(Window):
 class ProcessPreviewSettingsWindow(Window):
     """Process Preview Settings Window"""
 
+    _allowed_slots_ = Window._allowed_slots_ | {"cmap_name", "cmap_norm", "alpha_mask_show", "log_checkbox", "cmap_combobox", "mask_checkbox"}
+
     def __init__(self, cmap_name: str, cmap_norm: Normalize, alpha_mask_show: bool, parent=None):
         super().__init__(parent, Qt.WindowType.Dialog)
         self.cmap_name: str = cmap_name
@@ -350,6 +354,8 @@ class ProcessPreviewWindow(Window):
     """
 
     wid = f"{testbed.SPECKLE_NULLING}_preview_window"
+
+    _allowed_slots_ = Window._allowed_slots_ | {"measure_map", "measure_curve", "n_iterations", "dark_hole_mask", "speckle", "update_timer"}
 
     def __init__(self, measure_map: np.ndarray, n_iterations: int, dark_hole_mask: NDArray[np.bool], parent: QWidget | None = None):
         super().__init__(parent, Qt.WindowType.Dialog)
@@ -446,12 +452,14 @@ class ProcessWindow(Window):
 
     wid = f"{testbed.SPECKLE_NULLING}_window"
 
+    _allowed_slots_ = Window._allowed_slots_ | {"_sink", "_source", "devices_widget", "settings_widget", "controls_widget"}
+
     def __init__(self, parent=None):
         super().__init__(parent, Qt.WindowType.Dialog)
         self.setWindowTitle("Speckle Nulling Process")
-        self.sink = None
-        self.source = None
-        self.speckle_calibration = None
+        self._sink = None
+        self._source = None
+        self._speckle_calibration = None
 
         layout = QVBoxLayout()
         layout.setContentsMargins(2, 2, 2, 2)
@@ -509,7 +517,7 @@ class ProcessWindow(Window):
 
     @Slot()
     def on_source_changed(self, device: Camera):
-        self.source = device
+        self._source = device
         if self.source is not None:
             self.settings_widget.dark_hole_mask = chord(self.source.shape, self.source.shape[0] * RADIUS, PORTION)
 
@@ -532,7 +540,7 @@ class ProcessWindow(Window):
 
     @Slot()
     def on_sink_changed(self, device: Modulator):
-        self.sink = device
+        self._sink = device
         self.update_process_controls()
         if testbed.data.is_window_alive(ProcessInfoWindow.wid):
             process_info_window = cast(ProcessInfoWindow, testbed.data.windows.pop(ProcessInfoWindow.wid))

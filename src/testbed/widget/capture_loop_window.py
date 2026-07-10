@@ -82,10 +82,12 @@ class ProcessWindow(Window):
 
     wid = f"{testbed.CAPTURE_LOOP}_window"
 
+    _allowed_slots_ = Window._allowed_slots_ | {"_source", "devices_widget", "settings_widget", "controls_widget"}
+
     def __init__(self, parent=None):
         super().__init__(parent, Qt.WindowType.Dialog)
         self.setWindowTitle("Simple Process")
-        self.source = None
+        self._source = None
 
         layout = QVBoxLayout()
         layout.setContentsMargins(2, 2, 2, 2)

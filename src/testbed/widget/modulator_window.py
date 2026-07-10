@@ -29,6 +29,8 @@ PRESETS = ["Constant", "Gradient", "Checker", "Sinusoid", "Box", "Polka", "Regis
 class HistogramSettingsWindow(Window):
     """Settings for the simple preview window."""
 
+    _allowed_slots_ = Window._allowed_slots_ | {"cmap_name", "cmap_combobox"}
+
     def __init__(self, cmap_name: str, parent=None):
         self.cmap_name: str = cmap_name
 
@@ -65,12 +67,14 @@ class HistogramSettingsWindow(Window):
 class InfoWindow(Window):
     """Modulator info window"""
 
-    def __init__(self, modulator: Modulator, parent: QWidget | None = None):
-        self.modulator = modulator
-        # self.modulator.sync_settings()
-        self.sample = self.modulator.sample
+    _allowed_slots_ = Window._allowed_slots_ | {"_modulator", "_sample", "info_frame_rate_value_label", "info_last_access_time_value_label", "info_center_value_label", "info_radius_value_label", "hist_figure_widget", "update_timer"}
 
+    def __init__(self, modulator: Modulator, parent: QWidget | None = None):
         super().__init__(parent, Qt.WindowType.Dialog)
+
+        self._modulator = modulator
+        # self.modulator.sync_settings()
+        self._sample = self.modulator.sample
 
         self.setWindowTitle(f"{self.modulator.name} Information")
 
@@ -296,13 +300,15 @@ class InfoWindow(Window):
 class SettingsWindow(Window):
     """Modulator settings window"""
 
-    def __init__(self, modulator: Modulator, parent: QWidget | None = None):
-        self.modulator = modulator
-        # self.modulator.sync_settings()
+    _allowed_slots_ = Window._allowed_slots_ | {"_modulator", "calibration_widget"}
 
+    def __init__(self, modulator: Modulator, parent: QWidget | None = None):
         super().__init__(parent, Qt.WindowType.Dialog)
 
-        self.setWindowTitle(f"{self._modulator.name} Settings")
+        self._modulator = modulator
+        # self.modulator.sync_settings()
+
+        self.setWindowTitle(f"{self.modulator.name} Settings")
 
         layout = QVBoxLayout()
         layout.setContentsMargins(2, 2, 2, 2)
@@ -496,12 +502,14 @@ class SettingsWindow(Window):
 class PresetsWindow(Window):
     """Modulator settings window"""
 
+    _allowed_slots_ = Window._allowed_slots_ | {"_modulator", "_sample", "command", "pstr", "plim", "preview_figure_widget", "constant_preset_param_widget", "gradient_preset_param_widget", "checker_preset_param_widget", "sinusoid_preset_param_widget", "box_preset_param_widget", "polka_preset_param_widget", "register_preset_param_widget", "text_preset_param_widget", "dotf_preset_param_widget", "pairwise_preset_param_widget", "preset_widget"}
+
     def __init__(self, modulator: Modulator, parent: QWidget | None = None):
+        super().__init__(parent, Qt.WindowType.Dialog)
+
         self.modulator = modulator
         # self.modulator.sync_settings()
         self.command = np.ma.copy(self.modulator.blank)
-
-        super().__init__(parent, Qt.WindowType.Dialog)
 
         self.setWindowTitle(f"{self._modulator.name} Presets")
 
@@ -689,11 +697,14 @@ class PresetsWindow(Window):
 class PreviewSettingsWindow(Window):
     """Settings for the simple preview window."""
 
+    _allowed_slots_ = Window._allowed_slots_ | {"cmap_name", "rotation", "flip", "cmap_combobox", "orientation_widget"}
+
     def __init__(self, cmap_name: str, rotation: Rotation, flip: Flip, parent: QWidget | None = None):
+        super().__init__(parent, Qt.WindowType.Dialog)
+
         self.cmap_name: str = cmap_name
         self.rotation: Rotation = rotation
         self.flip: Flip = flip
-        super().__init__(parent, Qt.WindowType.Dialog)
 
         self.setWindowModality(Qt.WindowModality.WindowModal)
         self.setWindowTitle("Preview Settings")
@@ -736,10 +747,12 @@ class PreviewSettingsWindow(Window):
 class PreviewWindow(Window):
     """Simple preview window."""
 
+    _allowed_slots_ = Window._allowed_slots_ | {"_modulator", "_sample", "preview_figure_widget", "update_timer"}
+
     def __init__(self, modulator: Modulator, parent: QWidget | None = None):
-        self.modulator = modulator
+        self._modulator = modulator
         # self.modulator.sync_settings()
-        self.sample = self.modulator.sample
+        self._sample = self.modulator.sample
 
         super().__init__(parent, Qt.WindowType.Dialog)
 

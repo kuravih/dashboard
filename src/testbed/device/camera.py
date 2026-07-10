@@ -1,22 +1,19 @@
 import numpy as np
 from pykato.log import setup_logger
 
-from ..function import calculate_quantum_efficiency, capture_to_intensity, intensity_limits, is_camera_calibration_file_valid, read_camera_calibration_file
 from . import DeviceStream, SourceSample, Stream, ZMQLink
 
 logger = setup_logger("Camera", terminator="\n")
 
 
 class CameraStream(DeviceStream):
-    __slots__ = ("_shape", "_blank", "_sample", "_calibration_file", "_calibration", "wait_for_request", "post_response")
+    __slots__ = ("_shape", "_blank", "_sample", "wait_for_request", "post_response")
 
     def __init__(self, stream: Stream):
         super().__init__(stream)
         self._shape = (self.stream.keywords["HEIGHT"].value, self.stream.keywords["WIDTH"].value)
         self._blank = np.zeros(self._shape)
         self._sample = SourceSample(self.last_access_time, self.exposure_time_s, self.gain, self.frame_rate_fps, self.temperature_c, self.roi, self.blank)
-        self._calibration_file: str | None = None
-        self._calibration: dict[str, np.ndarray | float | int] | None = None
         self.wait_for_request = self.stream.wait_for_request
         self.post_response = self.stream.post_response
 
@@ -52,42 +49,13 @@ class CameraStream(DeviceStream):
     def roi(self) -> dict[str, tuple[int, int]]:
         return {"br": (self.stream.keywords["ROI.BR.X"].value, self.stream.keywords["ROI.BR.Y"].value), "tl": (self.stream.keywords["ROI.TL.X"].value, self.stream.keywords["ROI.TL.Y"].value)}
 
-    @property
-    def calibration(self) -> dict[str, np.ndarray | float | int] | None:
-        return self._calibration
-
-    @property
-    def calibration_file(self) -> str | None:
-        return self._calibration_file
-
-    @calibration_file.setter
-    def calibration_file(self, value: str | None):
-        self._calibration_file = value
-        if value is not None and is_camera_calibration_file_valid(value, self.full_shape):
-            self._calibration = read_camera_calibration_file(value, self.roi)
-        else:
-            self._calibration = None
-
-    @property
-    def clim(self) -> tuple[float, float]:
-        limits = (0.0, self.pxmax)
-        if self.calibration is not None:
-            qe_perc = calculate_quantum_efficiency(630.0, *self.calibration["quantum_efficiency"])
-            limits = intensity_limits(limits, self.exposure_time_s, self.calibration["dark_rate"], self.calibration["bias"], qe_perc, self.calibration["gain"])
-        return limits
-
     def pull_capture(self) -> SourceSample:
         capture = self.stream.get_data().reshape(self.shape)
-        if self.calibration is not None:
-            qe_perc = calculate_quantum_efficiency(630.0, *self.calibration["quantum_efficiency"])
-            capture = capture_to_intensity(capture, self.exposure_time_s, self.calibration["dark_rate"], self.calibration["bias"], qe_perc, self.calibration["gain"])
         self._sample = SourceSample(self.last_access_time, self.exposure_time_s, self.gain, self.frame_rate_fps, self.temperature_c, self.roi, capture.copy())
         return self._sample
 
 
 class Camera(CameraStream):
-    """Camera"""
-
     __slots__ = ("_link", "_settings")
 
     def __init__(self, stream: Stream):
@@ -112,7 +80,7 @@ class Camera(CameraStream):
         logger.info("self._settings : %s", self._settings)
 
     def set_exposure_time_s(self, exposure_time_s: float):
-        """Set the exposure time of the camera
+        """Set the exposure time of the camera.
 
         Parameter:
             exposure_time_s: float
@@ -124,7 +92,7 @@ class Camera(CameraStream):
         logger.info("self._settings : %s", self._settings)
 
     def set_gain(self, gain: float):
-        """Set the gain of the camera
+        """Set the gain of the camera.
 
         Parameter:
             gain: int
@@ -136,7 +104,7 @@ class Camera(CameraStream):
         logger.info("self._settings : %s", self._settings)
 
     def set_temperature_c(self, temperature_c: float):
-        """Set the temperature of the camera
+        """Set the temperature of the camera.
 
         Parameter:
             temperature_c: float
@@ -148,7 +116,7 @@ class Camera(CameraStream):
         logger.info("self._settings : %s", self._settings)
 
     def move_roi(self, x: int, y: int):
-        """Move roi by x y amount
+        """Move roi by x y amount.
 
         Parameters:
             x: float

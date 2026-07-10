@@ -152,11 +152,13 @@ class ProcessWindow(Window):
 
     wid = f"{testbed.SIMPLE_LOOP}_window"
 
+    _allowed_slots_ = Window._allowed_slots_ | {"_sink", "_source", "devices_widget", "settings_widget", "controls_widget"}
+
     def __init__(self, parent=None):
         super().__init__(parent, Qt.WindowType.Dialog)
         self.setWindowTitle("Simple Process")
-        self.sink = None
-        self.source = None
+        self._sink = None
+        self._source = None
 
         layout = QVBoxLayout()
         layout.setContentsMargins(2, 2, 2, 2)
@@ -196,12 +198,12 @@ class ProcessWindow(Window):
 
     @Slot(Camera)
     def on_source_changed(self, device: Camera):
-        self.source = device
+        self._source = device
         self.update_process_controls()
 
     @Slot(Modulator)
     def on_sink_changed(self, device: Modulator):
-        self.sink = device
+        self._sink = device
         self.update_process_controls()
 
     @Slot(int, float)  # step, elapsed_time

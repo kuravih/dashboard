@@ -36,6 +36,8 @@ class ProcessWorkerSignals(WorkerSignals):
 class ProcessWorker(Worker):
     wid = f"{testbed.SPECKLE_NULLING}_worker"
 
+    _allowed_slots_ = Worker._allowed_slots_ | {"signals", "source", "sink", "dark_hole_mask", "speckle_calibration", "phase_rad_array", "amplitude_perc_array", "n_iterations"}
+
     def __init__(self, source: Camera, sink: Modulator, dark_hole_mask: np.ndarray, speckle_calibration: dict[str, dict[str, float]], phase_rad_array: np.ndarray, amplitude_perc_array: np.ndarray, n_iterations: int | None = None):
         self.signals = ProcessWorkerSignals()
         self.source = source

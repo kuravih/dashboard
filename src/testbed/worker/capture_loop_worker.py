@@ -20,10 +20,12 @@ class ProcessWorkerSignals(WorkerSignals):
 class ProcessWorker(Worker):
     wid = f"{testbed.CAPTURE_LOOP}_worker"
 
+    _allowed_slots_ = Worker._allowed_slots_ | {"signals", "source", "n_steps"}
+
     def __init__(self, source: Camera, n_steps: int = 0):
         self.signals = ProcessWorkerSignals()
         self.source = source
-        self.n_steps = n_steps
+        self.n_steps: int = n_steps
         super().__init__(self.n_steps + 1)  # blank at the end
 
     def count_sweep(self, n_steps: int = 0):

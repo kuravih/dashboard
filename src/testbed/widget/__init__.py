@@ -20,6 +20,14 @@ logger = setup_logger("widget", terminator="\n")
 class Window(QWidget):
     """Window class"""
 
+    _allowed_slots_ = set()
+
+    def __setattr__(self, name, value):
+        is_property = isinstance(getattr(type(self), name, None), property)
+        if not is_property and name not in self._allowed_slots_ and not name.startswith("_"):
+            raise AttributeError(f"Cannot set undeclared attribute '{name}'")
+        super().__setattr__(name, value)
+
 
 class DevicesComboBox(QComboBox):
     """Devices combo box.
@@ -83,8 +91,8 @@ class DevicesSetupWidget(QWidget):
         self.setup_sink = setup_sink
         self.setup_source = setup_source
 
-        sink_device_label = QLabel("Sink", self)
-        sink_device_label.hide()
+        self.sink_device_label = QLabel("Sink", self)
+        self.sink_device_label.hide()
 
         sink_device_combobox = DevicesComboBox(self.devices, (Modulator,), self)
         sink_device_combobox.setToolTip("Required")
@@ -96,9 +104,9 @@ class DevicesSetupWidget(QWidget):
 
         sink_device_combobox.currentTextChanged.connect(on_sink_device_select)
 
-        source_device_label = QLabel("Source")
-        source_device_label.setFixedWidth(100)
-        source_device_label.hide()
+        self.source_device_label = QLabel("Source")
+        self.source_device_label.setFixedWidth(100)
+        self.source_device_label.hide()
 
         source_device_combobox = DevicesComboBox(self.devices, (Camera,), self)
         source_device_combobox.setToolTip("Required")
@@ -116,8 +124,8 @@ class DevicesSetupWidget(QWidget):
         col = 0
 
         if self.setup_sink:
-            sink_device_label.show()
-            layout.addWidget(sink_device_label, row, col)
+            self.sink_device_label.show()
+            layout.addWidget(self.sink_device_label, row, col)
             col += 1
             sink_device_combobox.show()
             layout.addWidget(sink_device_combobox, row, col)
@@ -125,8 +133,8 @@ class DevicesSetupWidget(QWidget):
         if self.setup_source:
             row += 1
             col = 0
-            source_device_label.show()
-            layout.addWidget(source_device_label, row, col)
+            self.source_device_label.show()
+            layout.addWidget(self.source_device_label, row, col)
             col += 1
             source_device_combobox.show()
             layout.addWidget(source_device_combobox, row, col)
@@ -813,7 +821,7 @@ class FileLoadWidget(QWidget):
                 file_info = QFileInfo(dialog_filename)
                 filename = file_info.fileName()
                 self.filepath = f"{file_info.absolutePath()}/{filename}"
-                if validator(self.filepath):
+                if self._validator(self.filepath):
                     self.file_lineedit.setText(filename)
                     self.file_browse_button.hide()
                     self.file_clear_button.show()
@@ -842,6 +850,9 @@ class FileLoadWidget(QWidget):
         layout.setContentsMargins(0, 0, 0, 0)
 
         self.setLayout(layout)
+
+    def setValidator(self, validator: Callable[[str], bool]):
+        self._validator = validator
 
     def setFilepath(self, filepath: str | None):
         if filepath is not None and not self._validator(filepath):

@@ -166,6 +166,8 @@ class ProcessInfoWindow(Window):
 
     wid = f"{testbed.DOTF_MEASUREMENT}_info_window"
 
+    _allowed_slots_ = Window._allowed_slots_ | {"dotf_measure_dict", "update_timer", "process_info_figure_widget"}
+
     def __init__(self, shape: tuple[int, int], probe_directions: list[DOTFProbeDirection], parent: QWidget | None = None):
         super().__init__(parent, Qt.WindowType.Dialog)
 
@@ -220,11 +222,13 @@ class ProcessWindow(Window):
 
     wid = f"{testbed.DOTF_MEASUREMENT}_window"
 
+    _allowed_slots_ = Window._allowed_slots_ | {"_sink", "_source", "devices_widget", "settings_widget", "controls_widget"}
+
     def __init__(self, parent=None):
         super().__init__(parent, Qt.WindowType.Dialog)
         self.setWindowTitle("DOTF Measurement Process")
-        self.sink = None
-        self.source = None
+        self._sink = None
+        self._source = None
 
         layout = QVBoxLayout()
         layout.setContentsMargins(2, 2, 2, 2)

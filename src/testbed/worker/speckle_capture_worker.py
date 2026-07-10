@@ -25,6 +25,8 @@ class ProcessWorkerSignals(WorkerSignals):
 class ProcessWorker(Worker):
     wid = f"{testbed.SPECKLE_CAPTURE}_worker"
 
+    _allowed_slots_ = Worker._allowed_slots_ | {"signals", "source", "sink", "amplitude_perc", "frequency_array", "angle_rad_array", "phase_rad_array", "n_reps"}
+
     def __init__(self, source: Camera, sink: Modulator, amplitude_perc: float, n_reps: int, frequency_array: np.ndarray, angle_rad_array: np.ndarray, phase_rad_array: np.ndarray):
         self.signals = ProcessWorkerSignals()
         self.source = source

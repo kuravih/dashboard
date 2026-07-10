@@ -26,6 +26,8 @@ class ProcessWorkerSignals(WorkerSignals):
 class ProcessWorker(Worker):
     wid = f"{testbed.DOTF_MEASUREMENT}_worker"
 
+    _allowed_slots_ = Worker._allowed_slots_ | {"signals", "source", "sink", "probe_amplitude_perc", "probe_size", "probe_directions", "dotf_measurements", "n_reps"}
+
     def __init__(self, source: Camera, sink: Modulator, probe_amplitude_perc: float, probe_size: tuple[int, int], probe_directions: list[DOTFProbeDirection], n_reps: int = 0):
         self.signals = ProcessWorkerSignals()
         self.source = source

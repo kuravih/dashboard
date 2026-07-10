@@ -48,10 +48,12 @@ class ProcessWindow(Window):
 
     wid = f"{testbed.CAMERA_CALIBRATION}_window"
 
+    _allowed_slots_ = Window._allowed_slots_ | {"_source", "device_widget", "settings_widget", "controls_widget"}
+
     def __init__(self, parent=None):
         super().__init__(parent, Qt.WindowType.Dialog)
         self.setWindowTitle("Camera Calibration")
-        self.source = None
+        self._source = None
 
         layout = QVBoxLayout()
         layout.setContentsMargins(2, 2, 2, 2)

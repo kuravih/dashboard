@@ -10,7 +10,7 @@ import testbed
 from ..device import SinkSample, SourceSample
 from ..device.camera import Camera
 from ..device.modulator import Modulator
-from ..function import PairwiseProbeDirection, pairwise_estimate, pairwise_estimation_matrices, pairwise_probe
+from ..function import PairwiseProbeDirection, calculate_quantum_efficiency, capture_to_intensity, pairwise_estimate, pairwise_estimation_matrices, pairwise_probe
 from . import Worker, WorkerSignals
 
 logger = setup_logger(f"{testbed.PAIRWISE_FPWFS}_worker", terminator="\n")
@@ -25,10 +25,16 @@ class ProcessWorkerSignals(WorkerSignals):
 class ProcessWorker(Worker):
     wid = f"{testbed.PAIRWISE_FPWFS}_worker"
 
-    def __init__(self, source: Camera, sink: Modulator, dark_hole_mask: NDArray[np.bool], pairwise_calibration: dict[int, NDArray[np.complex128]], probe_amplitude_perc: float, probe_dξ: float, probe_dη: float, probe_ξc: float, probe_directions: list[PairwiseProbeDirection], n_reps: int):
+    _allowed_slots_ = Worker._allowed_slots_ | {"signals", "source", "sink", "camera_calibration", "star_brightness_model", "star_brightness_experiment", "qe_perc", "probe_amplitude_perc", "dark_hole_mask", "iCAψ", "probe_dξ", "probe_dη", "probe_ξc", "probe_directions", "wavefront", "n_reps"}
+
+    def __init__(self, source: Camera, sink: Modulator, dark_hole_mask: NDArray[np.bool], star_brightness_model: float, star_brightness_experiment: dict[str, float], camera_calibration: dict[str, np.ndarray | float | int], pairwise_calibration: tuple[NDArray[np.complex128], dict[int, NDArray[np.complex128]], float, float, float, float], probe_amplitude_perc: float, probe_dξ: float, probe_dη: float, probe_ξc: float, probe_directions: list[PairwiseProbeDirection], n_reps: int):
         self.signals = ProcessWorkerSignals()
         self.source = source
         self.sink = sink
+        self.star_brightness_model = star_brightness_model
+        self.star_brightness_experiment = star_brightness_experiment
+        self.camera_calibration = camera_calibration
+        self.qe_perc = calculate_quantum_efficiency(633.0, *self.camera_calibration["quantum_efficiency"])
         self.probe_amplitude_perc = probe_amplitude_perc
         self.dark_hole_mask = dark_hole_mask
         self.iCAψ = pairwise_calibration
@@ -69,6 +75,8 @@ class ProcessWorker(Worker):
         self.signals.srcSampled.emit(probe_p1_source_sample)
         time.sleep(0.2)
 
+        probe_p1_intensity = capture_to_intensity(probe_p1_source_sample.capture, probe_p1_source_sample.exposure_time_s, dark_rate=self.camera_calibration["dark_rate"], bias=self.camera_calibration["bias"], qe=self.qe_perc / 100.0, gain=self.camera_calibration["gain"])
+
         self.i_tick = self.i_tick + 1
         self.signals.progressTicked.emit(self.i_tick, time.time() - self.t_start)
         # ---- probe_p1 -----------------------------------------------------------------------------------------------
@@ -81,6 +89,8 @@ class ProcessWorker(Worker):
         probe_m1_source_sample = self.source.pull_capture()
         self.signals.srcSampled.emit(probe_m1_source_sample)
         time.sleep(0.2)
+
+        probe_m1_intensity = capture_to_intensity(probe_m1_source_sample.capture, probe_m1_source_sample.exposure_time_s, dark_rate=self.camera_calibration["dark_rate"], bias=self.camera_calibration["bias"], qe=self.qe_perc / 100.0, gain=self.camera_calibration["gain"])
 
         self.i_tick = self.i_tick + 1
         self.signals.progressTicked.emit(self.i_tick, time.time() - self.t_start)
@@ -95,6 +105,8 @@ class ProcessWorker(Worker):
         self.signals.srcSampled.emit(probe_p2_source_sample)
         time.sleep(0.2)
 
+        probe_p2_intensity = capture_to_intensity(probe_p2_source_sample.capture, probe_p2_source_sample.exposure_time_s, dark_rate=self.camera_calibration["dark_rate"], bias=self.camera_calibration["bias"], qe=self.qe_perc / 100.0, gain=self.camera_calibration["gain"])
+
         self.i_tick = self.i_tick + 1
         self.signals.progressTicked.emit(self.i_tick, time.time() - self.t_start)
         # ---- probe_p2 -----------------------------------------------------------------------------------------------
@@ -108,13 +120,15 @@ class ProcessWorker(Worker):
         self.signals.srcSampled.emit(probe_m2_source_sample)
         time.sleep(0.2)
 
+        probe_m2_intensity = capture_to_intensity(probe_m2_source_sample.capture, probe_m2_source_sample.exposure_time_s, dark_rate=self.camera_calibration["dark_rate"], bias=self.camera_calibration["bias"], qe=self.qe_perc / 100.0, gain=self.camera_calibration["gain"])
+
         self.i_tick = self.i_tick + 1
         self.signals.progressTicked.emit(self.i_tick, time.time() - self.t_start)
         # ---- probe_m2 -----------------------------------------------------------------------------------------------
 
         electric_field = np.zeros_like(probe_p1_source_sample.capture, dtype=np.complex128)
 
-        electric_field[self.dark_hole_mask] = pairwise_estimate(probe_p1_source_sample.capture[self.dark_hole_mask], probe_m1_source_sample.capture[self.dark_hole_mask], probe_p2_source_sample.capture[self.dark_hole_mask], probe_m2_source_sample.capture[self.dark_hole_mask], pairwise_estimation_matrices(iCAψ1[self.dark_hole_mask], iCAψ2[self.dark_hole_mask]))
+        electric_field[self.dark_hole_mask] = np.sqrt(self.star_brightness_model / self.star_brightness_experiment) * pairwise_estimate(probe_p1_intensity[self.dark_hole_mask], probe_m1_intensity[self.dark_hole_mask], probe_p2_intensity[self.dark_hole_mask], probe_m2_intensity[self.dark_hole_mask], pairwise_estimation_matrices(iCAψ1[self.dark_hole_mask], iCAψ2[self.dark_hole_mask]))
 
         return electric_field
 
@@ -122,7 +136,7 @@ class ProcessWorker(Worker):
         i_rep = 0
         while ((n_reps == 0) or (n_reps > i_rep)) and self._running:
             for direction in directions:
-                self.wavefront[direction] = self.sense_wavefront(iCAψ, probe_amplitude, dξ, dη, ξc, direction)
+                self.wavefront[direction] = self.wavefront[direction] + self.sense_wavefront(iCAψ, probe_amplitude, dξ, dη, ξc, direction)
                 self.signals.wfSensed.emit(direction, self.wavefront[direction] / (i_rep + 1))
 
             i_rep = i_rep + 1

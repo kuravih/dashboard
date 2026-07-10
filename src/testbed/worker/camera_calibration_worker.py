@@ -21,6 +21,8 @@ class ProcessWorkerSignals(WorkerSignals):
 class ProcessWorker(Worker):
     wid = f"{testbed.CAMERA_CALIBRATION}_worker"
 
+    _allowed_slots_ = Worker._allowed_slots_ | {"signals", "source", "exp_array"}
+
     def __init__(self, source: Camera, exp_array: np.ndarray):
         self.signals = ProcessWorkerSignals()
         self.source = source

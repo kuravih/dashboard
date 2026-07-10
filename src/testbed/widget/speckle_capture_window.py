@@ -226,11 +226,13 @@ class ProcessWindow(Window):
 
     wid = f"{testbed.SPECKLE_CAPTURE}_window"
 
+    _allowed_slots_ = Window._allowed_slots_ | {"_sink", "_source", "devices_widget", "settings_widget", "controls_widget", "speckles_plot"}
+
     def __init__(self, parent=None):
         super().__init__(parent, Qt.WindowType.Dialog)
         self.setWindowTitle("Speckle Calibration")
-        self.sink = None
-        self.source = None
+        self._sink = None
+        self._source = None
 
         layout = QVBoxLayout()
         layout.setContentsMargins(2, 2, 2, 2)

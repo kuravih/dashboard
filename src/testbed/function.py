@@ -98,6 +98,7 @@ class Rotation(Enum):
 
 def flip_rotate_frame(frame: np.ndarray, flip: Flip, rotation: Rotation) -> np.ndarray:
     """Apply rotation then horizontal flip to a frame array.
+
     Parameters:
         frame: np.ndarray
             Input frame
@@ -117,6 +118,7 @@ def flip_rotate_frame(frame: np.ndarray, flip: Flip, rotation: Rotation) -> np.n
 
 def flip_rotate_points(xs: np.ndarray, ys: np.ndarray, image_shape: tuple[int, int], flip: Flip, rotation: Rotation) -> tuple[np.ndarray, np.ndarray]:
     """Transform point coordinates to match a flip and rotation applied to an image.
+
     Parameters:
         xs: np.ndarray
             x coordinates
@@ -415,6 +417,33 @@ def is_speckle_calibration_file_valid(filename: str) -> bool:
     return True
 
 
+def write_star_brightness_file(star_brightness_dict: dict[str, float], filename: str):
+    """Write the star brightness data to file.
+
+    Parameters:
+        star_brightness_dict: dict[str, float]
+            Star brightness dict to save.
+        filename: str
+            Destination file path.
+    """
+    with open(filename, "wb") as wbfile:
+        cloudpickle.dump(star_brightness_dict, wbfile)
+
+
+def read_star_brightness_file(filename: str) -> dict[str, float]:
+    """Read the star brightness data from file.
+
+    Parameters:
+        filename: str
+            Path to the star brightness data file.
+
+    Returns: dict[str, float]
+        Star brightness dict to save.
+    """
+    with open(filename, "rb") as rbfile:
+        return cloudpickle.load(rbfile)
+
+
 def read_speckle_calibration_file(filename: str) -> dict[str, dict[str, float]]:
     """Load and return the speckle calibration dict from a pickle file.
 
@@ -443,8 +472,7 @@ def write_speckle_calibration_file(speckle_calibration_dict: dict[str, dict[str,
 
 
 def is_camera_calibration_file_valid(filename: str, shape: tuple[int, int]) -> bool:
-    """Return True if the camera calibration FITS file contains 3 image frames, a QE table, full well capacity,
-    and bit depth, all matching the expected shape.
+    """Return True if the camera calibration FITS file contains 3 image frames, a QE table, full well capacity, and bit depth, all matching the expected shape.
 
     Parameters:
         filename: str
@@ -539,13 +567,7 @@ def write_camera_calibration_file(filename: str, dark_rate: np.ndarray, bias: np
     fits_calibration_hdu.header["FRAME0"] = "dark_rate"
     fits_calibration_hdu.header["FRAME1"] = "bias"
     fits_calibration_hdu.header["FRAME2"] = "read_noise"
-    qe_hdu = fits.BinTableHDU.from_columns(
-        [
-            fits.Column(name="wavelength_nm", format="D", array=λ_m_qe_perc_data[0]),
-            fits.Column(name="quantum_efficiency", format="D", array=λ_m_qe_perc_data[1]),
-        ],
-        name="QE",
-    )
+    qe_hdu = fits.BinTableHDU.from_columns([fits.Column(name="wavelength_nm", format="D", array=λ_m_qe_perc_data[0]), fits.Column(name="quantum_efficiency", format="D", array=λ_m_qe_perc_data[1])], name="QE")
     fits.HDUList([fits_calibration_hdu, qe_hdu]).writeto(filename, overwrite=True)
 
 
@@ -720,7 +742,9 @@ def linear_fit_fn(x, m: float, c: float):
 
 
 def deflection_to_command(deflection_m: np.ndarray, slope_adu_per_m: np.ndarray, flat_adu: np.ndarray) -> np.ndarray:
-    """Parameters:
+    """Convert deflection in m to command in adu.
+
+    Parameters:
         deflection_m: np.ndarray
             Deflection (m)
         slope_adu_per_m: np.ndarray
@@ -735,7 +759,9 @@ def deflection_to_command(deflection_m: np.ndarray, slope_adu_per_m: np.ndarray,
 
 
 def command_to_deflection(command_adu: np.ndarray, slope_adu_per_m: np.ndarray, flat_adu: np.ndarray) -> np.ndarray:
-    """Parameters:
+    """Convert command in adu to deflection in m.
+
+    Parameters:
         command: np.ndarray
             Command (adu)
         slope_adu_per_m: np.ndarray
@@ -750,7 +776,9 @@ def command_to_deflection(command_adu: np.ndarray, slope_adu_per_m: np.ndarray, 
 
 
 def intensity_limits(limits: tuple[float, float] | tuple[int, int], exp_time_s: float, dark_rate: np.ndarray, bias: np.ndarray, qe: float, gain: float) -> tuple[float, float]:
-    """Parameters:
+    """Calculate the intensity limits.
+
+    Parameters:
         limits: tuple[float, float]
             min max limits
         exp_time_s: float
@@ -767,7 +795,7 @@ def intensity_limits(limits: tuple[float, float] | tuple[int, int], exp_time_s: 
 
 
 def capture_to_intensity(capture: np.ndarray, exp_time_s: float, dark_rate: np.ndarray | float = 0, bias: np.ndarray | float = 0, qe: float = 1, flat_field: float | np.ndarray = 1, gain: float = 1) -> np.ndarray:
-    """Inverse of intensity_to_capture (noise-free, ignoring clipping and quantization).
+    """Convert a capture in adu to intensity photons/s (noise-free, ignoring clipping and quantization).
 
     Parameters:
         capture: np.ndarray
@@ -792,7 +820,9 @@ def capture_to_intensity(capture: np.ndarray, exp_time_s: float, dark_rate: np.n
 
 
 def power_to_capture(power: np.ndarray, exp_time_s: float, dark_rate: np.ndarray | float = 0, bias: np.ndarray | float = 0, qe: float = 1, flat_field: float | np.ndarray = 1, gain: float = 1, full_well_capacity: float | None = None, bit_depth: int | None = None, read_noise: float | np.ndarray = 0, photon_noise: bool = False) -> np.ndarray:
-    """Parameters:
+    """Convert a power photons/s capture in adu.
+
+    Parameters:
         power: np.ndarray
             Intensity in photons/s
         exp_time_s: float

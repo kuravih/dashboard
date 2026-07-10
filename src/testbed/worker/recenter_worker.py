@@ -26,6 +26,8 @@ class ProcessWorkerSignals(WorkerSignals):
 class ProcessWorker(Worker):
     wid = f"{testbed.RECENTER}_worker"
 
+    _allowed_slots_ = Worker._allowed_slots_ | {"signals", "source", "sink", "amplitude_perc", "frequency", "speckle_angle_rad_array", "speckle_phase_rad_array"}
+
     def __init__(self, source: Camera, sink: Modulator, amplitude_perc: float):
         self.signals = ProcessWorkerSignals()
         self.source = source

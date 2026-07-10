@@ -23,6 +23,8 @@ class ProcessWorkerSignals(WorkerSignals):
 class ProcessWorker(Worker):
     wid = f"{testbed.SIMPLE_LOOP}_worker"
 
+    _allowed_slots_ = Worker._allowed_slots_ | {"signals", "source", "sink", "amplitude_perc", "n_steps"}
+
     def __init__(self, source: Camera, sink: Modulator, amplitude_perc: float, n_steps: int = 0):
         self.signals = ProcessWorkerSignals()
         self.source = source

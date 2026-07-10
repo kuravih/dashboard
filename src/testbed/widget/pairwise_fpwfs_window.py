@@ -15,7 +15,7 @@ if TYPE_CHECKING:
     from dashboard import MainWindow
 from ..device.camera import Camera
 from ..device.modulator import Modulator
-from ..function import PairwiseProbeDirection, is_pairwise_calibration_file_valid, read_pairwise_calibration_file
+from ..function import PairwiseProbeDirection, is_camera_calibration_file_valid, is_pairwise_calibration_file_valid, read_camera_calibration_file, read_pairwise_calibration_file, read_star_brightness_file
 from ..widget import PairwiseProbeDirectionWidget
 from ..worker.pairwise_fpwfs_worker import ProcessWorker
 from . import DevicesSetupWidget, FileLoadWidget, TaskControlsWidget, Window
@@ -38,11 +38,12 @@ class ProcessSettingsWidget(QWidget):
         _sleep_s = 0.1
         self.dark_hole_mask = None  # chord(self.source.shape, self.source.shape[0] * 5 / 16, 0.6)
         self.pairwise_calibration = None
+        self.camera_calibration = None
 
         super().__init__(parent)
 
         probe_amp_label = QLabel("Probe Amp.", self)
-        probe_amp_label.setFixedWidth(100)
+        probe_amp_label.setFixedWidth(150)
 
         self.probe_amplitude_perc_spinbox = QDoubleSpinBox(self)
         self.probe_amplitude_perc_spinbox.setRange(_probe_amplitude_perc_min, _probe_amplitude_perc_max)
@@ -53,7 +54,7 @@ class ProcessSettingsWidget(QWidget):
         self.probe_amplitude_perc_spinbox.setEnabled(False)
 
         probe_dξ_label = QLabel("Probe dξ", self)
-        probe_dξ_label.setFixedWidth(100)
+        probe_dξ_label.setFixedWidth(150)
 
         self.probe_dξ_spinbox = QDoubleSpinBox(self)
         self.probe_dξ_spinbox.setRange(0, 0.02000)
@@ -64,7 +65,7 @@ class ProcessSettingsWidget(QWidget):
         self.probe_dξ_spinbox.setEnabled(False)
 
         probe_dη_label = QLabel("Probe dη", self)
-        probe_dη_label.setFixedWidth(100)
+        probe_dη_label.setFixedWidth(150)
 
         self.probe_dη_spinbox = QDoubleSpinBox(self)
         self.probe_dη_spinbox.setRange(0, 0.0500)
@@ -75,7 +76,7 @@ class ProcessSettingsWidget(QWidget):
         self.probe_dη_spinbox.setEnabled(False)
 
         probe_ξc_label = QLabel("Probe ξc", self)
-        probe_ξc_label.setFixedWidth(100)
+        probe_ξc_label.setFixedWidth(150)
 
         self.probe_ξc_spinbox = QDoubleSpinBox(self)
         self.probe_ξc_spinbox.setRange(0.0, 0.0002000000000)
@@ -86,14 +87,14 @@ class ProcessSettingsWidget(QWidget):
         self.probe_ξc_spinbox.setEnabled(False)
 
         probe_dir_label = QLabel("Probe dir.", self)
-        probe_dir_label.setFixedWidth(100)
+        probe_dir_label.setFixedWidth(150)
 
         self.probe_dir_checkboxes = PairwiseProbeDirectionWidget(parent=self)
         self.probe_dir_checkboxes[1].setChecked(False)
         self.probe_dir_checkboxes.setEnabled(False)
 
         n_reps_label = QLabel("Reps", self)
-        n_reps_label.setFixedWidth(100)
+        n_reps_label.setFixedWidth(150)
 
         self.n_reps_spinbox = QSpinBox(self)
         self.n_reps_spinbox.setRange(_n_reps_min, _n_reps_max)
@@ -113,17 +114,27 @@ class ProcessSettingsWidget(QWidget):
 
         self.continuous_checkbox.toggled.connect(on_continuous_toggled)
 
-        pairwise_calibration_label = QLabel("Calibration", self)
-        pairwise_calibration_label.setFixedWidth(100)
+        star_data_label = QLabel("Star data", self)
+        star_data_label.setFixedWidth(150)
 
-        self.calibration_widget = FileLoadWidget(caption="Open Calibration File", directory="./data/output", file_filter="Pickle file (*.pkl)", validator=is_pairwise_calibration_file_valid, parent=self)
+        self.star_data_widget = FileLoadWidget(caption="Open Star Data File", directory="./data/output", file_filter="Pickle file (*.pkl)", parent=self)
+
+        pairwise_calibration_label = QLabel("Pairwise Calibration", self)
+        pairwise_calibration_label.setFixedWidth(150)
+
+        self.pairwise_calibration_widget = FileLoadWidget(caption="Open Calibration File", directory="./data/output", file_filter="Pickle file (*.pkl)", validator=is_pairwise_calibration_file_valid, parent=self)
+
+        camera_calibration_label = QLabel("Camera Calibration", self)
+        camera_calibration_label.setFixedWidth(150)
+
+        self.camera_calibration_widget = FileLoadWidget(caption="Open Calibration File", directory="./data/output", file_filter="Fits file (*.fits)", parent=self)
 
         n_reps_layout = QHBoxLayout()
         n_reps_layout.addWidget(self.n_reps_spinbox, stretch=1)
         n_reps_layout.addWidget(self.continuous_checkbox, alignment=Qt.AlignmentFlag.AlignRight)
 
         sleep_label = QLabel("Sleep", self)
-        sleep_label.setFixedWidth(100)
+        sleep_label.setFixedWidth(150)
 
         self._sleep_s_spinbox = QDoubleSpinBox(self)
         self._sleep_s_spinbox.setMinimum(0)
@@ -172,9 +183,21 @@ class ProcessSettingsWidget(QWidget):
 
         row += 1
         col = 0
+        widget_layout.addWidget(star_data_label, row, col)
+        col += 1
+        widget_layout.addWidget(self.star_data_widget, row, col)
+
+        row += 1
+        col = 0
         widget_layout.addWidget(pairwise_calibration_label, row, col)
         col += 1
-        widget_layout.addWidget(self.calibration_widget, row, col)
+        widget_layout.addWidget(self.pairwise_calibration_widget, row, col)
+
+        row += 1
+        col = 0
+        widget_layout.addWidget(camera_calibration_label, row, col)
+        col += 1
+        widget_layout.addWidget(self.camera_calibration_widget, row, col)
 
         row += 1
         col = 0
@@ -225,12 +248,20 @@ class ProcessSettingsWidget(QWidget):
         self._dark_hole_mask = value
 
     @property
-    def pairwise_calibration(self) -> dict | None:
+    def pairwise_calibration(self) -> tuple[NDArray[np.complex128], dict[int, NDArray[np.complex128]], float, float, float, float] | None:
         return self._pairwise_calibration
 
     @pairwise_calibration.setter
-    def pairwise_calibration(self, value: dict | None):
+    def pairwise_calibration(self, value: tuple[NDArray[np.complex128], dict[int, NDArray[np.complex128]], float, float, float, float] | None):
         self._pairwise_calibration = value
+
+    @property
+    def camera_calibration(self) -> dict | None:
+        return self._camera_calibration
+
+    @camera_calibration.setter
+    def camera_calibration(self, value: dict | None):
+        self._camera_calibration = value
 
 
 # ==== ProcessInfoWindow ==============================================================================================
@@ -238,6 +269,8 @@ class ProcessInfoWindow(Window):
     """Pairwise FPWFS process info window"""
 
     wid = f"{testbed.PAIRWISE_FPWFS}_info_window"
+
+    _allowed_slots_ = Window._allowed_slots_ | {"wavefront", "update_timer", "process_info_figure_widget"}
 
     def __init__(self, shape: tuple[int, int], parent: QWidget | None = None):
         super().__init__(parent, Qt.WindowType.Dialog)
@@ -285,14 +318,19 @@ class ProcessInfoWindow(Window):
 class ProcessWindow(Window):
     """Pairwise FPWFS process window"""
 
+    _allowed_slots_ = Window._allowed_slots_ | {"_sink", "_source", "_pairwise_calibration", "_camera_calibration", "star_brightness_model", "star_brightness_experiment", "devices_widget", "settings_widget", "controls_widget"}
+
     wid = f"{testbed.PAIRWISE_FPWFS}_window"
 
     def __init__(self, parent=None):
         super().__init__(parent, Qt.WindowType.Dialog)
         self.setWindowTitle("Pairwise FPWFS Process")
-        self.sink = None
-        self.source = None
-        self.pairwise_calibration = None
+        self._sink = None
+        self._source = None
+        self._pairwise_calibration = None
+        self._camera_calibration = None
+        self._star_brightness_model = None
+        self._star_brightness_experiment = None
 
         layout = QVBoxLayout()
         layout.setContentsMargins(2, 2, 2, 2)
@@ -317,12 +355,36 @@ class ProcessWindow(Window):
         self._sink = device
 
     @property
-    def pairwise_calibration(self) -> dict[int, NDArray[np.complex128]] | None:
+    def pairwise_calibration(self) -> tuple[NDArray[np.complex128], dict[int, NDArray[np.complex128]], float, float, float, float] | None:
         return self._pairwise_calibration
 
     @pairwise_calibration.setter
-    def pairwise_calibration(self, value: dict[int, NDArray[np.complex128]] | None):
+    def pairwise_calibration(self, value: tuple[NDArray[np.complex128], dict[int, NDArray[np.complex128]], float, float, float, float] | None):
         self._pairwise_calibration = value
+
+    @property
+    def camera_calibration(self) -> dict[str, np.ndarray | float | int] | None:
+        return self._camera_calibration
+
+    @camera_calibration.setter
+    def camera_calibration(self, value: dict[str, np.ndarray | float | int] | None):
+        self._camera_calibration = value
+
+    @property
+    def star_brightness_model(self) -> dict[str, float] | None:
+        return self._star_brightness_model
+
+    @star_brightness_model.setter
+    def star_brightness_model(self, value: dict[str, float] | None):
+        self._star_brightness_model = value
+
+    @property
+    def star_brightness_experiment(self) -> float | None:
+        return self._star_brightness_experiment
+
+    @star_brightness_experiment.setter
+    def star_brightness_experiment(self, value: float | None):
+        self._star_brightness_experiment = value
 
     def update_device_buttons(self, enabled: bool):
         main_window = cast("MainWindow", self.parent())
@@ -333,25 +395,45 @@ class ProcessWindow(Window):
 
     def update_process_controls(self):
         enabled = False
-        if self.source is not None and self.sink is not None and self.settings_widget.calibration_widget.filepath is not None:
+        if self.source is not None and self.sink is not None and self.settings_widget.pairwise_calibration_widget.filepath is not None:
             if not testbed.data.is_worker_alive(self.source.sampling_worker_id) and not testbed.data.is_worker_alive(self.sink.sampling_worker_id):
                 enabled = True
         self.controls_widget.info_button.setEnabled(enabled)
         self.controls_widget.run_stop_button.setEnabled(enabled)
 
     @Slot()
-    def on_calibration_change(self):
+    def on_pairwise_calibration_change(self):
         self.controls_widget.info_button.setEnabled(False)
         self.controls_widget.run_stop_button.setEnabled(False)
-        if self.source is not None and self.sink is not None and self.settings_widget.calibration_widget.filepath is not None:
-            self.pairwise_calibration, probe_amp, probe_ξc, probe_dξ, probe_dη = read_pairwise_calibration_file(self.settings_widget.calibration_widget.filepath)
-            self.settings_widget.probe_amplitude_perc_spinbox.setValue(probe_amp), self.settings_widget.probe_ξc_spinbox.setValue(probe_ξc), self.settings_widget.probe_dξ_spinbox.setValue(probe_dξ), self.settings_widget.probe_dη_spinbox.setValue(probe_dη)
+        if self.source is not None and self.sink is not None and self.settings_widget.pairwise_calibration_widget.filepath is not None:
+            E_star_model, self.pairwise_calibration, probe_amp, probe_ξc, probe_dξ, probe_dη = read_pairwise_calibration_file(self.settings_widget.pairwise_calibration_widget.filepath)
+            self.star_brightness_model = np.max(np.real(np.abs(E_star_model)) ** 2)
+            self.settings_widget.probe_amplitude_perc_spinbox.setValue(probe_amp)
+            self.settings_widget.probe_ξc_spinbox.setValue(probe_ξc)
+            self.settings_widget.probe_dξ_spinbox.setValue(probe_dξ)
+            self.settings_widget.probe_dη_spinbox.setValue(probe_dη)
             self.controls_widget.info_button.setEnabled(True)
             self.controls_widget.run_stop_button.setEnabled(True)
+
+    @Slot()
+    def on_camera_calibration_change(self):
+        self.controls_widget.run_stop_button.setEnabled(False)
+        if self.source is not None and self.settings_widget.camera_calibration_widget.filepath is not None:
+            self.camera_calibration = read_camera_calibration_file(self.settings_widget.camera_calibration_widget.filepath, self.source.roi)
+            self.controls_widget.run_stop_button.setEnabled(True)
+
+    @Slot()
+    def on_star_data_change(self):
+        self.controls_widget.run_stop_button.setEnabled(False)
+        if self.settings_widget.star_data_widget.filepath is not None:
+            self.star_brightness_experiment = read_star_brightness_file(self.settings_widget.star_data_widget.filepath)
 
     @Slot(Camera)
     def on_source_changed(self, device: Camera):
         self.source = device
+        self.settings_widget.camera_calibration_widget.setEnabled(device is not None)
+        if device is not None:
+            self.settings_widget.camera_calibration_widget.setValidator(lambda filepath, shape=device.full_shape: is_camera_calibration_file_valid(filepath, shape))
         self.update_process_controls()
         if testbed.data.is_window_alive(ProcessInfoWindow.wid):
             process_info_window = cast(ProcessInfoWindow, testbed.data.windows.pop(ProcessInfoWindow.wid))
@@ -397,7 +479,7 @@ class ProcessWindow(Window):
                 process_worker.stop()
                 return
 
-            process_worker = ProcessWorker(self.source, self.sink, self.settings_widget.dark_hole_mask, self.pairwise_calibration, self.settings_widget.probe_amplitude_perc, self.settings_widget.probe_dξ, self.settings_widget.probe_dη, self.settings_widget.probe_ξc, self.settings_widget.probe_directions, self.settings_widget.n_reps)
+            process_worker = ProcessWorker(self.source, self.sink, self.settings_widget.dark_hole_mask, self.star_brightness_model, self.star_brightness_experiment, self.camera_calibration, self.pairwise_calibration, self.settings_widget.probe_amplitude_perc, self.settings_widget.probe_dξ, self.settings_widget.probe_dη, self.settings_widget.probe_ξc, self.settings_widget.probe_directions, self.settings_widget.n_reps)
             process_worker.signals.progressTicked.connect(self.on_progress_tick)
             process_worker.signals.finished.connect(self.on_process_finished)
             process_worker.signals.error.connect(self.on_process_error)
@@ -444,11 +526,16 @@ class ProcessWindow(Window):
         widget.setLayout(layout)
 
         self.devices_widget = DevicesSetupWidget(testbed.data.devices, parent=self)
+        self.devices_widget.source_device_label.setFixedWidth(150)
+        self.devices_widget.sink_device_label.setFixedWidth(150)
         self.devices_widget.sourceChanged.connect(self.on_source_changed)
         self.devices_widget.sinkChanged.connect(self.on_sink_changed)
 
         self.settings_widget = ProcessSettingsWidget(self)
-        self.settings_widget.calibration_widget.fileChanged.connect(self.on_calibration_change)
+        self.settings_widget.camera_calibration_widget.setEnabled(self.source is not None)
+        self.settings_widget.pairwise_calibration_widget.fileChanged.connect(self.on_pairwise_calibration_change)
+        self.settings_widget.camera_calibration_widget.fileChanged.connect(self.on_camera_calibration_change)
+        self.settings_widget.star_data_widget.fileChanged.connect(self.on_star_data_change)
 
         self.controls_widget = TaskControlsWidget(self)
         self.controls_widget.run_stop_button.clicked.connect(self.on_start_stop_clicked)

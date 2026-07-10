@@ -1,6 +1,5 @@
 from datetime import datetime
 from pathlib import Path
-from typing import cast
 
 import numpy as np
 from astropy.io import fits
@@ -10,11 +9,9 @@ from pykato.log import setup_logger
 from PySide6.QtCore import Qt, QTimer, Slot
 from PySide6.QtWidgets import QButtonGroup, QCheckBox, QComboBox, QFileDialog, QGridLayout, QHBoxLayout, QLabel, QRadioButton, QSizePolicy, QSpacerItem, QVBoxLayout, QWidget
 
-import testbed
-
 from ..device.camera import Camera, SourceSample
-from ..function import Flip, Rotation, flip_rotate_frame, is_camera_calibration_file_valid, locate_single_airy
-from ..widget import DoubleValueSetWidget, FileLoadWidget, OrientationWidget, ROIWidget, Window
+from ..function import Flip, Rotation, flip_rotate_frame, locate_single_airy
+from ..widget import DoubleValueSetWidget, OrientationWidget, ROIWidget, Window
 from ..widget.figure_widget import SourceFigureWidget, SourceHistFigureWidget
 
 logger = setup_logger("camera_window", terminator="\n")
@@ -24,11 +21,13 @@ logger = setup_logger("camera_window", terminator="\n")
 class HistogramSettingsWindow(Window):
     """Settings for the histogram."""
 
+    _allowed_slots_ = Window._allowed_slots_ | {"cmap_name", "cmap_norm", "log_checkbox", "cmap_combobox"}
+
     def __init__(self, cmap_name: str, cmap_norm: Normalize, parent=None):
+        super().__init__(parent, Qt.WindowType.Dialog)
+
         self.cmap_name: str = cmap_name
         self.cmap_norm: Normalize = cmap_norm
-
-        super().__init__(parent, Qt.WindowType.Dialog)
 
         self.setWindowModality(Qt.WindowModality.WindowModal)
         self.setWindowTitle("Preview Settings")
@@ -76,12 +75,14 @@ class HistogramSettingsWindow(Window):
 class InfoWindow(Window):
     """Camera info window"""
 
-    def __init__(self, camera: Camera, parent=None):
-        self.camera = camera
-        # self.camera.sync_settings()
-        self.sample = self.camera.sample
+    _allowed_slots_ = Window._allowed_slots_ | {"_camera", "_sample", "update_timer", "info_exposure_time_value_label", "info_frame_rate_value_label", "info_gain_value_label", "info_temperature_value_label", "info_last_access_time_value_label", "info_roi_value_label", "hist_figure_widget", "histogram_settings_window"}
 
-        super().__init__(parent, Qt.WindowType.Dialog)
+    def __init__(self, camera: Camera, parent=None):
+        super().__init__(parent, f=Qt.WindowType.Dialog)
+
+        self._camera = camera
+        # self.camera.sync_settings()
+        self._sample = self.camera.sample
 
         self.setWindowTitle(f"{self.camera.name} Information")
 
@@ -339,11 +340,13 @@ class InfoWindow(Window):
 class SettingsWindow(Window):
     """Camera settings window."""
 
-    def __init__(self, camera: Camera, parent: QWidget | None = None):
-        self.camera = camera
-        # self.camera.sync_settings()
+    _allowed_slots_ = Window._allowed_slots_ | {"_camera"}
 
+    def __init__(self, camera: Camera, parent: QWidget | None = None):
         super().__init__(parent, Qt.WindowType.Dialog)
+
+        self._camera = camera
+        # self.camera.sync_settings()
 
         self.setWindowTitle(f"{self.camera.name} Settings")
 
@@ -471,26 +474,6 @@ class SettingsWindow(Window):
                 col += 1
                 layout.addWidget(roi_widget, row, col)
 
-        camera_calibration_label = QLabel("Calibration", self)
-        self.calibration_widget = FileLoadWidget(caption="Open Calibration File", directory="./data/output", file_filter="Fits file (*.fits)", validator=lambda _filename: is_camera_calibration_file_valid(_filename, self.camera.full_shape), parent=self)
-        self.calibration_widget.setFilepath(self.camera.calibration_file)
-
-        @Slot()
-        def on_calibration_change():
-            self.camera.calibration_file = self.calibration_widget.filepath
-            if testbed.data.is_window_alive(self.camera.preview_window_id):
-                camera_preview_window = cast(PreviewWindow, testbed.data.windows[self.camera.preview_window_id])
-                camera_preview_window.preview_figure_widget.cmap_norm = Normalize(*self.camera.clim)
-                camera_preview_window.preview_figure_widget.figure.get_cbar_axes().set_title("intensity" if self.camera.calibration else "adu", size=10)
-
-        self.calibration_widget.fileChanged.connect(on_calibration_change)
-
-        row += 1
-        col = 0
-        layout.addWidget(camera_calibration_label, row, col)
-        col += 1
-        layout.addWidget(self.calibration_widget, row, col)
-
         row += 1
         layout.setRowStretch(row, 1)
 
@@ -505,12 +488,15 @@ class SettingsWindow(Window):
 class PreviewSettingsWindow(Window):
     """Settings for the simple preview window."""
 
+    _allowed_slots_ = Window._allowed_slots_ | {"cmap_name", "cmap_norm", "rotation", "flip", "log_checkbox", "cmap_combobox", "orientation_widget", "mask_checkbox"}
+
     def __init__(self, cmap_name: str, cmap_norm: Normalize, rotation: Rotation, flip: Flip, parent: QWidget | None = None):
+        super().__init__(parent, Qt.WindowType.Dialog)
+
         self.cmap_name: str = cmap_name
         self.cmap_norm: Normalize = cmap_norm
         self.rotation: Rotation = rotation
         self.flip: Flip = flip
-        super().__init__(parent, Qt.WindowType.Dialog)
 
         self.setWindowModality(Qt.WindowModality.WindowModal)
         self.setWindowTitle("Preview Settings")
@@ -574,12 +560,14 @@ class PreviewSettingsWindow(Window):
 class PreviewWindow(Window):
     """Alternate preview window (with orientation control)."""
 
-    def __init__(self, camera: Camera, parent: QWidget | None = None):
-        self.camera = camera
-        # self.camera.sync_settings()
-        self.sample = self.camera.sample
+    _allowed_slots_ = Window._allowed_slots_ | {"_camera", "_sample", "preview_figure_widget", "update_timer", "preview_settings_window"}
 
+    def __init__(self, camera: Camera, parent: QWidget | None = None):
         super().__init__(parent, Qt.WindowType.Dialog)
+
+        self._camera = camera
+        # self.camera.sync_settings()
+        self._sample = self.camera.sample
 
         self.setWindowTitle(f"{self.camera.name} Preview")
 
@@ -616,7 +604,7 @@ class PreviewWindow(Window):
         widget.setLayout(layout)
 
         self._sample = self.camera.sample
-        self.preview_figure_widget = SourceFigureWidget(self.camera.blank, self.camera.clim, parent=self)
+        self.preview_figure_widget = SourceFigureWidget(self.camera.blank, (0, self.camera.pxmax), parent=self)
         if self.preview_figure_widget.toolbar is not None:
             self.preview_figure_widget.toolbar.settingsClicked.connect(self.on_preview_settings_clicked)
             self.preview_figure_widget.toolbar.captureClicked.connect(self.on_preview_capture_clicked)

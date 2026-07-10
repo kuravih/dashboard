@@ -11,6 +11,8 @@ logger = setup_logger("storage_worker", terminator="\n")
 
 
 class SourceStorageWorker(Worker):
+    _allowed_slots_ = Worker._allowed_slots_ | {"signals", "queue", "filename"}
+
     def __init__(self, filename: str, maxsize: int | None = None):
         super().__init__()
         self.queue: Queue[SourceSample | None] = Queue(maxsize=-1 if maxsize is None else maxsize)
@@ -44,6 +46,8 @@ class SourceStorageWorker(Worker):
 
 
 class SinkStorageWorker(Worker):
+    _allowed_slots_ = Worker._allowed_slots_ | {"signals", "queue", "filename"}
+
     def __init__(self, filename: str, maxsize: int | None = None):
         super().__init__()
         self.queue: Queue[SinkSample | None] = Queue(maxsize=-1 if maxsize is None else maxsize)
