@@ -1,5 +1,5 @@
 [project]
-name = "testbed"
+name = "dashboard"
 version = "0.1.0"
 description = "Python dashboard for the testbed"
 readme = "README.md"
@@ -12,10 +12,10 @@ dependencies = [
     "numpy>=2.4.0",
     "matplotlib>=3.10.8",
     "astropy>=7.2.0",
-    "pyzmq>=27.1.0",
     "pyside6>=6.10.1",
     "cloudpickle>=3.1.2",
-    "hcipy>=0.7.0"
+    "pytestbed",
+    "pykato"
 ]
 
 [dependency-groups]
@@ -52,3 +52,7 @@ convention = "google"
 [tool.ruff.format]
 quote-style = "double"
 indent-style = "space"
+
+[tool.uv.sources]
+pykato = { path = "../../pykato", editable = true }
+pytestbed = { path = "../../pytestbed", editable = true }
